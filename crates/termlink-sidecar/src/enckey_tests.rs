@@ -160,3 +160,32 @@ fn e47_sealed_object_is_ciphertext_only_with_wrapper_header() {
     assert_eq!(s.cipher_sha256, hex(&Sha256::digest(&s.obj)));
     assert_eq!(s.obj.len(), tlblob::HEADER_LEN + CANARY.len() + tlblob::TAG_LEN);
 }
+
+// ── T-3713 (P-31): provisioning writes both halves once, then E-144 holds; half pairs and mismatches refused ──
+#[test]
+fn t3713_provision_is_idempotent_and_refuses_half_pairs_e144() {
+    let d = tmp();
+    let store = d.join("store");
+    let reg = d.join("keys").join("fx-a.x25519.pub");
+    let (st, fp, public) = provision(&store, &reg, me_uid()).unwrap();
+    assert_eq!(st, "provisioned");
+    let mode = std::fs::metadata(key_path(&store)).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600, "private key 0600");
+    // E-144: the sidecar's own start check passes in production mode
+    let k = startup(&store, Some(&reg), true, me_uid()).unwrap().expect("configured");
+    assert_eq!(k.0.public_hex(), public);
+    assert_eq!(k.0.fingerprint(), fp);
+    // second run: nothing written
+    let before = std::fs::read(&reg).unwrap();
+    assert_eq!(provision(&store, &reg, me_uid()).unwrap().0, "present");
+    assert_eq!(std::fs::read(&reg).unwrap(), before);
+    // a mismatch is refused, never repaired
+    std::fs::write(&reg, format!("{}\n", "11".repeat(32))).unwrap();
+    assert!(provision(&store, &reg, me_uid()).unwrap_err().contains("FCW-109"));
+    // half pairs are refused
+    std::fs::remove_file(&reg).unwrap();
+    assert!(provision(&store, &reg, me_uid()).unwrap_err().contains("without its register"));
+    let d2 = tmp();
+    let reg2 = write_reg(&d2, "fx-b.x25519.pub", &"22".repeat(32), 0o644);
+    assert!(provision(&d2.join("store"), &reg2, me_uid()).unwrap_err().contains("without the private key"));
+}

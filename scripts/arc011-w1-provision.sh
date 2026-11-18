@@ -128,16 +128,23 @@ apply() {
         local cfg main="${W1_MAIN:-}"
         [ -n "$main" ] || main=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("book") or {}).get("main") or "")' "$ETC/$a.json" 2>/dev/null)
         [ -n "$main" ] || main="$MAIN_DEFAULT"
-        cfg=$(python3 - "$a" "${INST[$a]}" "$HUB_RT/hub.sock" "$hid" "$IDENT/$a.key" "$VARLIB/$a/outbox.sqlite" "$ETC/keys/$a.pub" "$main" "[$roster]" "{$peers}" <<'EOF'
+        # T-3713 (P-31): the encryption key register, once runme action 35 has provisioned it, is part of the config;
+        # rebuilding the config without it would start the sidecar with encryption "not provisioned".
+        local encreg=""
+        [ -e "$ETC/keys/$a.x25519.pub" ] && encreg="$ETC/keys/$a.x25519.pub"
+        cfg=$(python3 - "$a" "${INST[$a]}" "$HUB_RT/hub.sock" "$hid" "$IDENT/$a.key" "$VARLIB/$a/outbox.sqlite" "$ETC/keys/$a.pub" "$main" "[$roster]" "{$peers}" "$encreg" <<'EOF'
 import json, sys
-a, inst, sock, hid, key, queue, reg, main, roster, peers = sys.argv[1:11]
-print(json.dumps({
+a, inst, sock, hid, key, queue, reg, main, roster, peers, encreg = sys.argv[1:12]
+cfg = {
     "agent": a, "instance": inst,
     "hub": {"type": "unix", "path": sock}, "hub_id": hid,
     "key_file": key, "roster": json.loads(roster), "queue_path": queue,
     "key_register": reg,
     "book": {"peers": json.loads(peers), "main": main},
-}, indent=2, sort_keys=True))
+}
+if encreg:
+    cfg["enc_key_register"] = encreg
+print(json.dumps(cfg, indent=2, sort_keys=True))
 EOF
 )
         [ -n "$cfg" ] || { bad "$a: cannot build the config"; continue; }

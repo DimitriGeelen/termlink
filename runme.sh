@@ -783,6 +783,56 @@ adopt_hub_id() {
     while IFS= read -r line; do say "  adopt   $line"; done <<< "$out"
 }
 
+# ---------------------------------------------------------------------------
+# 34. Move aside the test-fixture key card a mutant run left in the live hub's runtime dir (T-3822)
+# Runs BEFORE action 4, so the card-aware hub installed and restarted by 4/5 never loads the fixture card.
+# A T-3704 mutant run of a hub unit test wrote `key-cards.json` (one card `fx-a`, project `p`, key 01..01) and
+# `key-card-check` (`off`) into /var/lib/termlink, because the agent shell exports TERMLINK_RUNTIME_DIR there. The
+# running hub predates key cards, so nothing read them; a card-aware hub (P-31) would. Moved aside ONLY when every
+# card is a fixture (agent `fx-*`), the admin log has no `key-card-put` / `key-card-mode` row, and the setting reads
+# `off`; anything else is left untouched and said so. Idempotent: no store file -> skip. Verified on disk: both files
+# gone from the runtime dir and present in the aside dir.
+# Seams (fixtures only): RUNME_T3822_RT (the hub runtime dir).
+# ---------------------------------------------------------------------------
+seam T3822_RT RUNME_T3822_RT "/var/lib/termlink"
+
+t3822_fixture_store() {  # 0 when every card in the store is a fixture card
+    python3 - "$1" <<'PYEOF' 2>/dev/null
+import json, sys
+d = json.load(open(sys.argv[1]))
+cards = d.get("cards", {})
+sys.exit(0 if cards and all(k.startswith("fx-") and c.get("agent", "").startswith("fx-") for k, c in cards.items()) else 1)
+PYEOF
+}
+
+t3822_move_aside() {
+    local store="$T3822_RT/key-cards.json" mode="$T3822_RT/key-card-check" aside="$T3822_RT/t3822-stray-test-fixtures"
+    if [ ! -e "$store" ]; then
+        say "  skip    no key-card store in $T3822_RT (nothing stray)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if ! t3822_fixture_store "$store"; then
+        say "  skip    $store holds non-fixture cards: real cards, left untouched"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if grep -qE '"event":"key-card-(put|mode)"' "$T3822_RT/rpc-admin.jsonl" 2>/dev/null; then
+        say "  FAILED  the admin log records a card write: not a stray fixture; inspect $store by hand"; FAILED=$((FAILED+1)); return
+    fi
+    if [ -e "$mode" ] && [ "$(tr -d '[:space:]' < "$mode")" != "off" ]; then
+        say "  FAILED  $mode is not 'off': inspect by hand before anything moves"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would move $store and $mode to $aside"; DONE=$((DONE+1)); return
+    fi
+    mkdir -p "$aside" && mv "$store" "$aside/" && { [ ! -e "$mode" ] || mv "$mode" "$aside/"; }
+    if [ ! -e "$store" ] && [ ! -e "$mode" ] && [ -e "$aside/key-cards.json" ]; then
+        say "  OK      stray fixture card store moved to $aside (the hub's card store is empty, the check unset = off)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  move of the stray key-card files did not complete (see $aside)"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "34. Move aside the test-fixture key card in the live hub dir (T-3822)"
+t3822_move_aside
+
 head2 "4. termlink binary — every copy on this host (T-3287, T-3289)"
 install_termlink
 
@@ -831,6 +881,10 @@ w1_restart_onto_binary() {
         if [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then
             say "  skip    $unit already runs the installed binary (pid $pid)"; SKIPPED=$((SKIPPED+1)); continue
         fi
+        # T-3713: 4b runs after 4e now; with a release pinned, 4e owns the units (never move them off it here)
+        if [ -n "$REL_TAG" ]; then
+            say "  skip    $unit runs release $REL_TAG (4e owns it)"; SKIPPED=$((SKIPPED+1)); continue
+        fi
         if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would restart $unit (pid $pid runs older code)"; DONE=$((DONE+1)); continue; fi
         if w1_restart_unit "$unit"; then
             say "  OK      $unit restarted and verified: active, pid $W1_PID runs the installed binary"; DONE=$((DONE+1))
@@ -854,8 +908,8 @@ w1_restart_unit() {
     if [ "$($W1_SYSTEMCTL is-active "$unit" 2>/dev/null)" = "active" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then return 0; fi
     W1_WHY="$unit after restart: not active or not on the installed binary (pid ${pid:-none})"; return 1
 }
-head2 "4b. W1 sidecars onto the installed binary (T-3647, makes T-3646 live)"
-w1_restart_onto_binary
+# T-3703 (P-31 roll-out order): 4b runs AFTER 5, so the hub serves the revocation list before any sidecar
+# with the revocation pull starts (a new sidecar against the old hub would read "hub predates revocation list").
 
 # ---------------------------------------------------------------------------
 # ACTION 4c — re-pin the W1 pair's main, audited (T-3651; T-3359 operator ruling C)
@@ -1414,6 +1468,138 @@ install_hub_unit
 
 head2 "5. Local hub onto the installed binary (T-3290)"
 restart_hub
+
+# ---------------------------------------------------------------------------
+# 35. Credentials for the W1 agents on .107: encryption keys and key cards (T-3713, arc-011 P-31)
+# Per W1 unit (env file in $W1_CONF_DIR: AGENT, SIDECAR_CONFIG, TERMLINK_SIDECAR_STORE, TERMLINK_MAIN_PROJECT):
+#   (a) `termlink sidecar enc-key provision`: mints the X25519 pair once (private 0600 in the agent's store, public in
+#       the root-owned register /etc/termlink-sidecar/keys/<agent>.x25519.pub); an existing matching pair is kept; a
+#       half pair or a mismatch is FAILED, never repaired (a key changes only through an action that names it);
+#   (b) the sidecar config gets `enc_key_register` (backup kept); the unit restarts onto the installed binary when the
+#       config changed, and its status must then read keys.encryption register=match (E-144);
+#   (c) its key card is published at the hub (signing key from the agent's key register, the encryption key, the
+#       instance, project = TERMLINK_MAIN_PROJECT); an existing card with the same keys is kept; one with other keys
+#       is FAILED (replacing a card is its own named action).
+# Runs after 5 (the hub serves key cards) and before 4b. Idempotent: everything present and matching => skip.
+# Seams (fixtures only): RUNME_P31_UNITS, RUNME_P31_TL (the termlink answering enc-key / key-card / status),
+#   RUNME_P31_KEYS_DIR (the key register dir); restarts use 4b's W1 seams.
+# ---------------------------------------------------------------------------
+seam P31_UNITS RUNME_P31_UNITS "$W1_UNITS"
+seam P31_TL RUNME_P31_TL "$W1_BIN"
+seam P31_KEYS_DIR RUNME_P31_KEYS_DIR "/etc/termlink-sidecar/keys"
+
+p31_env_get() { sed -n "s/^$2=//p" "$1" | tail -1; }
+p31_json() {  # <json> <python expression over v>: prints the value or nothing
+    python3 -c 'import json,sys
+try: v=json.loads(sys.argv[1])
+except Exception: sys.exit()
+try: print(eval(sys.argv[2]))
+except Exception: pass' "$1" "$2" 2>/dev/null
+}
+
+p31_credentials() {
+    local unit inst env agent cfg store proj reg out st pub keyreg sig card cur_sig cur_enc changed nfail=0 want_enc
+    if [ -z "$P31_UNITS" ]; then say "  skip    no W1 units configured"; SKIPPED=$((SKIPPED+1)); return; fi
+    for unit in $P31_UNITS; do
+        inst="$(w1_instance_of "$unit")"; env="$W1_CONF_DIR/$inst.env"
+        if [ ! -r "$env" ]; then say "  FAILED  $unit: no env file $env"; FAILED=$((FAILED+1)); continue; fi
+        agent="$(p31_env_get "$env" AGENT)"; cfg="$(p31_env_get "$env" SIDECAR_CONFIG)"
+        store="$(p31_env_get "$env" TERMLINK_SIDECAR_STORE)"; proj="$(p31_env_get "$env" TERMLINK_MAIN_PROJECT)"
+        reg="$P31_KEYS_DIR/$agent.x25519.pub"; keyreg="$P31_KEYS_DIR/$agent.pub"
+        if [ -z "$agent" ] || [ ! -r "$cfg" ] || [ -z "$store" ] || [ -z "$proj" ] || [ ! -r "$keyreg" ]; then
+            say "  FAILED  $unit: env lacks AGENT/SIDECAR_CONFIG/TERMLINK_SIDECAR_STORE/TERMLINK_MAIN_PROJECT or $keyreg is missing"; FAILED=$((FAILED+1)); continue
+        fi
+        sig="ed25519-pub:$(tr -d '[:space:]' < "$keyreg" | tr 'A-F' 'a-f')"
+        # (a) encryption key pair
+        if [ "$DRY_RUN" = "1" ] && [ ! -e "$reg" ]; then
+            say "  [DRY]   would provision $agent's encryption key ($reg), set enc_key_register in $cfg, restart $unit, publish its card"; DONE=$((DONE+1)); continue
+        fi
+        if ! out="$("$P31_TL" sidecar enc-key provision --agent "$agent" --store-root "$store" --register "$reg" 2>&1)"; then
+            say "  FAILED  $agent: enc-key provision refused: $(printf '%s' "$out" | tail -1)"; FAILED=$((FAILED+1)); continue
+        fi
+        st="$(p31_json "$out" 'v["state"]')"; pub="$(p31_json "$out" 'v["public"]')"
+        [ "$st" = provisioned ] && { say "  OK      $agent: encryption key provisioned (register $reg)"; DONE=$((DONE+1)); }
+        want_enc="x25519-pub:$pub"
+        # (b) config points at the register
+        changed=0
+        if [ "$(p31_json "$(cat "$cfg")" 'v.get("enc_key_register","")')" != "$reg" ]; then
+            cp -p "$cfg" "$cfg.bak-$(date -u +%Y%m%dT%H%M%SZ)-t3713"
+            python3 -c 'import json,sys
+p,r=sys.argv[1],sys.argv[2]; v=json.load(open(p)); v["enc_key_register"]=r
+t=p+".tmp"; open(t,"w").write(json.dumps(v,indent=2)); import os; os.replace(t,p)' "$cfg" "$reg" || { say "  FAILED  $agent: could not write $cfg"; FAILED=$((FAILED+1)); continue; }
+            changed=1
+        fi
+        if [ "$changed" = 1 ]; then
+            if [ -n "$REL_TAG" ]; then
+                say "  FAILED  $agent: config changed but release $REL_TAG is pinned (4e owns the unit); restart it through 4e"; FAILED=$((FAILED+1)); continue
+            fi
+            if ! w1_restart_unit "$unit"; then say "  FAILED  $W1_WHY"; FAILED=$((FAILED+1)); continue; fi
+            say "  OK      $agent: $cfg names its register; $unit restarted (pid $W1_PID)"; DONE=$((DONE+1))
+        fi
+        out="$(TERMLINK_SIDECAR_STATUS_SOCKET="$W1_SOCK_DIR/$agent.status.sock" "$P31_TL" sidecar status --json 2>/dev/null)"
+        if [ "$(p31_json "$out" 'v["keys"]["encryption"]["register"]')" != "match" ]; then
+            say "  FAILED  $agent: status does not read keys.encryption register=match after provisioning (E-144)"; FAILED=$((FAILED+1)); continue
+        fi
+        # (c) key card
+        card="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$P31_TL" hub key-card get "$agent" --json 2>/dev/null)"
+        cur_sig="$(p31_json "$card" '(v.get("card") or {}).get("signing_key","")')"
+        cur_enc="$(p31_json "$card" '(v.get("card") or {}).get("encryption_key") or ""')"
+        if [ "$cur_sig" = "$sig" ] && [ "$cur_enc" = "$want_enc" ]; then
+            [ "$st" = present ] && [ "$changed" = 0 ] && { say "  skip    $agent: key pair, register in config, status match and card already in place"; SKIPPED=$((SKIPPED+1)); }
+            continue
+        fi
+        if [ -n "$cur_sig" ]; then
+            say "  FAILED  $agent: the hub already holds a card with other keys ($cur_sig); replacing a card is its own named action"; FAILED=$((FAILED+1)); continue
+        fi
+        if ! out="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$P31_TL" hub key-card put --agent "$agent" --project "$proj" --signing-key "$sig" \
+                --encryption-key "$want_enc" --instance "$inst" --json 2>&1)"; then
+            say "  FAILED  $agent: key-card put refused: $(printf '%s' "$out" | tail -1)"; FAILED=$((FAILED+1)); continue
+        fi
+        card="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$P31_TL" hub key-card get "$agent" --json 2>/dev/null)"
+        if [ "$(p31_json "$card" 'v["card"]["signing_key"]')" = "$sig" ] && [ "$(p31_json "$card" 'v["card"]["encryption_key"]')" = "$want_enc" ]; then
+            say "  OK      $agent: key card published (project $proj, $sig)"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $agent: key-card put answered but the hub's card does not hold the keys"; FAILED=$((FAILED+1))
+        fi
+    done
+}
+
+# ---------------------------------------------------------------------------
+# 36. Key-card check -> log, once every W1 card is published (T-3713; T-3704 design v2 O-M4)
+# `log` refuses nothing: a post failing the card check is stored and counted (admin row, refusal counts). The
+# move to `enforce` is a later action, only after 7 days of log with zero false refusals. Never moves backwards:
+# a setting already `log` or `enforce` is kept. Verified on disk via `hub key-card list`.
+# ---------------------------------------------------------------------------
+p31_mode_log() {
+    local list mode agent missing="" unit inst
+    if [ -z "$P31_UNITS" ]; then say "  skip    no W1 units configured"; SKIPPED=$((SKIPPED+1)); return; fi
+    list="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$P31_TL" hub key-card list --json 2>/dev/null)"
+    mode="$(p31_json "$list" 'v["mode"]')"
+    if [ -z "$mode" ]; then say "  FAILED  hub key-card list did not answer (is the hub on a card-aware binary?)"; FAILED=$((FAILED+1)); return; fi
+    if [ "$mode" != off ]; then say "  skip    key-card check already '$mode' (never moved backwards here)"; SKIPPED=$((SKIPPED+1)); return; fi
+    for unit in $P31_UNITS; do
+        inst="$(w1_instance_of "$unit")"; agent="$(p31_env_get "$W1_CONF_DIR/$inst.env" AGENT)"
+        [ -n "$(p31_json "$list" '[c for c in v["cards"] if c["agent"]=="'"$agent"'"][0]["agent"]')" ] || missing="$missing $agent"
+    done
+    if [ -n "$missing" ]; then say "  skip    cards not yet published for:$missing (the check stays off)"; SKIPPED=$((SKIPPED+1)); return; fi
+    if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would set the key-card check to log"; DONE=$((DONE+1)); return; fi
+    TERMLINK_RUNTIME_DIR="$HUB_RT" "$P31_TL" hub key-card mode log --json > /tmp/.runme-p31-mode 2>&1
+    list="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$P31_TL" hub key-card list --json 2>/dev/null)"
+    if [ "$(p31_json "$list" 'v["mode"]')" = log ]; then
+        say "  OK      key-card check is now 'log' (counts, refuses nothing); enforce comes after 7 clean days"; DONE=$((DONE+1))
+    else
+        say "  FAILED  key-card check did not move to log: $(tail -1 /tmp/.runme-p31-mode)"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "35. Encryption keys and key cards for the W1 agents (T-3713, arc-011 P-31)"
+p31_credentials
+
+head2 "36. Key-card check to log once the W1 cards are published (T-3713)"
+p31_mode_log
+
+head2 "4b. W1 sidecars onto the installed binary (T-3647, makes T-3646 live)"
+w1_restart_onto_binary
 
 # ---------------------------------------------------------------------------
 # ACTION 5b — acknowledge hub flap residue (T-3587; operator ruling 2026-10-26)
@@ -4312,6 +4498,7 @@ revocations_apply() {
 
 head2 "33. Revoke the agent keys you ruled on (T-3703)"
 revocations_apply
+
 
 head2 "Verification"
 if [ "$DRY_RUN" = "1" ]; then

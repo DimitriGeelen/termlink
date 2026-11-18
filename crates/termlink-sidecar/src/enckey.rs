@@ -123,6 +123,64 @@ pub fn load_key(path: &Path, production: bool) -> Result<EncKey, String> {
     }
 }
 
+/// T-3713 (P-31): provision one agent's encryption key pair, the runme action's only writer. Idempotent:
+/// - neither half present: mint the private key (0600, in the store) and write the register (0644, `owner_uid`);
+/// - both present and matching: nothing written (`present`);
+/// - a half pair, or a mismatch: refused (FCW-109/110): a key changes only through a runme action that names it.
+///
+/// Returns `(state, fingerprint, public hex)`, state `provisioned` or `present`.
+pub fn provision(store_dir: &Path, reg: &Path, owner_uid: u32) -> Result<(&'static str, String, String), String> {
+    let kp = key_path(store_dir);
+    let have_key = std::fs::symlink_metadata(&kp).is_ok();
+    let have_reg = std::fs::symlink_metadata(reg).is_ok();
+    match (have_key, have_reg) {
+        (true, true) => {
+            let k = load_key(&kp, true)?;
+            let want = read_register(reg, owner_uid)?;
+            if k.public().as_bytes() != &want {
+                return Err(format!(
+                    "encryption key {} does not match the register {} (FCW-109); not changed: a key changes only through a runme action that names the change",
+                    kp.display(),
+                    reg.display()
+                ));
+            }
+            Ok(("present", k.fingerprint(), k.public_hex()))
+        }
+        (false, false) => {
+            let k = load_key(&kp, false)?; // mints, 0600, create_new
+            if let Some(d) = reg.parent() {
+                std::fs::create_dir_all(d).map_err(|e| format!("register dir {}: {e}", d.display()))?;
+            }
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o644)
+                .open(reg)
+                .map_err(|e| format!("register {}: {e}", reg.display()))?;
+            f.write_all(format!("{}\n", k.public_hex()).as_bytes())
+                .and_then(|_| f.sync_all())
+                .map_err(|e| format!("register {}: {e}", reg.display()))?;
+            std::fs::set_permissions(reg, std::fs::Permissions::from_mode(0o644)).map_err(|e| format!("register {}: {e}", reg.display()))?;
+            // the same check the sidecar makes at start (E-144)
+            let back = read_register(reg, owner_uid)?;
+            if &back != k.public().as_bytes() {
+                return Err(format!("register {} does not read back the key just written", reg.display()));
+            }
+            Ok(("provisioned", k.fingerprint(), k.public_hex()))
+        }
+        (true, false) => Err(format!(
+            "{} exists without its register {}: not guessing; name the change in a runme action",
+            kp.display(),
+            reg.display()
+        )),
+        (false, true) => Err(format!(
+            "register {} exists without the private key {}: not guessing; name the change in a runme action",
+            reg.display(),
+            kp.display()
+        )),
+    }
+}
+
 /// Read a register entry (FCW-110): it must exist, be a regular file (not a link) owned by `owner_uid`, not
 /// group- or world-writable, and hold a 32-byte public key as 64 hex or base64.
 pub fn read_register(reg: &Path, owner_uid: u32) -> Result<[u8; 32], String> {

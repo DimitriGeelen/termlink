@@ -102,6 +102,15 @@ check "6b running without the expected supervisor is FAILED" '[ $rc = 1 ] && gre
 out=$(FAKE_MODE=estate bash "$SUT" --apply 2>&1); rc=$?
 check "6c a sidecar not in production mode is FAILED" '[ $rc = 1 ] && grep -q "does not answer in production mode" <<< "$out"'
 
+# 7 T-3713: once runme action 35 has provisioned an encryption register, a rebuilt config keeps it
+check "7a no encryption register yet: the config names none" \
+    'python3 -c "import json,sys; sys.exit(0 if \"enc_key_register\" not in json.load(open(\"$T/etc/claude-termlink.json\")) else 1)"'
+echo "abababababababababababababababababababababababababababababababab" > "$T/etc/keys/claude-termlink.x25519.pub"
+out=$(bash "$SUT" --apply 2>&1); rc=$?
+check "7b a provisioned encryption register stays in the rebuilt config (T-3713)" \
+    'python3 -c "import json,sys; c=json.load(open(\"$T/etc/claude-termlink.json\")); sys.exit(0 if c.get(\"enc_key_register\",\"\").endswith(\"keys/claude-termlink.x25519.pub\") else 1)" && python3 -c "import json,sys; sys.exit(0 if \"enc_key_register\" not in json.load(open(\"$T/etc/claude-termlink-alt.json\")) else 1)"'
+rm -f "$T/etc/keys/claude-termlink.x25519.pub"
+
 echo "---"
 echo "arc011-w1-provision fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

@@ -2,12 +2,14 @@
 id: T-3713
 name: "P-31: credential migration on .107"
 description: >
-  arc-011 plan unit P-31 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): Credential migration on .107: hub id and signing key minted from the existing certificate, encryption keys for every W-agent, key cards published
+  arc-011 plan unit P-31 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): Credential migration on .107: hub id and signing key minted
+  from the existing certificate, encryption keys for every W-agent, key cards published
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357, T-3366, T-3696, T-3704]
@@ -42,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:51Z
-last_update: 2026-11-12T16:56:51Z
-date_finished: null
+last_update: '2026-11-18T19:02:30Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +56,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-18T19:02:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 5
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=5 (L3:keyword=rollback,L5:keyword=runme action);
+      D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0
+      (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3713: P-31: credential migration on .107
@@ -91,11 +113,7 @@ Unblocks: part of gate G-2 (the T1 release installed on .107).
 - [ ] Status `hub {id, declared, match}` reads true
 - [ ] The action is idempotent, verifies itself on disk and has a hermetic case in `tests/runme-fixtures.sh`
 - [ ] (from T-3704 design v2 O-M4) after cards are published the key-card check moves to `log`, and to `enforce` only after 7 days of log with zero false refusal; each move is a runme action with an admin row
-- [ ] (from T-3704 r3 dispositions) receiver half live: with named rosters on the W1 pair, a forged post claiming a bound name is refused at the receiver with the hub check off
-- [ ] (from T-3704 r3) sidecar `key-card-written` entry keyed on (agent, seq, signing key); attention on a `hub.key_card_list` error and on a `key-card-mode` change; last-seen persisted so a fresh sidecar raises nothing for existing cards
-- [ ] (from T-3704 r3) the setting file baselined like the store digest (an outside change while running is refused or raises attention); the card's own key exempt from the 16-signer cap
-- [ ] (from T-3703 r3 CC N3) an attempt whose claim has no attempt record after a sidecar restart is closed by `recover()` and the revocation sweep re-run; crash test through the real deliver path shows a stored message from a revoked key ends REFUSED with its notice
-- [ ] (from T-3703 r3 CC N5 / OC 4) the hub caches the committed-key set by the admin log's stamp during a pending reconcile and keys its list cache on the list digest too; the sidecar's no-snapshot fallback caches by (len, mtime)
+- [ ] The five code follow-ups from the T-3704 and T-3703 reviews (receiver roster live, card attention keys, setting baseline, orphan claims after restart, caches) are closed in T-3823 before the key-card check moves to `enforce` (split 2026-11-18: this task is the deployment)
 - [ ] (from T-3703, roll-out) the hub binary with the revocation list (T-3703) is live on .107 before any sidecar with the pull; `termlink hub revocation show --head` answers seq 0 signed; each W1 sidecar's status reads `verified seq 0 at …`
 - [ ] The latest runme log shows the action OK and `finished rc=0`
 
@@ -401,3 +419,7 @@ Unblocks: part of gate G-2 (the T1 release installed on .107).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3713-p-31-credential-migration-on-107.md
 - **Context:** Initial task creation
+
+### 2026-11-18T19:02:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

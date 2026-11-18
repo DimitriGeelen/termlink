@@ -101,6 +101,30 @@ fn hub_id_main(socket: &std::path::Path) -> i32 {
     }
 }
 
+fn enc_key_provision_main(agent: &str, root: &std::path::Path, reg: Option<&std::path::Path>) -> i32 {
+    if !crate::wire::plain_agent_name(agent) {
+        eprintln!("enc-key provision: agent {agent:?} is not a plain agent name");
+        return 2;
+    }
+    let store_dir = root.join("sidecar").join(agent);
+    let reg = reg.map(std::path::Path::to_path_buf).unwrap_or_else(|| crate::enckey::default_register(agent));
+    let uid = unsafe { libc::geteuid() };
+    match crate::enckey::provision(&store_dir, &reg, uid) {
+        Ok((state, fp, public)) => {
+            println!(
+                "{}",
+                serde_json::json!({"ok": true, "agent": agent, "state": state, "fingerprint": fp, "public": public,
+                    "register": reg.display().to_string(), "key": crate::enckey::key_path(&store_dir).display().to_string()})
+            );
+            0
+        }
+        Err(e) => {
+            eprintln!("enc-key provision: {e}");
+            1
+        }
+    }
+}
+
 /// Run one verb; returns the process exit code. `prefix` is what precedes the
 /// verb on this binary's command line (see the module comment).
 pub fn run(prefix: &[&str], args: &[String]) -> i32 {
@@ -129,6 +153,11 @@ pub fn run(prefix: &[&str], args: &[String]) -> i32 {
         // PH-2 row P9 (ruling P9-1 A): install the embedded supervise script, unit
         // template and backstop crontab; --system also installs unit + crontab.
         ["tools", "install", rest @ ..] => tools_install_main(rest),
+        // T-3713 (P-31): provision an agent's X25519 pair (runme is the caller). Prints one JSON line.
+        ["enc-key", "provision", "--agent", agent, "--store-root", root] => enc_key_provision_main(agent, std::path::Path::new(root), None),
+        ["enc-key", "provision", "--agent", agent, "--store-root", root, "--register", reg] => {
+            enc_key_provision_main(agent, std::path::Path::new(root), Some(std::path::Path::new(reg)))
+        }
         ["hook", event] => hook::main_hook(event),
         ["hook", event, "--tool", t] => hook::main_hook_with(event, Some(t)),
         ["finalize", "--nonce", n] => hook::main_finalize(n),

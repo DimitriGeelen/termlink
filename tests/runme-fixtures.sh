@@ -446,6 +446,54 @@ esac
 EOS
 chmod +x "$RV/termlink"
 export RUNME_REVOKE_TL="$RV/termlink" RUNME_REVOKE_ROWS=""
+# T-3822 action 34: a scratch hub runtime dir. Default: empty (no stray store), so ordinary runs skip.
+T22="$TMP/t3822"; mkdir -p "$T22"
+export RUNME_T3822_RT="$T22"
+# T-3713 actions 35/36: a fake termlink for `sidecar enc-key provision`, `sidecar status`, `hub key-card get|put|list|mode`,
+# its state in files under $P3. Default: no units, so ordinary runs skip both.
+P3="$TMP/p31"; mkdir -p "$P3/keys" "$P3/store"
+cat > "$P3/tl" <<EOS
+#!/usr/bin/env bash
+D="$P3"; echo "\$*" >> "\$D/calls"
+arg() { local k="\$1"; shift; while [ \$# -gt 0 ]; do [ "\$1" = "\$k" ] && { echo "\$2"; return; }; shift; done; }
+case "\$1 \$2" in
+  "sidecar enc-key")
+    [ "\${FAKE_P31_PROV:-}" = refuse ] && { echo "enc-key provision: register exists without the private key" >&2; exit 1; }
+    a=\$(arg --agent "\$@"); r=\$(arg --register "\$@")
+    if [ -e "\$r" ]; then st=present; else echo "ab\$(printf 'cd%.0s' \$(seq 31))" > "\$r"; st=provisioned; fi
+    printf '{"ok":true,"agent":"%s","state":"%s","fingerprint":"x25519:f","public":"%s"}\n' "\$a" "\$st" "\$(cat "\$r")" ;;
+  "sidecar status")
+    a=\$(basename "\$TERMLINK_SIDECAR_STATUS_SOCKET" .status.sock)
+    if [ "\${FAKE_P31_STATUS:-}" = nomatch ]; then echo '{"ok":true,"keys":{"encryption":{"state":"unknown"}}}'
+    else echo '{"ok":true,"keys":{"encryption":{"register":"match"}}}'; fi ;;
+  "hub key-card")
+    case "\$3" in
+      get) if [ -f "\$D/card.\$4" ]; then printf '{"card":%s}\n' "\$(cat "\$D/card.\$4")"; else echo '{"card":null}'; fi ;;
+      put) a=\$(arg --agent "\$@"); printf '{"agent":"%s","signing_key":"%s","encryption_key":"%s"}' "\$a" "\$(arg --signing-key "\$@")" "\$(arg --encryption-key "\$@")" > "\$D/card.\$a"; echo '{"ok":true}' ;;
+      list) m=\$(cat "\$D/mode" 2>/dev/null || echo off); cards=\$(cat "\$D"/card.* 2>/dev/null | paste -sd, -); printf '{"mode":"%s","cards":[%s]}\n' "\$m" "\$cards" ;;
+      mode) echo "\$4" > "\$D/mode"; echo '{"ok":true}' ;;
+    esac ;;
+  *) exit 4 ;;
+esac
+EOS
+chmod +x "$P3/tl"
+export RUNME_P31_UNITS="" RUNME_P31_TL="$P3/tl" RUNME_P31_KEYS_DIR="$P3/keys"
+p3_seed() {  # fresh scratch state for one W1-like unit `termlink-sidecar@u-p31.service`, agent fx-p
+    rm -rf "$P3/keys" "$P3/store" "$P3"/card.* "$P3/mode" "$P3/calls" "$P3/fx-p.json"*; mkdir -p "$P3/keys" "$P3/store"
+    printf '%s\n' "$(printf '12%.0s' $(seq 32))" > "$P3/keys/fx-p.pub"
+    echo '{"agent":"fx-p","key_register":"'"$P3"'/keys/fx-p.pub"}' > "$P3/fx-p.json"
+    printf 'AGENT=fx-p\nSIDECAR_CONFIG=%s\nSIDECAR_BIN=%s\nTERMLINK_SIDECAR_STORE=%s\nTERMLINK_MAIN_PROJECT=010-termlink\n' "$P3/fx-p.json" "$W1R/termlink-new" "$P3/store" > "$W1R/conf/u-p31.env"
+    # the later fake systemctl (4e cases) re-reads SIDECAR_BIN from conf/<unit>.env on restart, as systemd does
+    cp "$W1R/conf/u-p31.env" "$W1R/conf/termlink-sidecar@u-p31.service.env"
+    return 0
+}
+t22_seed() {  # <agent> <mode-content> [admin-row]
+    rm -rf "$T22"; mkdir -p "$T22"
+    printf '{"schema":"termlink.key-cards/1","cards":{"%s":{"agent":"%s","project":"p","signing_key":"ed25519-pub:%s","seq":3}}}' "$1" "$1" "$(printf '01%.0s' $(seq 32))" > "$T22/key-cards.json"
+    printf '%s\n' "$2" > "$T22/key-card-check"
+    [ -n "${3:-}" ] && printf '%s\n' "$3" > "$T22/rpc-admin.jsonl"
+    return 0
+}
 RV_ROW="fx-a|010-termlink|d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a|drill (fixture)|key exposed"
 RV_FP="ed25519:21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
 # T-3685 action 28: a fake `su - testdev -c` that answers OK only for the GOOD token in the
@@ -1096,7 +1144,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 54 ))   # +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 57 ))   # +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3356,11 +3404,12 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main runs v9.9.1 but status 
     ok "T-3698: status binary not verified => FAILED, rc 1 (checked every run)"
 else bad "T-3698 status no" "rc=$rc: $x"; fi
 
-# Restart: a unit found on old code is put back on the release (4b does it, 4e then verifies).
+# Restart: a unit found on old code is put back on the release. Since T-3713 4b runs after 4e and leaves units to
+# 4e while a release is pinned, so 4e itself restarts it onto the release and verifies it; 4b then skips it.
 w1_unit u-alt 77 termlink-old
 out=$(RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out"); y=$(s4b "$out")
-if [ "$rc" = 0 ] && echo "$y" | grep_all 'OK      u-alt restarted and verified: active, pid 177 runs the installed binary' \
-   && echo "$x" | grep_all 'skip    u-alt already runs v9.9.1 (pid 177); status binary verified'; then
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      u-alt: runs v9.9.1 (pid 177), status binary verified' \
+   && ! echo "$y" | grep -q 'u-alt restarted'; then
     ok "T-3698: restart => a unit on old code goes back onto the selected release and is verified"
 else bad "T-3698 restart" "rc=$rc: $x $y"; fi
 
@@ -3643,6 +3692,70 @@ if echo "$x" | grep_all "skip    fx-a: key $RV_FP already revoked" && [ "$(grep 
     ok "33: second run skips (idempotent)"
 else bad "33 idempotent" "$x"; fi
 rv_seed
+
+# ---------------------------------------------------------------------------
+# T-3822 action 34 — move aside the stray fixture key card in the live hub dir.
+# ---------------------------------------------------------------------------
+s34() { echo "$1" | sed -n '/^.*34\. Move aside the test-fixture key card/,/^.*4\. termlink binary/p'; }
+rm -rf "$T22"; mkdir -p "$T22"; out=$(run); x=$(s34 "$out")
+if echo "$x" | grep_all 'skip    no key-card store in'; then ok "34: no store => skip"; else bad "34 none" "$x"; fi
+t22_seed fx-a off; out=$(run --dry-run); x=$(s34 "$out")
+if echo "$x" | grep_all '\[DRY\]   would move' && [ -e "$T22/key-cards.json" ]; then ok "34: --dry-run names the move, moves nothing"; else bad "34 dry" "$x"; fi
+t22_seed claude-termlink off; out=$(run); x=$(s34 "$out")
+if echo "$x" | grep_all 'holds non-fixture cards: real cards, left untouched' && [ -e "$T22/key-cards.json" ]; then ok "34: real cards are never moved"; else bad "34 real" "$x"; fi
+t22_seed fx-a off '{"event":"key-card-put","agent":"fx-a"}'; out=$(run); rc=$?; x=$(s34 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  the admin log records a card write' && [ -e "$T22/key-cards.json" ]; then ok "34: a logged card write => FAILED, nothing moved"; else bad "34 logged" "rc=$rc: $x"; fi
+t22_seed fx-a enforce; out=$(run); rc=$?; x=$(s34 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "is not 'off': inspect by hand" && [ -e "$T22/key-cards.json" ]; then ok "34: a setting other than off => FAILED, nothing moved"; else bad "34 mode" "rc=$rc: $x"; fi
+t22_seed fx-a off; out=$(run); x=$(s34 "$out")
+if echo "$x" | grep_all 'OK      stray fixture card store moved to' && [ ! -e "$T22/key-cards.json" ] && [ ! -e "$T22/key-card-check" ] && [ -e "$T22/t3822-stray-test-fixtures/key-cards.json" ]; then
+    ok "34: moves both files aside and verifies it on disk"
+else bad "34 move" "$x"; fi
+out=$(run); x=$(s34 "$out")
+if echo "$x" | grep_all 'skip    no key-card store in'; then ok "34: second run skips (idempotent)"; else bad "34 idem" "$x"; fi
+rm -rf "$T22"; mkdir -p "$T22"
+
+# ---------------------------------------------------------------------------
+# T-3713 actions 35/36 — W1 encryption keys, key cards, check to log.
+# ---------------------------------------------------------------------------
+s35() { echo "$1" | sed -n '/^.*35\. Encryption keys and key cards/,/^.*36\. Key-card check/p'; }
+s36() { echo "$1" | sed -n '/^.*36\. Key-card check to log/,/^.*4b\. W1 sidecars/p'; }
+P3U="termlink-sidecar@u-p31.service"
+out=$(run); x=$(s35 "$out"); y=$(s36 "$out")
+if echo "$x" | grep_all 'skip    no W1 units configured' && echo "$y" | grep_all 'skip    no W1 units configured'; then ok "35/36: no units => skip"; else bad "35 none" "$x / $y"; fi
+p3_seed; out=$(RUNME_P31_UNITS="$P3U" run --dry-run); x=$(s35 "$out")
+if echo "$x" | grep_all "\[DRY\]   would provision fx-p's encryption key" && [ ! -e "$P3/keys/fx-p.x25519.pub" ]; then ok "35: --dry-run names it, writes nothing"; else bad "35 dry" "$x"; fi
+p3_seed; rm -f "$W1R/restarts"; w1_unit "$P3U" 7021 termlink-old
+out=$(RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s35 "$out"); y=$(s36 "$out")
+if echo "$x" | grep_all 'OK      fx-p: encryption key provisioned' && echo "$x" | grep_all "names its register; $P3U restarted" \
+   && echo "$x" | grep_all 'OK      fx-p: key card published (project 010-termlink' && grep -q '"enc_key_register"' "$P3/fx-p.json" \
+   && ls "$P3"/fx-p.json.bak-*-t3713 >/dev/null 2>&1 && grep -q 'x25519-pub:abcd' "$P3/card.fx-p" \
+   && echo "$y" | grep_all "OK      key-card check is now 'log'" && [ "$(cat "$P3/mode")" = log ]; then
+    ok "35/36: provisions, points the config at the register, restarts, verifies E-144, publishes the card, check to log"
+else bad "35 full" "rc=$rc: $x / $y / $(cat "$P3/calls")"; fi
+out=$(RUNME_P31_UNITS="$P3U" run); x=$(s35 "$out"); y=$(s36 "$out")
+if echo "$x" | grep_all 'skip    fx-p: key pair, register in config, status match and card already in place' \
+   && echo "$y" | grep_all "skip    key-card check already 'log'" && [ "$(grep -c 'key-card put' "$P3/calls")" = 1 ]; then
+    ok "35/36: second run skips (idempotent; never moves the check backwards)"
+else bad "35 idem" "$x / $y"; fi
+p3_seed; w1_unit "$P3U" 7041 termlink-new
+printf '{"agent":"fx-p","signing_key":"ed25519-pub:%s","encryption_key":"x25519-pub:00"}' "$(printf '99%.0s' $(seq 32))" > "$P3/card.fx-p"
+out=$(RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s35 "$out"); y=$(s36 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: the hub already holds a card with other keys' && ! grep -q 'key-card put' "$P3/calls"; then
+    ok "35: a card with other keys is FAILED, never replaced"
+else bad "35 other card" "rc=$rc: $x"; fi
+p3_seed; w1_unit "$P3U" 7051 termlink-new
+out=$(FAKE_P31_PROV=refuse RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s35 "$out"); y=$(s36 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: enc-key provision refused: enc-key provision: register exists without the private key' \
+   && echo "$y" | grep_all 'skip    cards not yet published for: fx-p (the check stays off)'; then
+    ok "35/36: a refused provision is FAILED and the check stays off"
+else bad "35 refuse" "rc=$rc: $x / $y"; fi
+p3_seed; w1_unit "$P3U" 7031 termlink-new
+out=$(FAKE_P31_STATUS=nomatch RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s35 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: status does not read keys.encryption register=match after provisioning (E-144)' && [ ! -e "$P3/card.fx-p" ]; then
+    ok "35: E-144 not met => FAILED, no card published"
+else bad "35 e144" "rc=$rc: $x"; fi
+p3_seed; rm -f "$W1R/conf/u-p31.env" "$W1R/conf/termlink-sidecar@u-p31.service.env"
 
 echo ""
 echo "----------------------------------------"
