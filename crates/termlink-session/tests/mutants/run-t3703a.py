@@ -5,6 +5,7 @@ Run from the repo root:  python3 crates/termlink-session/tests/mutants/run-t3703
 Writes a table to stdout; exit 0 only if every mutant is killed and the unmutated suite passes.
 """
 import os
+import tempfile
 import subprocess
 import sys
 
@@ -31,9 +32,14 @@ MUTANTS = [
 CMD = ["cargo", "test", "-p", "termlink-session", "--test", "t3703_signed_state"]
 
 
+SCRATCH_RT = tempfile.mkdtemp(prefix="t3703-mutants-rt.")
+
+
 def run():
     env = dict(os.environ)
     env.pop("PROJECT_ROOT", None)
+    # T-3822: never let a mutant write into a live hub's runtime dir
+    env["TERMLINK_RUNTIME_DIR"] = SCRATCH_RT
     r = subprocess.run(CMD, env=env, capture_output=True, text=True)
     return r.returncode, r.stdout + r.stderr
 

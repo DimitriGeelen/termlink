@@ -209,10 +209,32 @@ fn load(dir: &Path) -> Result<Store, String> {
     Ok(s)
 }
 
+/// T-3822: true for a directory a real hub runs in: the canonical `/var/lib/termlink` and the legacy
+/// `/tmp/termlink-<uid>` (T-1290). Test builds refuse to write hub state there.
+pub(crate) fn is_production_runtime_dir(dir: &Path) -> bool {
+    let canon = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+    [dir, canon.as_path()].iter().any(|d| {
+        *d == Path::new("/var/lib/termlink")
+            || d.parent() == Some(Path::new("/tmp"))
+                && d.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_prefix("termlink-")).is_some_and(|u| {
+                    !u.is_empty() && u.bytes().all(|b| b.is_ascii_digit())
+                })
+    })
+}
+
+/// T-3822 (T-3293 class): in a test build, writing hub state into a production runtime dir is a bug in the test
+/// (the agent shell exports `TERMLINK_RUNTIME_DIR=/var/lib/termlink`); refuse it loudly. No-op in real builds.
+pub(crate) fn guard_test_write(dir: &Path) {
+    if cfg!(test) && is_production_runtime_dir(dir) {
+        panic!("T-3822: a test tried to write hub state into the production runtime dir {}; set TERMLINK_RUNTIME_DIR to a scratch dir", dir.display());
+    }
+}
+
 fn atomic_write(path: &Path, bytes: &[u8], mode: u32) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    guard_test_write(dir);
     let tmp = dir.join(format!(".{}.tmp.{}", path.file_name().and_then(|n| n.to_str()).unwrap_or("f"), std::process::id()));
     {
         let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(mode).open(&tmp)?;
@@ -746,5 +768,19 @@ mod tests {
         assert!(!first_in_minute("t-agent", "fp1", 120_500, true));
         assert!(first_in_minute("t-agent", "fp2", 120_600, true));
         assert!(first_in_minute("t-agent", "fp1", 180_000, true), "a new minute logs again");
+    }
+
+    /// T-3822: a test can never write hub state into a production runtime dir (the stray `fx-a` card).
+    #[test]
+    fn t3822_test_builds_refuse_writes_into_a_production_runtime_dir() {
+        assert!(super::is_production_runtime_dir(Path::new("/var/lib/termlink")));
+        assert!(super::is_production_runtime_dir(Path::new("/tmp/termlink-0")));
+        assert!(!super::is_production_runtime_dir(Path::new("/tmp/termlink-test-x")));
+        assert!(!super::is_production_runtime_dir(Path::new("/tmp/termlink-0/sub")));
+        assert!(!super::is_production_runtime_dir(&std::env::temp_dir().join("t3822-scratch")));
+        let r = std::panic::catch_unwind(|| super::guard_test_write(Path::new("/var/lib/termlink")));
+        assert!(r.is_err(), "the guard refuses");
+        let d = tempfile::tempdir().unwrap();
+        super::guard_test_write(d.path()); // a scratch dir is fine
     }
 }

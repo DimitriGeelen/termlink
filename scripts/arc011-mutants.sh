@@ -56,13 +56,17 @@ fi
 [ -n "${TERMLINK_BIN:-}" ] && [ -x "$TERMLINK_BIN" ] || { echo "arc011-mutants: no termlink binary for the throwaway hub (build it or set TERMLINK_BIN)" >&2; exit 2; }
 export TERMLINK_BIN
 export CARGO_TARGET_DIR="${ARC011_MUTANTS_TARGET:-$ROOT/target/arc011-mutants}"
+# T-3822: a mutant can turn a refused write into a real one; never let it reach a live hub's runtime dir (the agent
+# shell exports TERMLINK_RUNTIME_DIR=/var/lib/termlink). Every mutant run gets a scratch runtime dir.
+TERMLINK_RUNTIME_DIR="$(mktemp -d "${TMPDIR:-/tmp}/arc011-mutants-rt.XXXXXX")"
+export TERMLINK_RUNTIME_DIR
 
 shopt -s nullglob
 patches=("$MUT_DIR"/*.patch)
 [ "${#patches[@]}" -gt 0 ] || { echo "arc011-mutants: no patches in $MUT_DIR" >&2; exit 2; }
 
 SCRATCH="$(mktemp -d /tmp/arc011-mutants.XXXXXX)" || exit 2
-trap 'rm -rf "$SCRATCH"' EXIT
+trap 'rm -rf "$SCRATCH" "$TERMLINK_RUNTIME_DIR"' EXIT
 mkdir -p "$SCRATCH/tests"
 cp -a Cargo.toml Cargo.lock "$SCRATCH/" || exit 2
 [ -d .cargo ] && cp -a .cargo "$SCRATCH/"

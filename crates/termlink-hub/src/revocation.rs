@@ -116,6 +116,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    crate::key_card::guard_test_write(dir);
     let tmp = dir.join(format!(".{LIST_FILE}.tmp.{}", std::process::id()));
     {
         let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o644).open(&tmp)?;
