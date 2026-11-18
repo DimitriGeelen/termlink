@@ -1,6 +1,6 @@
 # T-3703 mutants (FP 3.1.b)
 
-Runners: `crates/termlink-session/tests/mutants/run-t3703a.py` (slice A), `run-t3703b.py [id ...]` (slice B). Each applies one change, runs the slice's tests, restores the file; a compile error is not a kill.
+Runners: `crates/termlink-session/tests/mutants/run-t3703a.py` (slice A), `run-t3703b.py [id ...]` (slice B), `run-t3703c.py [id ...]` (slice C). Each applies one change, runs the slice's tests, restores the file; a compile error is not a kill.
 
 ## Slice A (AL-20, `termlink-session::signed_state`) — 6/6 killed, 2026-11-18
 
@@ -15,9 +15,9 @@ Runners: `crates/termlink-session/tests/mutants/run-t3703a.py` (slice A), `run-t
 
 6/6 killed
 
-## Slice B (hub revocation list) — 8/8 killed, 2026-11-18
+## Slice B (hub revocation list) — 11/11 killed, 2026-11-18 (after review round 2; b9–b11 added for the r2 fixes)
 
-First run 7/8: b5 as first written did not compile (not a kill); rewritten to `Ok(_) => return None` and run alone: killed.
+In the first run b5 as first written did not compile (not a kill); it was rewritten (`Ok(_) => return None`) and is killed here.
 
 | mutant | what | verdict |
 |---|---|---|
@@ -29,10 +29,13 @@ First run 7/8: b5 as first written did not compile (not a kill); rewritten to `O
 | b6-restore-not-blocked | a list behind the committed log is served (design 5.7) | killed |
 | b7-no-card-needed | a self-request without a key card is accepted with the request's names (r1 finding 8) | killed |
 | b8-write-failure-ignored | a failed list write is reported as success (FCW-92) | killed |
+| b9-post-check-ignores-reconcile | while reconciling, the post check misses keys the restore lost (r2 OC 1) | killed |
+| b10-reissue-chains-to-file | a reissue chains to the restored file, not the committed head (r2 CC 5) | killed |
+| b11-torn-row-ignored | a torn committed row does not block (r2 OC 6) | killed |
 
-## Slice C (sidecar revocation pull) — 11/11 killed, 2026-11-18
+11/11 killed
 
-Runner: `crates/termlink-session/tests/mutants/run-t3703c.py` (sidecar lib revocation tests + `t3703_revocation_sidecar`).
+## Slice C (sidecar revocation pull) — 18/18 killed, 2026-11-18 (after review round 2; c12–c18 added, c3 retargeted)
 
 | mutant | what | verdict |
 |---|---|---|
@@ -47,4 +50,12 @@ Runner: `crates/termlink-session/tests/mutants/run-t3703c.py` (sidecar lib revoc
 | c9-no-hub-id | a head naming another hub is accepted | killed |
 | c10-no-load-verify | the stored list is trusted on load (r1 M1) | killed |
 | c11-no-chain | a list that does not chain at held + 1 is accepted | killed |
+| c12-handle-before-head | messages are handled before the head is read (design 5.4, r2 OC 10) | killed |
+| c13-outage-not-counted | a pass that cannot reach the hub is not a failed pull (r2 CC 1) | killed |
+| c14-no-stale-gate | the stale state does not narrow urgent (DR-8 A, r2 CC 3) | killed |
+| c15-no-fallback | with no snapshot, nothing is revoked (r2 CC 9) | killed |
+| c16-raise-all | the entry names every key, not the new ones (r2 CC 10) | killed |
+| c17-no-heal | an unverifiable stored list keeps its floor and keys (r2 CC 7) | killed |
+| c18-sweep-open-attempt | the sweep refuses a message whose attempt is open (r2 CC 9) | killed |
 
+18/18 killed

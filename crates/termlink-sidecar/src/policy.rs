@@ -143,6 +143,10 @@ impl Policy for BuiltIn {
         };
         let asks_urgent = priority >= URGENT_AT;
         let urgent = asks_urgent && trust == Trust::OwnProject;
+        // T-3703 (DR-8 A, FCW-95/96): while the revocation list is stale or unverified since start, urgent is
+        // allowed only from the own project's roster. Today urgent already needs the roster; this gate binds any
+        // later widening of the urgent allow-list.
+        let urgent = stale_gate(urgent, trust, self.store.as_deref().is_some_and(crate::revocation::narrowing));
         Assessment {
             trust,
             priority,
@@ -155,6 +159,12 @@ impl Policy for BuiltIn {
             },
         }
     }
+}
+
+/// T-3703 (DR-8 A): while `narrowing` (the revocation list is stale or not verified since start), urgent stays
+/// urgent only for the own project's roster; anything else is downgraded to normal (never dropped).
+pub fn stale_gate(urgent: bool, trust: Trust, narrowing: bool) -> bool {
+    urgent && (!narrowing || trust == Trust::OwnProject)
 }
 
 /// SI-23: read the switch now. Absent flag means on; anything else, including

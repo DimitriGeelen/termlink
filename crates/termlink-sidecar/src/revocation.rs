@@ -44,6 +44,7 @@ const STATUS_STATE: &str = "revocation-status";
 const SWITCH_STATE: &str = "revocation-pull";
 const SWITCH_SEEN_STATE: &str = "revocation-pull-seen";
 const REFUSED_COUNT_STATE: &str = "revocation-refused-count";
+const RAISED_KEYS_STATE: &str = "revocation-attention-keys";
 
 /// What every other part of the sidecar reads: the refused keys and whether the stale rule narrows.
 #[derive(Debug, Clone, Default)]
@@ -61,9 +62,25 @@ fn publish(store: &Store, keys: &BTreeSet<String>, narrowing: bool) {
         .insert(store.dir().to_path_buf(), Snap { keys: keys.clone(), narrowing });
 }
 
+/// The held keys: the published snapshot, or, before any tracker has published for this store (another process,
+/// the window before `Tracker::new`), the keys of the stored list read without verification: fail closed, never
+/// "nothing revoked" (r2 CC 9).
+fn held_keys(store: &Store) -> BTreeSet<String> {
+    if let Some(s) = SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()) {
+        return s.keys.clone();
+    }
+    store
+        .read_state(LIST_STATE)
+        .ok()
+        .flatten()
+        .and_then(|t| ss::parse_strict(t.as_bytes()).ok())
+        .map(|l| keys_of(&entries_of(&l)))
+        .unwrap_or_default()
+}
+
 /// FCW-99: the full fingerprint `ed25519:<64 hex>` of a signer is on the held list.
 pub fn revoked(store: &Store, fingerprint: &str) -> bool {
-    SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()).is_some_and(|s| s.keys.contains(fingerprint))
+    held_keys(store).contains(fingerprint)
 }
 
 /// The short sender id of a stored message (`from`, the first 16 hex of sha256(key)) matches a held key. Used
@@ -72,11 +89,7 @@ pub fn revoked_from(store: &Store, from: &str) -> bool {
     if from.len() < 16 {
         return false;
     }
-    SNAPS
-        .lock()
-        .unwrap_or_else(|p| p.into_inner())
-        .get(store.dir())
-        .is_some_and(|s| s.keys.iter().any(|k| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from))))
+    held_keys(store).iter().any(|k| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from)))
 }
 
 /// DR-8 A: true while the list is STALE or not yet verified since start.
@@ -133,6 +146,13 @@ pub struct Tracker {
     state: State,
     held: Option<Held>,
     stale_raised: bool,
+    /// Wall-clock ms of the last verified pull (or of the start): the stable `since T` (r2 CC 11).
+    since_wall: u64,
+    /// The last `verified` status write: (seq, when), so an unchanged list is re-stamped at most once a minute.
+    status_written: Option<(i64, Instant)>,
+    /// The held list failed its load check: its keys are refused until the first verified fetch replaces them,
+    /// and no floor, chain or subset check is made against it (r2 CC 7).
+    held_unverified: bool,
 }
 
 /// One RPC to the home hub: Ok(result) or Err((code, message)). Code 0 = transport.
@@ -149,6 +169,9 @@ impl Tracker {
             state: State::UnverifiedSinceStart,
             held: None,
             stale_raised: false,
+            since_wall: crate::store::now_ms(),
+            status_written: None,
+            held_unverified: false,
         };
         if let Ok(Some(text)) = store.read_state(LIST_STATE) {
             let pk = store.read_state(HUB_PK_STATE).ok().flatten().and_then(|h| ss::verifying_key_of_hex(h.trim()));
@@ -166,6 +189,9 @@ impl Tracker {
         }
         t.publish(store);
         t.write_status(store, "unverified since start (no pull yet)");
+        if !t.held_unverified {
+            t.raise_new_entries(store); // a crash between install and raise (design 5.9)
+        }
         t
     }
 
@@ -177,7 +203,17 @@ impl Tracker {
             let mut h = held_of(&l);
             h.digest = String::new(); // never matches a head: the next pull fetches the full list
             self.held = Some(h);
+            self.held_unverified = true;
         }
+    }
+
+    /// The hub could not be asked at all this pass (`hub.version` failed, or names another hub): a failed pull
+    /// for the stale rule (r2 CC 1).
+    pub fn outage(&mut self, store: &Store, now: Instant, why: &str) {
+        if self.state == State::Off {
+            return;
+        }
+        self.failed(store, now, why, false);
     }
 
     pub fn set_stale_after(&mut self, d: Duration) {
@@ -246,11 +282,15 @@ impl Tracker {
     fn pull(&mut self, store: &Store, version: &Value, rpc: Rpc<'_>) -> Result<(), (String, bool)> {
         let pk_hex = version.get("signing_public_key").and_then(Value::as_str);
         let pinned = crate::hub_key_pin::verified_hub_key(store, &self.hub_id, version);
+        let pin_stored = store.read_state(&crate::hub_key_pin::pin_state_name(&self.hub_id)).ok().flatten().is_some();
         let pk = match (pk_hex.and_then(ss::verifying_key_of_hex), pinned) {
             (Some(k), Some(fp)) if ss::key_fingerprint(&k) == fp => k,
             (Some(_), Some(_)) => return Err(("hub public key does not hash to the pinned fingerprint".into(), true)),
-            (None, _) => return Err(("hub offers no signing public key".into(), false)),
-            (Some(_), None) => return Err(("hub signing key not pinned (or pin mismatch)".into(), true)),
+            // a hub older than T-3703 offers no public key: the same class as `method not found` (r2 CC 6, OC 5)
+            (None, _) => return Err(("hub predates revocation list".into(), false)),
+            // a pin that differs is interference; no pin yet (first contact not over a trusted path) is not
+            (Some(_), None) if pin_stored => return Err(("hub signing key differs from the pin".into(), true)),
+            (Some(_), None) => return Err(("hub signing key not pinned yet".into(), false)),
         };
         let h = match rpc("hub.revocation_head") {
             Ok(v) => v,
@@ -265,6 +305,9 @@ impl Tracker {
         }
         let hseq = head.get("seq").and_then(J::as_int).ok_or(("head without seq".to_string(), true))?;
         let hdig = head.get("digest").and_then(J::as_str).unwrap_or("").to_string();
+        if self.held_unverified {
+            return self.fetch(store, &pk, hseq, &hdig, rpc); // replaces an unverifiable stored list (r2 CC 7)
+        }
         if let Some(held) = &self.held {
             if hseq < held.seq {
                 return Err((format!("ROLLBACK refused, kept seq {}", held.seq), true));
@@ -272,8 +315,6 @@ impl Tracker {
             if hseq == held.seq {
                 return if hdig == held.digest {
                     Ok(())
-                } else if held.digest.is_empty() {
-                    self.fetch(store, &pk, hseq, &hdig, rpc) // a held list that failed its load check
                 } else {
                     Err((format!("fork: seq {hseq} with another digest"), true))
                 };
@@ -292,14 +333,14 @@ impl Tracker {
         let lseq = l.get("seq").and_then(J::as_int).unwrap_or(-1);
         let ldig = l.get("digest").and_then(J::as_str).unwrap_or("");
         if lseq != hseq || ldig != hdig {
-            return Err(("list does not match its head".into(), true));
+            // a revocation between head and get: benign, the next pass reads both again (r2 CC 11)
+            return Err(("list does not match its head (changed between head and get)".into(), false));
         }
         if l.get("hub_id").and_then(J::as_str) != Some(self.hub_id.as_str()) {
             return Err(("list names another hub".into(), true));
         }
-        if let Some(held) = &self.held {
-            if !held.digest.is_empty()
-                && lseq == held.seq + 1
+        if let Some(held) = self.held.as_ref().filter(|_| !self.held_unverified) {
+            if lseq == held.seq + 1
                 && l.get("prev_digest").and_then(J::as_str) != Some(held.digest.as_str())
             {
                 return Err(("list does not chain to the held one".into(), true));
@@ -313,16 +354,22 @@ impl Tracker {
         store.write_state(LIST_STATE, text).map_err(|e| (format!("list not stored: {e}"), false))?;
         let _ = store.write_state(HUB_PK_STATE, &ss::hex(pk.as_bytes()));
         self.held = Some(held_of(&l));
+        self.held_unverified = false;
         Ok(())
     }
 
     fn verified(&mut self, store: &Store, now: Instant, sender: Option<&crate::send::Sender>) {
         self.last_verified = Some(now);
-        self.state = State::Verified;
+        self.since_wall = crate::store::now_ms();
+        let was = std::mem::replace(&mut self.state, State::Verified);
         self.stale_raised = false;
         self.publish(store);
         let seq = self.held.as_ref().map(|h| h.seq).unwrap_or(0);
-        self.write_status(store, &format!("verified seq {seq} at {}", crate::store::now_ms()));
+        let fresh = matches!(self.status_written, Some((s, t)) if s == seq && now.duration_since(t) < Duration::from_secs(60));
+        if !fresh || was != State::Verified {
+            self.write_status(store, &format!("verified seq {seq} at {}", self.since_wall));
+            self.status_written = Some((seq, now));
+        }
         self.raise_new_entries(store);
         if let Some(h) = &self.held {
             refuse_stored(store, &h.keys, sender);
@@ -336,22 +383,34 @@ impl Tracker {
         if h.seq <= raised {
             return;
         }
-        let names: Vec<String> = h
-            .entries
+        // only the keys not named before (r2 CC 10, OC 7); a reissue with nothing new raises nothing
+        let named: BTreeSet<String> =
+            store.read_state(RAISED_KEYS_STATE).ok().flatten().unwrap_or_default().lines().map(str::to_string).collect();
+        let new: Vec<&J> = h.entries.iter().filter(|e| e.get("key").and_then(J::as_str).is_some_and(|k| !named.contains(k))).collect();
+        let all_keys: Vec<String> = h.keys.iter().cloned().collect();
+        if new.is_empty() {
+            let _ = store.write_state(ATTENTION_STATE, &h.seq.to_string());
+            return;
+        }
+        let total = new.len();
+        let names: Vec<String> = new
             .iter()
+            .take(20)
             .map(|e| {
                 let s = |n: &str| e.get(n).and_then(J::as_str).unwrap_or("?").to_string();
                 format!("{}/{} ({}, by {}: {})", s("project"), s("agent"), s("key"), s("by"), s("reason"))
             })
             .collect();
+        let more = if total > names.len() { format!(" and {} more", total - names.len()) } else { String::new() };
         let detail = format!(
-            "hub {} revocation list is at seq {}: {} key(s) revoked: {}; messages signed by them are refused",
+            "hub {} revocation list is at seq {}: {} key(s) newly revoked: {}{more}; messages signed by them are refused",
             self.hub_id,
             h.seq,
-            names.len(),
+            total,
             names.join("; ")
         );
         if store.attention_coalesced("key-revoked", &h.seq.to_string(), &detail).is_ok() {
+            let _ = store.write_state(RAISED_KEYS_STATE, &all_keys.join("\n"));
             let _ = store.write_state(ATTENTION_STATE, &h.seq.to_string());
         }
     }
@@ -369,7 +428,7 @@ impl Tracker {
                 &format!("hub {} serves no revocation list (it predates T-3703); revoked keys are not known here", self.hub_id),
             );
         }
-        let since_ms = crate::store::now_ms().saturating_sub(now.duration_since(self.since()).as_millis() as u64);
+        let since_ms = self.since_wall;
         if self.state != State::Stale && now.duration_since(self.since()) > self.stale_after {
             self.state = State::Stale;
             if !self.stale_raised {
@@ -383,6 +442,7 @@ impl Tracker {
                 );
             }
         }
+        self.status_written = None;
         self.publish(store);
         let line = if why.starts_with("ROLLBACK") || why == "hub predates revocation list" {
             why.to_string()
@@ -407,8 +467,7 @@ fn held_of(l: &J) -> Held {
 
 /// [`refuse_stored`] with the keys currently held (the hand-over re-check calls this).
 pub fn refuse_stored_now(store: &Store, sender: Option<&crate::send::Sender>) -> usize {
-    let keys = SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()).map(|s| s.keys.clone()).unwrap_or_default();
-    refuse_stored(store, &keys, sender)
+    refuse_stored(store, &held_keys(store), sender)
 }
 
 /// FCW-200 sweep: every STORED message from a revoked key that is not handed over, refused or held open by an
@@ -431,6 +490,19 @@ pub fn refuse_stored(store: &Store, keys: &BTreeSet<String>, sender: Option<&cra
             if done("HANDED_OVER") || done("REFUSED") {
                 continue;
             }
+            // an open hand-over attempt is already in the agent's hands; its finalize decides (r2 CC 9)
+            let closed: BTreeSet<String> = lines
+                .iter()
+                .filter(|l| l.event == "ABSENT" && l.msg_id == st.msg_id)
+                .filter_map(|l| l.reason.as_deref().and_then(|r| r.split_whitespace().next()).map(str::to_string))
+                .collect();
+            let open = store
+                .claims_for(&st.msg_id)
+                .map(|a| a.iter().any(|n| !closed.contains(&format!("attempt={n}"))))
+                .unwrap_or(true);
+            if open {
+                continue;
+            }
             let extra = LineExtra { reason: Some(REASON_REVOKED.to_owned()), ..Default::default() };
             let (id, sd, dg) = (st.msg_id.clone(), st.sender.clone(), st.digest.clone());
             let wrote = store.append_event_unless(&conv, "REFUSED", &st.msg_id, &st.sender, &st.digest, extra, move |ls| {
@@ -439,10 +511,6 @@ pub fn refuse_stored(store: &Store, keys: &BTreeSet<String>, sender: Option<&cra
             if let Ok(Some(_)) = wrote {
                 n += 1;
                 count_refusal(store);
-                let _ = store.attention(
-                    "refused-revoked",
-                    &format!("{conv}/{} from {from}: stored before its key was revoked; refused, not handed over (FCW-200)", st.msg_id),
-                );
                 if let (Some(s), Ok((_, payload))) = (sender, store.read_record(&conv, st.seq, &st.msg_id))
                     && let Ok(msg) = crate::wire::parse_payload(&payload)
                     && let Ok(stage) = crate::pull::build_stage(store, s.fingerprint(), s.agent().0, &msg, REVOKED)
@@ -451,6 +519,13 @@ pub fn refuse_stored(store: &Store, keys: &BTreeSet<String>, sender: Option<&cra
                 }
             }
         }
+    }
+    if n > 0 {
+        // one entry per sweep, not one per message (r2 OC 8)
+        let _ = store.attention(
+            "refused-revoked",
+            &format!("{n} stored message(s) from revoked key(s) refused before hand-over (FCW-200); see the chains' REFUSED lines (reason revoked)"),
+        );
     }
     n
 }
@@ -776,5 +851,99 @@ mod tests {
         t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
         assert!(revoked(&f.store, &fp(1)));
         assert_eq!(kinds(&f.store).iter().filter(|k| *k == "revocation-pull-switched").count(), 2);
+    }
+
+    // ---- round 2 (docs/reports/T-3703-reviews/r2-dispositions.md) ----
+
+    #[test]
+    fn r2_the_entry_names_only_new_keys_and_a_reissue_raises_nothing() {
+        let f = fx();
+        let hub = Hub::new();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        let now = Instant::now();
+        let l1 = list(&f.k, 1, Z, &[fp(1)]);
+        hub.serve(&f.k, &l1);
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        let l2 = list(&f.k, 2, l1.get("digest").unwrap().as_str().unwrap(), &[fp(1), fp(2)]);
+        hub.serve(&f.k, &l2);
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        let details: Vec<String> = f
+            .store
+            .attention_entries()
+            .iter()
+            .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+            .filter(|v| v["kind"] == "key-revoked")
+            .map(|v| v["detail"].as_str().unwrap_or("").to_string())
+            .collect();
+        assert_eq!(details.len(), 2);
+        assert!(details[1].contains(&fp(2)) && !details[1].contains(&fp(1)), "{}", details[1]);
+        // a reissue: seq 3, same keys -> nothing new, no entry
+        hub.serve(&f.k, &list(&f.k, 3, l2.get("digest").unwrap().as_str().unwrap(), &[fp(1), fp(2)]));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(kinds(&f.store).iter().filter(|k| *k == "key-revoked").count(), 2);
+    }
+
+    #[test]
+    fn r2_without_a_tracker_the_stored_list_still_refuses() {
+        let f = fx();
+        let l = list(&f.k, 1, Z, &[fp(1)]);
+        f.store.write_state(LIST_STATE, &serde_json::to_string(&l.to_serde()).unwrap()).unwrap();
+        assert!(revoked(&f.store, &fp(1)), "no snapshot published for this store: fail closed from the stored list");
+        assert!(revoked_from(&f.store, &fp(1)["ed25519:".len()..][..16]));
+    }
+
+    #[test]
+    fn r2_a_corrupted_stored_list_heals_on_the_first_verified_fetch() {
+        let f = fx();
+        let hub = Hub::new();
+        let l = list(&f.k, 9, Z, &[fp(1)]);
+        hub.serve(&f.k, &l);
+        let now = Instant::now();
+        Tracker::new(&f.store, HUB, PN13).tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        // corrupt the stored copy: another key and a huge seq (neither signed)
+        let mut bad = l.clone();
+        bad.set("seq", J::Int(1_000_000));
+        bad.set("entries", J::Arr(vec![J::Obj(vec![("key".into(), J::Str(fp(7)))])]));
+        f.store.write_state(LIST_STATE, &serde_json::to_string(&bad.to_serde()).unwrap()).unwrap();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        assert!(revoked(&f.store, &fp(7)), "until verified, the stored keys are refused (fail closed)");
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(t.state(), &State::Verified, "{}", line(&f.store));
+        assert_eq!(t.held_seq(), Some(9), "no floor kept from an unverified list");
+        assert!(revoked(&f.store, &fp(1)) && !revoked(&f.store, &fp(7)), "the hub's list replaces it");
+    }
+
+    #[test]
+    fn r2_an_old_hub_without_a_public_key_is_predates_and_no_pin_yet_is_not_tamper() {
+        let f = fx();
+        let hub = Hub::new();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        let now = Instant::now();
+        let mut old = f.version.clone();
+        old.as_object_mut().unwrap().remove("signing_public_key");
+        t.tick(&f.store, &old, &|m| hub.call(m), now, None);
+        assert_eq!(line(&f.store), "hub predates revocation list");
+        assert!(kinds(&f.store).contains(&"revocation-hub-predates".to_string()));
+        f.store.remove_state(&crate::hub_key_pin::pin_state_name(HUB)).unwrap();
+        hub.serve(&f.k, &list(&f.k, 1, Z, &[]));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(line(&f.store).contains("not pinned yet"), "{}", line(&f.store));
+        assert!(!kinds(&f.store).contains(&"revocation-tamper".to_string()), "no pin yet is not interference");
+    }
+
+    #[test]
+    fn r2_the_sweep_leaves_an_open_attempt_to_its_finalize() {
+        let f = fx();
+        let key = fp(1);
+        let from = &key["ed25519:".len()..][..16];
+        let keys: BTreeSet<String> = [key.clone()].into();
+        f.store.put(from, "c1", "m1", b"payload").unwrap();
+        f.store.claim("m1", 1, "n1", 1).unwrap();
+        assert_eq!(refuse_stored(&f.store, &keys, None), 0, "attempt 1 is open");
+        f.store
+            .append_event_unless("c1", "ABSENT", "m1", from, "d", LineExtra { reason: Some("attempt=1 nonce=n1".into()), ..Default::default() }, |_| false)
+            .unwrap();
+        assert_eq!(refuse_stored(&f.store, &keys, None), 1, "closed attempt: refused");
+        assert_eq!(kinds(&f.store).iter().filter(|k| *k == "refused-revoked").count(), 1, "one entry per sweep");
     }
 }

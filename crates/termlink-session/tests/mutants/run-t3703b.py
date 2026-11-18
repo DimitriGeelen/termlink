@@ -35,6 +35,13 @@ MUTANTS = [
     ("b8-write-failure-ignored", "a failed list write is reported as success (FCW-92)", HUB,
      '    atomic_write(&list_path(dir), text.as_bytes())\n        .map_err(|e| format!("revocation list not written ({e}); the previous list stays (FCW-92)"))?;',
      '    let _ = atomic_write(&list_path(dir), text.as_bytes());'),
+    # round 2 (r2-dispositions.md)
+    ("b9-post-check-ignores-reconcile", "while reconciling, the post check misses keys the restore lost (r2 OC 1)", HUB,
+     "    if reconcile_reason(dir).is_some() {\n        let log", "    if false {\n        let log"),
+    ("b10-reissue-chains-to-file", "a reissue chains to the restored file, not the committed head (r2 CC 5)", HUB,
+     "    let prev = if file_top >= logged_top {", "    let prev = if true {"),
+    ("b11-torn-row-ignored", "a torn committed row does not block (r2 OC 6)", HUB,
+     "    if torn > 0 {", "    if false {"),
 ]
 
 CMDS = [

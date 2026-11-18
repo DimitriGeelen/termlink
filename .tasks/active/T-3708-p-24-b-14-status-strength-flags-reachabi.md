@@ -87,6 +87,9 @@ Unblocks: P-25 (T-3709), P-33 (T-3714), P-38 (T-3717); part of gate G-2.
 - [ ] The B-14 specs pass (strength flags, reachability card, CLEAR, skew, GP-4 lines)
 - [ ] Status answers in 5 s
 - [ ] The unit's fixture suite exits 0 with a PASS line per B-14 E-n and its mutant list is all killed (FP 3.1.b)
+- [ ] (from T-3703 r2 CC 4 / OC 3, deferred) A sender whose recipient's current key is on the hub's revocation list shows that message as WAITING FOR RECIPIENT with the reason "key revoked, operator action needed" and raises one needs-attention entry (RK-1); the sender learns the recipient's key from its hub key card (B-6). Test: revoke fx-a, fx-b sends to fx-a, fx-b's status names the reason.
+- [ ] (from T-3703 r1 finding 17) E-127's reader: count `refused_revoked` in the sidecar status after each revocation row and fire when `unverified` is older than PN-13 without the narrowing applied, or a message from a revoked key is STORED.
+- [ ] (from T-3703 r1 finding 5) Status vocabulary binds: `revocation` = `verified seq N at T` | `unverified since T (<why>)` | `stale since T (<why>)` | `ROLLBACK refused, kept seq N` | `hub predates revocation list` | `off (PH-1 trust)` (T-3703 design 5.5).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

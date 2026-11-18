@@ -621,7 +621,8 @@ pub async fn run_with_tcp(
     // blocks head/get until hub.revocation_reissue; a lost commit row or unreadable list raises attention.
     if let Some(ident) = crate::hub_identity::current() {
         let log = runtime_dir.join(crate::rpc_audit::ADMIN_FILE_NAME);
-        for m in crate::revocation::startup_reconcile(&runtime_dir, &log, &ident.hub_id, ident.signing_key()) {
+        let repair = |row: serde_json::Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
+        for m in crate::revocation::startup_reconcile_with(&runtime_dir, &log, &ident.hub_id, ident.signing_key(), repair) {
             tracing::warn!(detail = %m, "T-3703: revocation list reconcile");
             let row = serde_json::json!({"event": "revocation-reconcile", "attention": true, "detail": m});
             if let Err(e) = crate::rpc_audit::admin_note(row) {

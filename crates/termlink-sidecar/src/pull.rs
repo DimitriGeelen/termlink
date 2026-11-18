@@ -320,6 +320,12 @@ impl Inner {
         }
     }
 
+    /// T-3703 (r2 CC 1): the hub could not be asked this pass; the stale rule still counts it.
+    fn revocation_outage(&self, why: &str) {
+        let mut t = self.revocation.lock().unwrap_or_else(|p| p.into_inner());
+        t.outage(&self.store, std::time::Instant::now(), why);
+    }
+
     /// T-3703 (AL-22): one revocation pull. A failure never holds mail (the stale rule narrows, never stops).
     fn pull_revocations(&self, version: &Value) {
         let rpc = |m: &str| -> Result<Value, (i64, String)> {
@@ -367,15 +373,18 @@ impl Inner {
         if !policy::receiving_enabled(&self.store) {
             return PassResult::Drained;
         }
-        match self.check_pin() {
+        let version = match self.check_pin() {
             Ok(version) => {
                 mem.held = None;
                 self.observe_impersonation();
-                // T-3703 (design 5.4): the revocation head is compared before any message is handled.
-                self.pull_revocations(&version);
+                version
             }
-            Err(PinError::Unreachable(_)) => return PassResult::Waiting,
+            Err(PinError::Unreachable(e)) => {
+                self.revocation_outage(&format!("hub unreachable: {e}"));
+                return PassResult::Waiting;
+            }
             Err(PinError::Mismatch { declared, found }) => {
+                self.revocation_outage("hub id mismatch");
                 let why = format!(
                     "hub id mismatch: declared {declared}, hub says {}; inbox not read",
                     found.as_deref().unwrap_or("nothing")
@@ -386,7 +395,9 @@ impl Inner {
                 mem.held = Some(why.clone());
                 return PassResult::Held(why);
             }
-        }
+        };
+        // T-3703 (design 5.4): the revocation head is compared before any message is handled.
+        self.pull_revocations(&version);
         let topic = inbox_topic(&self.cfg.declared_hub_id, &self.cfg.agent);
         let mut handled = 0;
         loop {
@@ -471,22 +482,28 @@ impl Inner {
             Ok((m, _signer)) => m,
             Err(r) => return self.refuse(env, None, wire::refusal_code(&r), &r.to_string()),
         };
+        if !name_ok(&msg.conv) || !name_ok(&msg.msg_id) {
+            return self.refuse(env, None, "bad-name", "conv or msg_id is not a valid name");
+        }
         // T-3703 (FCW-99, E-39): a message signed by a key on the held revocation list is refused, not stored,
-        // and the sender gets a signed REVOKED notice.
-        if let Some(fp) = env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk))
-            && crate::revocation::revoked(&self.store, &fp)
-        {
+        // and the sender gets a signed REVOKED notice. The fingerprint is of the key that verified (the roster's
+        // copy of it, equal to the signer's); one that cannot be derived is refused, never passed (r2 CC 2).
+        let fp = self.cfg.roster.get(&msg.from).map(termlink_session::signed_state::key_fingerprint).or_else(|| {
+            env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk))
+        });
+        let Some(fp) = fp else {
+            return self.refuse(env, Some(&msg), crate::revocation::REASON_REVOKED, "signer key fingerprint cannot be derived");
+        };
+        if crate::revocation::revoked(&self.store, &fp) {
             let out = self.refuse(env, Some(&msg), crate::revocation::REASON_REVOKED, &format!("signed by revoked key {fp}"));
             if matches!(out, Outcome::Done) {
                 crate::revocation::count_refusal(&self.store);
+                // best effort: a notice that cannot be queued never holds the inbox (r2 CC 8)
                 if let Err(e) = self.report(&msg, crate::revocation::REVOKED) {
-                    return Outcome::Retry(e);
+                    eprintln!("termlink-sidecar: REVOKED notice for {}/{} not queued: {e}", msg.conv, msg.msg_id);
                 }
             }
             return out;
-        }
-        if !name_ok(&msg.conv) || !name_ok(&msg.msg_id) {
-            return self.refuse(env, None, "bad-name", "conv or msg_id is not a valid name");
         }
         // Receiver checks (C-7). Their inputs are the verified sender and the
         // signed priority only.
@@ -662,10 +679,12 @@ impl Inner {
             Ok(s) => s,
             Err(r) => return self.ignore_stage(env, &r.to_string()),
         };
-        if let Some(fp) = env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk))
-            && crate::revocation::revoked(&self.store, &fp)
-        {
-            return self.ignore_stage(env, &format!("signed by revoked key {fp} (FCW-99)"));
+        match env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk)) {
+            None => return self.ignore_stage(env, "signer key fingerprint cannot be derived (FCW-99)"),
+            Some(fp) if crate::revocation::revoked(&self.store, &fp) => {
+                return self.ignore_stage(env, &format!("signed by revoked key {fp} (FCW-99)"));
+            }
+            Some(_) => {}
         }
         if st.to_agent != self.cfg.agent {
             return self.ignore_stage(env, &format!("addressed to {}, this is {}", st.to_agent, self.cfg.agent));

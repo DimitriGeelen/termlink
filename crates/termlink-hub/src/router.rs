@@ -1064,8 +1064,11 @@ fn handle_revocation_request(id: serde_json::Value, params: &serde_json::Value) 
     let r = match crate::revocation::check_request(&req, now_ms(), &cards) {
         Ok(r) => r,
         Err(e) => {
-            let row = serde_json::json!({"event": "revocation-request-refused", "attention": true, "reason": e});
-            let _ = crate::rpc_audit::admin_note(row);
+            // at most REFUSED_ROWS_PER_MINUTE rows a minute: any Interact caller can send these (r2 CC 12)
+            if refused_request_row_allowed(now_ms()) {
+                let row = serde_json::json!({"event": "revocation-request-refused", "attention": true, "reason": e});
+                let _ = crate::rpc_audit::admin_note(row);
+            }
             return revocation_error(id, &e);
         }
     };
@@ -1077,6 +1080,19 @@ fn handle_revocation_request(id: serde_json::Value, params: &serde_json::Value) 
         .into(),
         Err(e) => revocation_error(id, &e),
     }
+}
+
+const REFUSED_ROWS_PER_MINUTE: u64 = 10;
+static REFUSED_ROWS: std::sync::Mutex<(u64, u64)> = std::sync::Mutex::new((0, 0));
+
+fn refused_request_row_allowed(now_ms: u64) -> bool {
+    let mut g = REFUSED_ROWS.lock().unwrap_or_else(|p| p.into_inner());
+    let minute = now_ms / 60_000;
+    if g.0 != minute {
+        *g = (minute, 0);
+    }
+    g.1 += 1;
+    g.1 <= REFUSED_ROWS_PER_MINUTE
 }
 
 fn handle_revocation_reissue(id: serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {

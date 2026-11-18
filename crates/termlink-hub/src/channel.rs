@@ -2912,9 +2912,13 @@ pub(crate) fn key_card_gate(
         Check::NotGated => return None,
         // T-3703 (design v2 5.8): the card matches; its key must not be on the hub's own revocation list.
         Check::Pass { agent } => {
-            let ident = crate::hub_identity::current()?;
             let fp = termlink_session::signed_state::key_fingerprint(signer);
-            match crate::revocation::revoked_keys(dir, &ident.hub_id, ident.signing_key()) {
+            // no identity loaded = the list cannot be read: fail closed like an unreadable list (r2 CC 12, OC 4)
+            let keys = match crate::hub_identity::current() {
+                Some(ident) => crate::revocation::revoked_keys(dir, &ident.hub_id, ident.signing_key()),
+                None => Err("the hub identity is not loaded".to_string()),
+            };
+            match keys {
                 Ok(keys) if !keys.contains(&fp) => return None,
                 Ok(_) => (
                     error_code::KEY_REVOKED,

@@ -285,39 +285,111 @@ pub fn get(dir: &Path, hub_id: &str, key: &SigningKey) -> Result<J, String> {
     load(dir, hub_id, key)
 }
 
-/// The fingerprints on the current list, for the hub's own post check. An unreadable list is an `Err`.
-pub fn revoked_keys(dir: &Path, hub_id: &str, key: &SigningKey) -> Result<BTreeSet<String>, String> {
-    let _g = lock();
-    let l = load(dir, hub_id, key)?;
-    Ok(entries_of(&l).iter().filter_map(|e| entry_key(e).map(str::to_string)).collect())
+/// Verified key sets per directory, keyed by the list file's (len, mtime): the post check does not re-verify an
+/// unchanged list on every post (r2 OC 9 / CC 12).
+type Stamp = (u64, u128);
+static KEY_CACHE: Mutex<BTreeMap<PathBuf, (Stamp, BTreeSet<String>)>> = Mutex::new(BTreeMap::new());
+
+fn file_stamp(dir: &Path) -> Option<Stamp> {
+    let m = std::fs::metadata(list_path(dir)).ok()?;
+    let t = m.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_nanos();
+    Some((m.len(), t))
 }
 
-/// Committed rows in the admin log, in order: (seq, digest, entries added).
-fn committed_rows(admin_log: &Path) -> Vec<(i64, String, Vec<serde_json::Value>)> {
-    let Ok(text) = std::fs::read_to_string(admin_log) else { return vec![] };
-    text.lines()
-        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
-        .filter(|v| v.get("event").and_then(|e| e.as_str()) == Some(COMMITTED_EVENT))
-        .filter_map(|v| {
+/// The fingerprints the hub's own post check refuses. An unreadable list is an `Err` (the caller fails closed).
+/// While a reconcile is pending (the file is behind the admin log), the keys of the committed rows are added, so
+/// a key whose entry the restore lost is still refused (r2 OC 1 / CC 12).
+pub fn revoked_keys(dir: &Path, hub_id: &str, key: &SigningKey) -> Result<BTreeSet<String>, String> {
+    let _g = lock();
+    let stamp = file_stamp(dir);
+    let cached = stamp.and_then(|st| {
+        KEY_CACHE.lock().unwrap_or_else(|p| p.into_inner()).get(dir).filter(|(s, _)| *s == st).map(|(_, k)| k.clone())
+    });
+    let mut keys = match cached {
+        Some(k) => k,
+        None => {
+            let l = load(dir, hub_id, key)?;
+            let k: BTreeSet<String> = entries_of(&l).iter().filter_map(|e| entry_key(e).map(str::to_string)).collect();
+            if let Some(st) = stamp {
+                KEY_CACHE.lock().unwrap_or_else(|p| p.into_inner()).insert(dir.to_path_buf(), (st, k.clone()));
+            }
+            k
+        }
+    };
+    if reconcile_reason(dir).is_some() {
+        let log = dir.join(crate::rpc_audit::ADMIN_FILE_NAME);
+        for (_, _, added) in committed_rows(&log) {
+            keys.extend(added.iter().filter_map(|e| e.get("key").and_then(|k| k.as_str()).map(str::to_string)));
+        }
+    }
+    Ok(keys)
+}
+
+type Committed = (i64, String, Vec<serde_json::Value>);
+
+/// Committed rows in the admin log, in order: (seq, digest, entries added), and how many lines named the event
+/// but could not be read (a torn row; reconcile treats any as a block, r2 OC 6).
+fn committed_rows_checked(admin_log: &Path) -> (Vec<Committed>, usize) {
+    let Ok(text) = std::fs::read_to_string(admin_log) else { return (vec![], 0) };
+    let mut rows = Vec::new();
+    let mut torn = 0;
+    for l in text.lines().filter(|l| l.contains(COMMITTED_EVENT)) {
+        let parsed = serde_json::from_str::<serde_json::Value>(l).ok().and_then(|v| {
+            if v.get("event").and_then(|e| e.as_str()) != Some(COMMITTED_EVENT) {
+                return None;
+            }
             Some((
                 v.get("seq")?.as_i64()?,
                 v.get("digest")?.as_str()?.to_string(),
                 v.get("added").and_then(|a| a.as_array()).cloned().unwrap_or_default(),
             ))
-        })
-        .collect()
+        });
+        match parsed {
+            Some(r) => rows.push(r),
+            None => torn += 1,
+        }
+    }
+    (rows, torn)
+}
+
+fn committed_rows(admin_log: &Path) -> Vec<Committed> {
+    committed_rows_checked(admin_log).0
 }
 
 /// Design v2 5.7: compare the file with the last committed row. Returns messages for attention rows; a file
 /// behind the log (or unreadable while the log shows commits) blocks `head`/`get`/`revoke` until [`reissue`].
 pub fn startup_reconcile(dir: &Path, admin_log: &Path, hub_id: &str, key: &SigningKey) -> Vec<String> {
+    startup_reconcile_with(dir, admin_log, hub_id, key, |_| Ok(()))
+}
+
+/// [`startup_reconcile`] with `repair`: when the file is ahead of the log (a committed row was lost), the missing
+/// committed row is written through `repair`, so a later restore to before it is still detected (r2 CC 12).
+pub fn startup_reconcile_with(
+    dir: &Path,
+    admin_log: &Path,
+    hub_id: &str,
+    key: &SigningKey,
+    repair: impl Fn(serde_json::Value) -> Result<(), String>,
+) -> Vec<String> {
     let mut out = Vec::new();
-    let rows = committed_rows(admin_log);
+    let (rows, torn) = committed_rows_checked(admin_log);
     let last = rows.last().map(|(s, d, _)| (*s, d.clone()));
     let _g = lock();
     let block = |why: String, out: &mut Vec<String>| {
         RECONCILE.lock().unwrap_or_else(|p| p.into_inner()).insert(dir.to_path_buf(), why.clone());
         out.push(why);
+    };
+    if torn > 0 {
+        block(format!("{torn} revocation-committed row(s) in the admin log cannot be read; the floor is unknown"), &mut out);
+        return out;
+    }
+    let repair_row = |l: &J| {
+        let known: BTreeSet<String> = rows
+            .iter()
+            .flat_map(|(_, _, a)| a.iter().filter_map(|e| e.get("key").and_then(|k| k.as_str()).map(str::to_string)))
+            .collect();
+        let added: Vec<J> = entries_of(l).into_iter().filter(|e| entry_key(e).is_some_and(|k| !known.contains(k))).collect();
+        repair(committed_row(l, &added, "startup-repair"))
     };
     match (load(dir, hub_id, key), last) {
         (Err(e), Some((s, _))) => block(format!("{e}; the admin log shows seq {s} committed"), &mut out),
@@ -329,11 +401,13 @@ pub fn startup_reconcile(dir: &Path, admin_log: &Path, hub_id: &str, key: &Signi
             } else if fs == s && digest_of(&l) != d {
                 block(format!("revocation list seq {fs} has another digest than the committed one (a fork)"), &mut out);
             } else if fs > s {
-                out.push(format!("revocation list seq {fs} is ahead of the last committed row (seq {s}): a commit row was lost"));
+                let r = repair_row(&l).err().map(|e| format!(" (repair row not written: {e})")).unwrap_or_default();
+                out.push(format!("revocation list seq {fs} is ahead of the last committed row (seq {s}): a commit row was lost; repaired{r}"));
             }
         }
         (Ok(l), None) if seq_of(&l) > 0 => {
-            out.push(format!("revocation list seq {} has no committed row in the admin log", seq_of(&l)))
+            let r = repair_row(&l).err().map(|e| format!(" (repair row not written: {e})")).unwrap_or_default();
+            out.push(format!("revocation list seq {} has no committed row in the admin log; repaired{r}", seq_of(&l)))
         }
         (Ok(_), None) => {}
     }
@@ -364,8 +438,15 @@ pub fn reissue(
             entries.push(e);
         }
     }
-    let top = rows.last().map(|(s, _, _)| *s).unwrap_or(0).max(file.as_ref().map(seq_of).unwrap_or(0));
-    let prev = file.as_ref().map(digest_of).or_else(|| rows.last().map(|(_, d, _)| d.clone())).unwrap_or(ZERO.into());
+    let logged_top = rows.last().map(|(s, _, _)| *s).unwrap_or(0);
+    let file_top = file.as_ref().map(seq_of).unwrap_or(-1);
+    let top = logged_top.max(file_top).max(0);
+    // chain to the highest version any sidecar may hold, so one holding it sees seq + 1 with a matching prev
+    let prev = if file_top >= logged_top {
+        file.as_ref().map(digest_of).unwrap_or(ZERO.into())
+    } else {
+        rows.last().map(|(_, d, _)| d.clone()).unwrap_or(ZERO.into())
+    };
     let base = J::Obj(vec![("seq".into(), J::Int(top)), ("digest".into(), J::Str(prev))]);
     let sealed = issue(dir, hub_id, key, &base, entries, now_ms, log, &[])?;
     RECONCILE.lock().unwrap_or_else(|p| p.into_inner()).remove(dir);
@@ -576,5 +657,54 @@ mod tests {
         let e = issue(d.path(), HUB, &k, &cur, big, 1, |_: &J, _: &[J]| Ok(()), &[]).unwrap_err();
         assert!(e.contains("1 MiB"), "{e}");
         assert!(!list_path(d.path()).exists());
+    }
+
+    #[test]
+    fn r2_a_key_lost_by_a_restore_is_still_refused_and_reissue_chains_to_the_committed_digest() {
+        let d = tmp();
+        let k = hub_key();
+        let log = d.path().join(crate::rpc_audit::ADMIN_FILE_NAME);
+        revoke(d.path(), HUB, &k, &op(&fp(1)), 1, logger(&log)).unwrap();
+        let backup = std::fs::read(list_path(d.path())).unwrap();
+        let two = revoke(d.path(), HUB, &k, &op(&fp(2)), 2, logger(&log)).unwrap();
+        std::fs::write(list_path(d.path()), &backup).unwrap();
+        startup_reconcile(d.path(), &log, HUB, &k);
+        let keys = revoked_keys(d.path(), HUB, &k).unwrap();
+        assert!(keys.contains(&fp(2)), "the post check still refuses the key the restore lost (r2 OC 1)");
+        reissue(d.path(), &log, HUB, &k, 3, logger(&log)).unwrap();
+        let l = get(d.path(), HUB, &k).unwrap();
+        assert_eq!(l.get("seq"), Some(&J::Int(3)));
+        assert_eq!(l.get("prev_digest").and_then(J::as_str), Some(two.digest.as_str()), "a sidecar holding seq 2 chains (r2 CC 5)");
+    }
+
+    #[test]
+    fn r2_a_torn_committed_row_blocks_and_a_lost_row_is_repaired() {
+        let d = tmp();
+        let k = hub_key();
+        let log = d.path().join("admin.jsonl");
+        revoke(d.path(), HUB, &k, &op(&fp(1)), 1, logger(&log)).unwrap();
+        {
+            use std::io::Write;
+            let mut f = std::fs::OpenOptions::new().append(true).open(&log).unwrap();
+            writeln!(f, "{{\"event\":\"{COMMITTED_EVENT}\",\"seq\":2,\"dig").unwrap();
+        }
+        let msgs = startup_reconcile(d.path(), &log, HUB, &k);
+        assert!(msgs.iter().any(|m| m.contains("cannot be read")), "{msgs:?}");
+        assert!(head(d.path(), HUB, &k).is_err());
+        RECONCILE.lock().unwrap().remove(d.path());
+        // a list written with no committed row: the start-up check writes the missing row
+        let d2 = tmp();
+        let log2 = d2.path().join("admin.jsonl");
+        revoke(d2.path(), HUB, &k, &op(&fp(1)), 1, |_: &J, _: &[J]| Ok(())).unwrap();
+        let rows = std::cell::RefCell::new(vec![]);
+        let msgs = startup_reconcile_with(d2.path(), &log2, HUB, &k, |r| {
+            rows.borrow_mut().push(r);
+            Ok(())
+        });
+        assert!(msgs.iter().any(|m| m.contains("repaired")), "{msgs:?}");
+        let rows = rows.into_inner();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["seq"], 1);
+        assert_eq!(rows[0]["added"][0]["key"], fp(1));
     }
 }

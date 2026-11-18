@@ -366,3 +366,14 @@ fn policy_urgent_from_an_allow_listed_sender_is_kept_and_answered() {
         .collect();
     assert_eq!(al, ["SENT", "POSTED", "RECEIVED", "STORED"]);
 }
+
+// ---- T-3703 (DR-8 A): the stale gate binds any widening of the urgent allow-list -------------------
+
+#[test]
+fn t3703_stale_gate_keeps_urgent_only_for_the_own_project_while_narrowing() {
+    use termlink_sidecar::policy::{Trust, stale_gate};
+    assert!(stale_gate(true, Trust::OwnProject, true), "own project stays urgent when stale");
+    assert!(!stale_gate(true, Trust::Admitted, true), "another project's allowed sender is downgraded when stale");
+    assert!(stale_gate(true, Trust::Admitted, false), "not stale: the allow-list decides");
+    assert!(!stale_gate(false, Trust::OwnProject, true), "the gate never raises urgency");
+}

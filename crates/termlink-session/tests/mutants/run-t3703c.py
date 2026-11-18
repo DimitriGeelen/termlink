@@ -10,6 +10,7 @@ import sys
 
 REV = "crates/termlink-sidecar/src/revocation.rs"
 PULL = "crates/termlink-sidecar/src/pull.rs"
+POLICY = "crates/termlink-sidecar/src/policy.rs"
 
 # (id, what, file, old, new)
 MUTANTS = [
@@ -19,8 +20,8 @@ MUTANTS = [
     ("c2-any-seq", "a lower seq is accepted (E-40.5)", REV,
      "            if hseq < held.seq {", "            if false {"),
     ("c3-no-receive-check", "the receiver does not check the held list (E-39.5)", PULL,
-     "            && crate::revocation::revoked(&self.store, &fp)\n        {\n            let out",
-     "            && false\n        {\n            let out"),
+     "        if crate::revocation::revoked(&self.store, &fp) {\n            let out",
+     "        if false {\n            let out"),
     ("c4-leave-stored", "a message stored before the revocation is left STORED (E-39.6)", REV,
      "            if !is_revoked {\n                continue;\n            }\n            let done",
      "            if is_revoked || !is_revoked {\n                continue;\n            }\n            let done"),
@@ -41,11 +42,28 @@ MUTANTS = [
     ("c11-no-chain", "a list that does not chain at held + 1 is accepted", REV,
      "                && l.get(\"prev_digest\").and_then(J::as_str) != Some(held.digest.as_str())",
      "                && false"),
+    # round 2 (r2-dispositions.md)
+    ("c12-handle-before-head", "messages are handled before the head is read (design 5.4, r2 OC 10)", PULL,
+     "        self.pull_revocations(&version);\n        let topic",
+     "        let _ = &version;\n        let topic"),
+    ("c13-outage-not-counted", "a pass that cannot reach the hub is not a failed pull (r2 CC 1)", PULL,
+     "        t.outage(&self.store, std::time::Instant::now(), why);", "        let _ = (&t, why);"),
+    ("c14-no-stale-gate", "the stale state does not narrow urgent (DR-8 A, r2 CC 3)", POLICY,
+     "    urgent && (!narrowing || trust == Trust::OwnProject)", "    let _ = (narrowing, trust);\n    urgent"),
+    ("c15-no-fallback", "with no snapshot, nothing is revoked (r2 CC 9)", REV,
+     "        .map(|l| keys_of(&entries_of(&l)))\n        .unwrap_or_default()", "        .map(|_l| BTreeSet::new())\n        .unwrap_or_default()"),
+    ("c16-raise-all", "the entry names every key, not the new ones (r2 CC 10)", REV,
+     ".is_some_and(|k| !named.contains(k))).collect();", ".is_some_and(|_k| true)).collect();"),
+    ("c17-no-heal", "an unverifiable stored list keeps its floor and keys (r2 CC 7)", REV,
+     "        if self.held_unverified {\n            return self.fetch", "        if false {\n            return self.fetch"),
+    ("c18-sweep-open-attempt", "the sweep refuses a message whose attempt is open (r2 CC 9)", REV,
+     "            if open {\n                continue;", "            if false && open {\n                continue;"),
 ]
 
 CMDS = [
     ["cargo", "test", "-p", "termlink-sidecar", "--lib", "revocation"],
     ["cargo", "test", "-p", "termlink-sidecar", "--test", "t3703_revocation_sidecar"],
+    ["cargo", "test", "-p", "termlink-sidecar", "--test", "policy_tests"],
 ]
 
 

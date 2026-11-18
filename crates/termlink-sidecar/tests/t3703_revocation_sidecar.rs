@@ -137,3 +137,25 @@ fn e39_a_revoked_key_is_refused_within_one_pass_and_stored_mail_from_it_is_refus
     let _ = a.rx.pass();
     assert!(lines(&a.store, "c3").iter().any(|(ev, _, _)| ev == "STORED"), "mail to fx-a kept");
 }
+
+/// r2 CC 1: the stale rule runs when the hub cannot be asked at all (`hub.version` fails), through the real pass.
+#[test]
+fn e41_l4_a_hub_outage_makes_the_list_stale_through_the_receive_pass() {
+    let mut e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let _ = rpc(&e, "channel.create", json!({"name": format!("inbox:{id}/fx-b")}));
+    let b = side(&e, &id, "b", "a");
+    b.rx.set_revocation_stale_after(Duration::from_millis(300));
+    let _ = b.rx.pass();
+    assert_eq!(b.rx.revocation_state(), termlink_sidecar::revocation::State::Verified);
+    e.stop_hub();
+    let _ = b.rx.pass();
+    assert_eq!(b.rx.revocation_state(), termlink_sidecar::revocation::State::Verified, "not yet past PN-13");
+    std::thread::sleep(Duration::from_millis(400));
+    let _ = b.rx.pass();
+    assert_eq!(b.rx.revocation_state(), termlink_sidecar::revocation::State::Stale);
+    assert!(termlink_sidecar::revocation::narrowing(&b.store));
+    assert!(kinds(&b.store).iter().any(|k| k == "revocation-stale"));
+    let st = termlink_sidecar::revocation::status(&b.store);
+    assert!(st["revocation"].as_str().unwrap().starts_with("stale since"), "{st}");
+}
