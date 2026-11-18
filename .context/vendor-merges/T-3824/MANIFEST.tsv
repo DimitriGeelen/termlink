@@ -1,0 +1,4 @@
+# T-3824: be.57 -> be.59. Two preserved files changed upstream; both 3-way merged clean (base be.57, ours = vendored, theirs = be.59).
+# path<TAB>ours<TAB>theirs(be.59)<TAB>merged
+agents/handover/handover.sh	e77d53c3dfc6a727c834d2e6e16a9cabf23afd021aeee21d370ae46f92c3fd54	629d6935460ad8764a238e0c43830aadb09c59e5c540ef553152455d8fb64594	247330c92d9fb13fdf08535a7b9354ce7d530750288bc3bc023d6ac2b49b3da3
+lib/sidecar_cli.py	91297396612f4dd271a21e11db8efd5b9dbd745dc5d3ec8fe514baa35059aac0	bab0ceb8273359e46736a8e9f0c3551992aaac7310b0bd7375904d099f62e034	2253702b16a5ac1fa060d281a99a2763c26531b8ffeac7dcb95d6c31684b4ad9

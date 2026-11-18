@@ -411,6 +411,7 @@ Unblocks: P-40 (T-3719, deny in place).
 - **Rejected:** a separate settings-deny runme action here: a second mechanism that would drift from AEF's and cover only this project.
 - **Asked AEF to cover:** the tool name set as it changes (SendToProject*, any future cross-session tool), sub-agent dispatch (Agent) staying allowed, and a stable refusal text our prover can match.
 - **AEF answer (msg ac7dceeb):** all three hold. (1) One list, `BLOCKED_TOOLS` in `agents/context/block-cross-session-messages.sh`, plus the settings matcher. (2) Agent untouched. (3) Every refusal prints the fixed stderr line `FW-DENY: cross-session-messaging (T-5225)`, a stable contract asserted by their tests (T-5231). Our check matches that marker, not the prose. Be-tag to follow.
+- **2026-11-18, AEF notice (msg 16dbd4b2):** the hook ships in **v1.8.16-be.59** (also carries T-5210/T-5141/T-5142 and T-5236). Next: re-vendor be.59 via runme 11a (fresh merge set against the current tree, skipping be.58), then prove here: a SendMessage attempt is refused with `FW-DENY: cross-session-messaging (T-5225)` and the session-message prover's `verify-record` still passes.
 
 ## Decision
 

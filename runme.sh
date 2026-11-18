@@ -2062,7 +2062,14 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
-# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.57 (T-3818; was be.54, T-3812)
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.59 (T-3824; was be.57, T-3818)
+#
+# T-3824 retarget be.57 -> be.59 (tag -> commit ea167a69d, 170 commits; be.58 skipped): AEF T-5225, the PreToolUse
+# hook agents/context/block-cross-session-messages.sh that refuses SendMessage / SendToProject / SendToProjectContext
+# with the fixed line "FW-DENY: cross-session-messaging (T-5225)" (the operator's rule, our T-3712), T-5236 and the
+# be.58 fixes T-5141/T-5142. Two preserved files changed be.57 -> be.59 (agents/handover/handover.sh,
+# lib/sidecar_cli.py); both 3-way merged clean (base be.57) into .context/vendor-merges/T-3824 with a manifest whose
+# "ours" hashes are the CURRENT vendored copies (checked 2026-11-18).
 #
 # T-3812 retarget: be.54 (tag object e85a75e09 -> commit c6c0a6738, 141 commits past be.52) carries
 # AEF T-5180 (operator widening: `human_ac_ticks.py delegation widen`, for T-1632/T-2258/T-3685
@@ -2110,7 +2117,7 @@ seam AEFU_WORKROOT RUNME_AEFU_WORKROOT "/var/tmp"
 seam AEFU_DIVCHECK RUNME_AEFU_DIVCHECK "$PROJECT_ROOT/scripts/check-vendor-divergence.sh"
 seam AEFU_URL RUNME_AEFU_URL "http://192.168.10.107:3003"
 seam AEFU_CURL RUNME_AEFU_CURL "curl"
-seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3812"
+seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3824"
 # T-3794: retargeted be.49 -> be.51 (AEF T-5137, the send-guard fix from our T-3790). The tag,
 # the marker that proves the wanted fix landed, and the task the commit names are seams, so the
 # fixtures keep their be.49 scenario while a real run takes be.51.
@@ -2118,10 +2125,10 @@ seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3812"
 # keeps same-hub sub-agent circuits; our T-3815) and T-5206 (delegate honours widenings). No preserved file changed
 # be.54 -> be.57, and the T-3812 merge set's ours/theirs/merged hashes were re-checked against the CURRENT vendored
 # tree and be.57 (all match), so AEFU_MERGES stays on T-3812.
-seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.57"
-seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/inbox.py"
-seam AEFU_MARK RUNME_AEFU_MARK "T-5210"
-seam AEFU_TASK RUNME_AEFU_TASK "T-3818"
+seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.59"
+seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "agents/context/block-cross-session-messages.sh"
+seam AEFU_MARK RUNME_AEFU_MARK "T-5225"
+seam AEFU_TASK RUNME_AEFU_TASK "T-3824"
 AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
 
 aefu_fw()  { (cd "$AEFU_PROJECT" && "$AEFU_PROJECT/.agentic-framework/bin/fw" "$@"); }
