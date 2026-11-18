@@ -1,0 +1,166 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3703: P-15: B-5 revocation list
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-18T18:49:31Z
+# ============================================================================
+
+task_id: T-3703
+task_name: "P-15: B-5 revocation list"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:39Z
+completed: 2026-11-18T18:46:11Z
+duration_days: 6
+updates_count: 3
+first_commit: 2026-11-18T14:22:08+01:00
+last_commit: 2026-11-18T19:46:09+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-15 spec extract (7 E-n, 10 gaps). P-15 slice A — AL-20 signed state (RFC 8785, strict gate, domain-separated ed25519); E-42 vectors + 100k fuzz; 6/6 mutants; design v2 after review round 1. operator ruling A — hub.revoke under the same-uid stated limit (as card writes). P-15 slice B — hub-signed revocation list (AL-21): admin revoke, carded self-revoke, head/get, reconcile + reissue, KEY_REVOKED post check; E-43, E-167; 8/8 mutants; runme action 33. P-15 slice C — sidecar revocation pull (AL-22): head every pass before handling, pinned-key verify, rollback/fork/chain refused, stale after PN-13, REVOKED refusal + notice, FCW-200 sweep; E-39/E-40/E-41; 11/11 mutants. round-2 code-review bundle (slices B+C, 117 KB, redacted). review round 2 fixes — outage drives the stale rule, verified-key fingerprint fail-closed, policy stale gate, reissue chains to the committed head, reconcile-aware post check, corrupted store heals, delta-only attention; mutants B 11/11, C 18/18; sender WAITING reason deferred to T-3708. round-3 confirmation bundle (71 KB, redacted). review round 3 (cap) — torn-row block superseded by a reissue, receive check fingerprints the signer key, bad-signer-key reason, malformed pinned key is tamper, E-40(c) LIMIT test; mutants B 12/12, C 18/18; deferred items on T-3708/T-3713. L4 outage test timing-safe (3 s window, 'not yet stale' asserted only inside it); verification prints the E-42 PASS line. Evolution section (slice A vectors gap, r1 wrong settlements, r2/r3 seam failures)
+
+# Key outcomes
+outcomes:
+  - 'Design note''s gap settlements reviewed by two isolated seats before code beyond slice A (docs/reports/T-3703-reviews/), WRONG items fixed (round 1: claude-code 3 WRONG on items 3, 8, 12 + 15 WRONG; all fixed in design v2 section 5; r1-dispositions.md)'
+  - 'Slice A: AL-20 (`termlink-session::signed_state`; the crate both hub and sidecar already use for ed25519/SHA-256) reproduces V-REV-1, V-REV-2, V-HEAD-1, V-FWD-1 byte-exactly, refuses V-NEG-1..4, and survives ≥ 10^5 mutated lists (E-42: 100000, 43600 accepted all canonically equal, 56400 refused); vectors tracked under `crates/termlink-session/tests/fixtures/`; mutants 6/6 killed (`tests/mutants/run-t3703a.py`)'
+  - 'Operator ruling recorded (2026-11-18: A, see Decisions): whether the same-uid stated limit (2026-11-18 ruling A on card writes) extends to `hub.revoke` (design v2 5.12), before slice B'
+  - 'Slice B (hub: state, admin revoke with intent/committed rows, self-revoke for carded keys, head/get, reconcile + reissue, post check KEY_REVOKED, runme action): E-43 and E-167 pass, mutants killed (`crates/termlink-hub/src/revocation.rs` 9 unit tests; `crates/termlink-cli/tests/t3703_revocation.rs` 3 real-hub tests; hub suite 645/0; mutants 8/8, docs/reports/T-3703-mutants.md; runme action 33 + 7 fixtures, suite 423/0)'
+  - 'Slice C (sidecar: head every pass, pin, states, stale gate, status, receive and hand-over refusal, sender-side waiting): E-39, E-40, E-41 pass, mutants killed (`crates/termlink-sidecar/src/revocation.rs` 7 unit tests; `tests/t3703_revocation_sidecar.rs` E-39 on a real hub; sidecar suite 42 binaries, 0 failed; mutants 11/11. Departures named in design §6: no policy.rs change for DR-8 A (equivalent), sender-side WAITING reason deferred to P-24)'
+  - 'Code review of slices B and C by two isolated seats (docs/reports/T-3703-reviews/ round 2), BLOCKER/MAJOR fixed or disposed (round 2: 0 BLOCKER, 13 MAJOR between the seats, all A or D, r2-dispositions.md; round 3 confirmation, the cap: every round-2 item CLOSED or SOUND in both seats, two new MAJORs fixed, minors disposed, r3-dispositions.md)'
+  - 'The B-5 specs pass (hub state, admin revoke, self-revoke, tick pull, stale rule DR-8 A)'
+  - 'The unit''s fixture suite exits 0 with a PASS line per B-5 E-n and its mutant list is all killed (FP 3.1.b) (E-39 real hub; E-40 a/b/c incl. the LIMIT verdict; E-41 unit + L4 outage; E-42 vectors + 10^5 fuzz; E-43 hub unit + real hub; E-167 hub unit + real hub. E-127 is an operational check row: its reader is a criterion of T-3708 and its drill is P-37 (T-3716). Mutants A 6/6, B 12/12, C 18/18, docs/reports/T-3703-mutants.md)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'review round 3 (cap) — torn-row block superseded by a reissue, receive check fingerprints the signer key, bad-signer-key reason, malformed pinned key is tamper, E-40(c) LIMIT test; mutants B 12/12, C 18/18; deferred items on T-3708/T-3713'
+    source: git-mined
+  - description: 'review round 2 fixes — outage drives the stale rule, verified-key fingerprint fail-closed, policy stale gate, reissue chains to the committed head, reconcile-aware post check, corrupted store heals, delta-only attention; mutants B 11/11, C 18/18; sender WAITING reason deferred to T-3708'
+    source: git-mined
+  - description: 'P-15 slice B — hub-signed revocation list (AL-21): admin revoke, carded self-revoke, head/get, reconcile + reissue, KEY_REVOKED post check; E-43, E-167; 8/8 mutants; runme action 33'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-18 — Who may call `hub.revoke` while agents run as root on the hub host (operator ruling)'
+    chose: 'A, the same stated limit as the 2026-11-18 card-write ruling: `hub.revoke` is unix-socket-only, Execute scope, an intent admin row before and a committed row after, a `key-revoked` needs-attention entry from every sidecar; the operator''s route is a runme action. Any same-uid (root) process can call it; that is the AR-4 limit, visible and logged, not a barrier.'
+    rationale: 'matches the accepted card-write limit; a rogue revocation is loud and recoverable by re-keying the agent (new key card); the list keeps its only-grows guarantee.'
+    alternatives_rejected: ['B (an un-revoke would let a stolen key come back and breaks AL-22 invariant 2); C (no operator revocation in PH-2 defeats the purpose). - **Left open:** replacing root-on-host by the operator key (PH-3, OQ-h); the hub under its own account (Track A).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3703-p-15-b-5-revocation-list.md'
+  - '.tasks/active/T-3708-p-24-b-14-status-strength-flags-reachabi.md'
+  - '.tasks/active/T-3713-p-31-credential-migration-on-107.md'
+  - 'Cargo.toml'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-cli/tests/t3703_revocation.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/hub_identity.rs'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-hub/src/revocation.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/src/rpc_audit.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/signed_state.rs'
+  - 'crates/termlink-session/tests/fixtures/gen-signed-state-vectors.py'
+  - 'crates/termlink-session/tests/fixtures/signed-state-vectors.json'
+  - 'crates/termlink-session/tests/mutants/run-t3703a.py'
+  - 'crates/termlink-session/tests/mutants/run-t3703b.py'
+  - 'crates/termlink-session/tests/mutants/run-t3703c.py'
+  - 'crates/termlink-session/tests/t3703_signed_state.rs'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/policy.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/revocation.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/policy_tests.rs'
+  - 'crates/termlink-sidecar/tests/t3703_revocation_sidecar.rs'
+  - 'docs/reports/T-3703-design.md'
+  - 'docs/reports/T-3703-mutants.md'
+  - 'docs/reports/T-3703-reviews/bundle-1.md'
+  - 'docs/reports/T-3703-reviews/bundle-2.md'
+  - 'docs/reports/T-3703-reviews/bundle-3.md'
+  - 'docs/reports/T-3703-reviews/prompt-1.md'
+  - 'docs/reports/T-3703-reviews/prompt-2.md'
+  - 'docs/reports/T-3703-reviews/prompt-3.md'
+  - 'docs/reports/T-3703-reviews/r1-dispositions.md'
+  - 'docs/reports/T-3703-reviews/r2-dispositions.md'
+  - 'docs/reports/T-3703-reviews/r3-dispositions.md'
+  - 'docs/reports/T-3703-reviews/review-1-claude-code.md'
+  - 'docs/reports/T-3703-reviews/review-1-independence.json'
+  - 'docs/reports/T-3703-reviews/review-1-opencode.md'
+  - 'docs/reports/T-3703-reviews/review-2-claude-code.md'
+  - 'docs/reports/T-3703-reviews/review-2-independence.json'
+  - 'docs/reports/T-3703-reviews/review-2-opencode.md'
+  - 'docs/reports/T-3703-reviews/review-3-claude-code.md'
+  - 'docs/reports/T-3703-reviews/review-3-independence.json'
+  - 'docs/reports/T-3703-reviews/review-3-opencode.md'
+  - 'docs/reports/T-3703-spec-extract.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-18T14:22:08'
+    action: 'T-3703: P-15 spec extract (7 E-n, 10 gaps)'
+  - time: '2026-11-18T14:50:52'
+    action: 'T-3703: P-15 slice A — AL-20 signed state (RFC 8785, strict gate, domain-separated ed25519); E-42 vectors + 100k fuzz; 6/6 mutants; design v2 after review round 1'
+  - time: '2026-11-18T16:04:06'
+    action: 'T-3703: operator ruling A — hub.revoke under the same-uid stated limit (as card writes)'
+  - time: '2026-11-18T17:03:29'
+    action: 'T-3703: P-15 slice B — hub-signed revocation list (AL-21): admin revoke, carded self-revoke, head/get, reconcile + reissue, KEY_REVOKED post check; E-43, E-167; 8/8 mutants; runme action 33'
+  - time: '2026-11-18T18:40:01'
+    action: 'T-3703: P-15 slice C — sidecar revocation pull (AL-22): head every pass before handling, pinned-key verify, rollback/fork/chain refused, stale after PN-13, REVOKED refusal + notice, FCW-200 sweep; E-39/E-40/E-41; 11/11 mutants'
+  - time: '2026-11-18T18:41:36'
+    action: 'T-3703: round-2 code-review bundle (slices B+C, 117 KB, redacted)'
+  - time: '2026-11-18T19:11:12'
+    action: 'T-3703: review round 2 fixes — outage drives the stale rule, verified-key fingerprint fail-closed, policy stale gate, reissue chains to the committed head, reconcile-aware post check, corrupted store heals, delta-only attention; mutants B 11/11, C 18/18; sender WAITING reason deferred to T-3708'
+  - time: '2026-11-18T19:11:31'
+    action: 'T-3703: round-3 confirmation bundle (71 KB, redacted)'
+  - time: '2026-11-18T19:39:04'
+    action: 'T-3703: review round 3 (cap) — torn-row block superseded by a reissue, receive check fingerprints the signer key, bad-signer-key reason, malformed pinned key is tamper, E-40(c) LIMIT test; mutants B 12/12, C 18/18; deferred items on T-3708/T-3713'
+  - time: '2026-11-18T19:43:04'
+    action: 'T-3703: L4 outage test timing-safe (3 s window, ''not yet stale'' asserted only inside it); verification prints the E-42 PASS line'
+  - time: '2026-11-18T19:46:09'
+    action: 'T-3703: Evolution section (slice A vectors gap, r1 wrong settlements, r2/r3 seam failures)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 11 commit(s), 8749 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8749
+  commits: 12
+  files_changed: 59
+  lines_added: 10040
+  lines_removed: 141
+  footprint_refreshed_at: '2026-11-18T18:49:50Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3703-p-15-b-5-revocation-list.md
+generated_by: context-agent-hybrid

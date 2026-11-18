@@ -24849,3 +24849,21 @@ scan_id: R-7832aa04
 task_id: T-3821
 payload:
   task_file: .tasks/active/T-3821-park-laptop-141-hub-profile-while-141-ru.md
+---
+kind: scan_emitted
+timestamp: '2026-11-18T18:49:09Z'
+scan_id: R-0275a404
+task_id: T-3703
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-18T18:49:09Z'
+scan_id: R-0275a404
+task_id: T-3703
+payload:
+  task_file: .tasks/active/T-3703-p-15-b-5-revocation-list.md

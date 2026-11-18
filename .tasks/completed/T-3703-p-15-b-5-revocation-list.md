@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): B-5: revocation list (hub state, admin revoke, self-revoke,
   tick pull, stale rule DR-8 A)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/lib.rs, crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/deliver.rs, crates/termlink-sidecar/src/lib.rs, crates/termlink-sidecar/src/policy.rs, crates/termlink-sidecar/src/pull.rs, crates/termlink-sidecar/src/wire.rs, crates/termlink-sidecar/tests/policy_tests.rs, runme.sh, tests/runme-fixtures.sh]
 related_tasks: [T-3357, T-3366]
 plan_unit: P-15
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:39Z
-last_update: 2026-11-18T18:46:09Z
-date_finished:
+last_update: 2026-11-18T18:46:11Z
+date_finished: 2026-11-18T18:46:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -446,3 +446,25 @@ grep -q '12/12 killed' docs/reports/T-3703-mutants.md && grep -q '18/18 killed' 
 ### 2026-11-18T12:22:13Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-18T18:46:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0275a404
+- **Timestamp:** 2026-11-18T18:49:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Slice A: AL-20 (`termlink-session::signed_state`; the crate both hub and sidecar already use for ed25519/SHA-256) reproduces V-REV-1, V-REV-2, V-HEAD-1, V-FWD-1 byte-exactly, refuses V-NEG-1..4, and s
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/mutants/run-t3703a.py in: Slice A: AL-20 (`termlink-session::signed_state`; the crate both hub and sidecar already use for ed25519/SHA-256) reproduces V-REV-1, V-REV-2, V-HEAD-`
+- **AC#4 (Agent)** — Slice B (hub: state, admin revoke with intent/committed rows, self-revoke for carded keys, head/get, reconcile + reissue, post check KEY_REVOKED, runme action): E-43 and E-167 pass, mutants killed (`c
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-hub/src/revocation.rs in: Slice B (hub: state, admin revoke with intent/committed rows, self-revoke for carded keys, head/get, reconcile + reissue, post check KEY_REVOKED, runm`
+- **AC#5 (Agent)** — Slice C (sidecar: head every pass, pin, states, stale gate, status, receive and hand-over refusal, sender-side waiting): E-39, E-40, E-41 pass, mutants killed (`crates/termlink-sidecar/src/revocation.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-sidecar/src/revocation.rs in: Slice C (sidecar: head every pass, pin, states, stale gate, status, receive and hand-over refusal, sender-side waiting): E-39, E-40, E-41 pass, mutant`
