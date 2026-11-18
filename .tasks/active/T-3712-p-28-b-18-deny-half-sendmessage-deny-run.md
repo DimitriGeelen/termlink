@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:50Z
-last_update: 2026-11-17T21:16:21Z
+last_update: 2026-11-18T12:24:34Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -404,6 +404,12 @@ Unblocks: P-40 (T-3719, deny in place).
 - **Operator words:** "I do know that Antropix internal messages should be blocked. You should always use Termlink. It's forbidden. 999 AEF agents should know that."
 - **Trigger:** project 100 tried a Claude Code cross-session SendMessage to our session (msg 4ee8f417, refused by our session) instead of the TermLink sidecar.
 - **Effect:** confirms the purpose of this unit (B-18 deny half); its prerequisite P-27 (T-3711) passed live 2026-11-12. AEF told the same day so its agents and its framework carry the rule. Scope of the deny (this project's sessions vs every Claude session on .107) is the one open question before build.
+
+### 2026-11-18 — AEF builds the deny as T-5225; we reuse it (agent, pending be-tag)
+- **AEF (msg 8cda941d, consult-010-termlink):** their operator confirmed the rule; AEF builds T-5225, a PreToolUse hook refusing SendMessage, SendToProject, SendToProjectContext (and others found) with a refusal pointing to `fw sidecar send`, shipped to consumers by `fw upgrade`, and the rule in the guidance every project receives. They will name the be-tag.
+- **Chose:** reuse T-5225 instead of building our own deny (one mechanism, delivered fleet-wide by upgrade, which also settles the scope question for every AEF project). This unit becomes: vendor that tag via runme 11a, then prove it here (a refused SendMessage in this project, the prover's `verify-record` still passing).
+- **Rejected:** a separate settings-deny runme action here: a second mechanism that would drift from AEF's and cover only this project.
+- **Asked AEF to cover:** the tool name set as it changes (SendToProject*, any future cross-session tool), sub-agent dispatch (Agent) staying allowed, and a stable refusal text our prover can match.
 
 ## Decision
 
