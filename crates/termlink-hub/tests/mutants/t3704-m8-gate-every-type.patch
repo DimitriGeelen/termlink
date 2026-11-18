@@ -1,0 +1,15 @@
+# fc: NID
+# mutation: the check also gates other message types and topics
+# package: termlink-hub
+# test: --lib key_card::tests::other_types_and_topics_are_never_gated
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -197,7 +197,7 @@
+ 
+ /// The card check for one post whose transport signature has already verified with `signer`.
+ pub fn check_post(dir: &Path, topic: &str, msg_type: &str, payload: &[u8], signer: &[u8; 32]) -> Check {
+-    if !topic.starts_with("inbox:") || !GATED_TYPES.contains(&msg_type) {
++    if false {
+         return Check::NotGated;
+     }
+     let agent = match claimed_agent(payload) {

@@ -1,0 +1,15 @@
+# fc: FCW-98 / E-69.4
+# mutation: the receiver does not check a bound from_agent against the key
+# package: termlink-sidecar
+# test: --lib wire::wire_tests::t3704_named_roster_binds_from_agent_to_its_key
+--- a/crates/termlink-sidecar/src/wire.rs
++++ b/crates/termlink-sidecar/src/wire.rs
+@@ -315,7 +315,7 @@
+         if !plain_agent_name(from_agent) {
+             return Err(Refusal::Malformed("from_agent is not a plain agent name"));
+         }
+-        if let Some(k) = self.1.get(from_agent)
++        if let Some(k) = None::<&VerifyingKey>
+             && k.as_bytes() != pk.as_bytes()
+         {
+             return Err(Refusal::AgentKeyMismatch);

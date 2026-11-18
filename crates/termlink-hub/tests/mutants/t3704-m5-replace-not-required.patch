@@ -1,0 +1,15 @@
+# fc: design v2 C-3
+# mutation: a card key or project changes without replace
+# package: termlink-hub
+# test: --lib key_card::tests::a_key_or_project_change_needs_replace_and_seq_rises
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -267,7 +267,7 @@
+     let old = store.cards.get(&req.agent).cloned();
+     if let Some(o) = &old
+         && (o.signing_key != req.signing_key || o.project != req.project)
+-        && !req.replace
++        && false
+     {
+         return Err(format!(
+             "agent {:?} already has a card (project {:?}, key {}); changing its key or project needs replace: true",

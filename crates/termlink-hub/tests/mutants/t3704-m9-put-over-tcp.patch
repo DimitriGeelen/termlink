@@ -1,0 +1,15 @@
+# fc: operator ruling A (local socket only)
+# mutation: a card write is accepted from a TCP peer
+# package: termlink-hub
+# test: --lib router::tests::t3704_key_card_writes_are_refused_off_the_local_socket
+--- a/crates/termlink-hub/src/router.rs
++++ b/crates/termlink-hub/src/router.rs
+@@ -898,7 +898,7 @@
+ /// T-3704 (B-6): key-card writes are accepted only over the local unix socket (no peer address;
+ /// operator ruling A 2026-11-18). They are admin RPCs, so the intent row is already written.
+ fn key_card_local_only(id: &serde_json::Value, method: &str, peer_addr: Option<&str>) -> Option<RpcResponse> {
+-    peer_addr.map(|p| {
++    peer_addr.filter(|_| false).map(|p| {
+         ErrorResponse::with_data(
+             id.clone(),
+             control::error_code::KEY_CARD_REFUSED,

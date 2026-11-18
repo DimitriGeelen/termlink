@@ -1,0 +1,15 @@
+# fc: FCW-128
+# mutation: card writes are not admin RPCs (no intent row first)
+# package: termlink-hub
+# test: --lib router::tests::t3704_key_card_writes_are_refused_off_the_local_socket
+--- a/crates/termlink-hub/src/rpc_audit.rs
++++ b/crates/termlink-hub/src/rpc_audit.rs
+@@ -618,8 +618,6 @@
+     termlink_protocol::control::method::CHANNEL_FORCE_RELEASE,
+     termlink_protocol::control::method::CHANNEL_TRANSFER_CLAIM,
+     // T-3704 (B-6): card writes and the check setting (admin row before the act, FCW-128).
+-    "hub.key_card_put",
+-    "hub.key_card_mode",
+ ];
+ 
+ pub fn is_admin_method(method: &str) -> bool {

@@ -1,0 +1,15 @@
+# fc: design v2 C-M1
+# mutation: from_agent is used without the plain-name check
+# package: termlink-hub
+# test: --lib key_card::tests::a_traversal_name_is_refused_and_never_read_as_a_path
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -201,7 +201,7 @@
+         return Check::NotGated;
+     }
+     let agent = match claimed_agent(payload) {
+-        Some(a) if valid_name(&a) => a,
++        Some(a) if !a.is_empty() => a,
+         Some(a) => {
+             let shown: String = a.chars().take(64).collect();
+             return refuse_no_card("?", format!("from_agent {shown:?} is not a plain agent name"));

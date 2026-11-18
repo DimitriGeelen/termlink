@@ -1,0 +1,15 @@
+# fc: FCW-135 / E-169
+# mutation: a poster without a card passes
+# package: termlink-hub
+# test: --lib key_card::tests::e169_fcw135_a_poster_without_a_card_is_refused
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -214,7 +214,7 @@
+         Err(e) => return refuse_no_card(&agent, e),
+     };
+     let Some(card) = store.cards.get(&agent) else {
+-        return refuse_no_card(&agent, format!("no key card for agent {agent:?}"));
++        return Check::Pass { agent };
+     };
+     match parse_signing_key(&card.signing_key) {
+         Some(k) if &k == signer => Check::Pass { agent },

@@ -53,6 +53,8 @@ pub const HELD_ALERT: &str = "held-for-operator";
 pub const HELD_KEY_PREFIX: &str = "held-key-";
 /// The store state file holding the next inbox offset to read.
 pub const CURSOR_STATE: &str = "inbox-cursor";
+/// T-3704: the last refusal count the hub reported for this agent (impersonation attention).
+pub const IMPERSONATION_STATE: &str = "key-card-refusals-seen";
 /// Conversation name used for a refused message whose own conv is unusable.
 pub const UNPARSED_CONV: &str = "_refused";
 
@@ -253,6 +255,44 @@ impl Inner {
         }
     }
 
+    /// T-3704 (B-6, design v2 C-12): the hub counts arc-011 posts refused (or, in log mode, that
+    /// would be refused) for claiming to be this agent. When that count has grown since the last
+    /// tick, raise one needs-attention entry per day naming the counts. Best effort: an old hub
+    /// without `hub.key_card_list` or any read error changes nothing and never holds mail.
+    fn observe_impersonation(&self) {
+        let Ok(resp) = self.rpc("hub.key_card_list", json!({})) else { return };
+        let Ok(v) = unwrap_result(resp) else { return };
+        let r = &v["refusals"][self.cfg.agent.as_str()];
+        let (refused, would) = (r["refused"].as_u64().unwrap_or(0), r["would_refuse"].as_u64().unwrap_or(0));
+        let total = refused + would;
+        let seen: u64 = self
+            .store
+            .read_state(IMPERSONATION_STATE)
+            .ok()
+            .flatten()
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(0);
+        if total == seen {
+            return;
+        }
+        let _ = self.store.write_state(IMPERSONATION_STATE, &total.to_string());
+        if total < seen {
+            return; // the hub restarted and its counts began again
+        }
+        let day = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() / 86_400)
+            .unwrap_or(0);
+        let detail = format!(
+            "posts claiming to be agent {} were refused at the hub by its key card: {refused} refused, \
+             {would} would be refused (log mode); see `termlink hub key-card list` and rpc-admin.jsonl",
+            self.cfg.agent
+        );
+        if let Err(e) = self.store.attention_coalesced("posts-claiming-to-be-you-refused", &day.to_string(), &detail) {
+            eprintln!("termlink-sidecar: needs attention (posts-claiming-to-be-you-refused): {detail} [could not record it: {e}]");
+        }
+    }
+
     fn cursor(&self) -> u64 {
         self.store
             .read_state(CURSOR_STATE)
@@ -288,7 +328,10 @@ impl Inner {
             return PassResult::Drained;
         }
         match self.check_pin() {
-            Ok(()) => mem.held = None,
+            Ok(()) => {
+                mem.held = None;
+                self.observe_impersonation();
+            }
             Err(PinError::Unreachable(_)) => return PassResult::Waiting,
             Err(PinError::Mismatch { declared, found }) => {
                 let why = format!(

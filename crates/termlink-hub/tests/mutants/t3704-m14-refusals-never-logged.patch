@@ -1,0 +1,16 @@
+# fc: AL-33 step 2 (admin_log)
+# mutation: no admin row is ever written for a refusal
+# package: termlink-hub
+# test: --lib key_card::tests::refusal_rows_are_coalesced_per_agent_key_minute
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -332,7 +332,8 @@
+     if g.0 != minute || g.1.is_none() {
+         *g = (minute, Some(HashSet::new()));
+     }
+-    g.1.as_mut().map(|s| s.insert((agent.to_string(), signer_fp.to_string()))).unwrap_or(true)
++    let _ = (agent, signer_fp);
++    false
+ }
+ 
+ #[cfg(test)]

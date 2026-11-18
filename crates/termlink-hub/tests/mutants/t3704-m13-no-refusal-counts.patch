@@ -1,0 +1,15 @@
+# fc: design v2 C-12
+# mutation: refusals are not counted for the impersonated agent
+# package: termlink
+# test: --test t3704_key_card e69_posts_are_checked_against_the_card_and_e169_no_card_is_refused
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -309,7 +309,7 @@
+ pub fn note_refusal(agent: &str, enforced: bool) {
+     let mut m = REFUSALS.lock().unwrap_or_else(|p| p.into_inner());
+     let e = m.entry(agent.to_string()).or_insert((0, 0));
+-    if enforced { e.0 += 1 } else { e.1 += 1 }
++    let _ = (enforced, e);
+ }
+ 
+ /// `{agent: {refused, would_refuse}}`.

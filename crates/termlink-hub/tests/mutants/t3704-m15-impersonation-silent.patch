@@ -1,0 +1,15 @@
+# fc: design v2 C-12 (sidecar)
+# mutation: the impersonated agent's sidecar never raises the attention entry
+# package: termlink-sidecar
+# test: --test t3704_impersonation a_refused_post_claiming_to_be_me_raises_one_attention_entry
+--- a/crates/termlink-sidecar/src/pull.rs
++++ b/crates/termlink-sidecar/src/pull.rs
+@@ -272,7 +272,7 @@
+             .flatten()
+             .and_then(|s| s.trim().parse().ok())
+             .unwrap_or(0);
+-        if total == seen {
++        if total == seen || total != seen {
+             return;
+         }
+         let _ = self.store.write_state(IMPERSONATION_STATE, &total.to_string());

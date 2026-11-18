@@ -1,0 +1,15 @@
+# fc: design v2 (fail closed)
+# mutation: an unreadable or invalid setting reads as off
+# package: termlink-hub
+# test: --lib key_card::tests::mode_defaults_off_and_a_bad_setting_enforces
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -71,7 +71,7 @@
+ 
+ /// The effective mode for a check: an unreadable or invalid setting enforces.
+ pub fn effective_mode(dir: &Path) -> Mode {
+-    read_mode(dir).unwrap_or(Mode::Enforce)
++    read_mode(dir).unwrap_or(Mode::Off)
+ }
+ 
+ pub fn write_mode(dir: &Path, mode: Mode) -> std::io::Result<()> {
