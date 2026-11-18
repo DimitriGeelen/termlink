@@ -7,12 +7,12 @@ description: >
   back to on (T-3816 ruling A), operator runs runme, joint check with a restarted
   fleet agent.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-17T18:22:21Z
-last_update: 2026-11-17T22:50:25Z
-date_finished:
+last_update: 2026-11-18T00:57:23Z
+date_finished: 2026-11-18T00:57:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -79,8 +79,8 @@ bvp_scores_proposed:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] runme action 31 declared state set to on (citing T-3816 ruling A and 055 msg 473e2ab3); after the operator's run the file is present (log OK, rc=0)
-- [ ] 055 told; joint check done (one claude-fw --termlink agent's keeper on a tl-* server, opened, typed into and stopped from the cockpit); 055's answer recorded here
+- [x] runme action 31 declared state set to on (citing T-3816 ruling A and 055 msg 473e2ab3); after the operator's run the file is present (log OK, rc=0) (commit 94b2a8867; runme-20261117T225628Z rc=0 "switched on: ... created")
+- [x] 055 told; joint check done (one claude-fw --termlink agent's keeper on a tl-* server, opened, typed into and stopped from the cockpit); 055's answer recorded here (055 msg e79c9eb4, their T-737, 2026-11-18 00:54Z: agent 1023-portable-encrypted-chromium-vault stopped and started from the cockpit; new keeper claude-master-2034695 on tl-1023-portable-encrypted-3fecc4e6, listed as fleet agent, test word typed via the cockpit arrived on the PTY and was erased, nothing sent; confirmed here: metadata.tmux_server = `termlink tmux socket /opt/1023-...`; told 055 c8ae9966)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -131,6 +131,9 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+test -f /etc/termlink/tmux-per-project
+grep -q 'seam TMUXPP_STATE RUNME_TMUXPP_STATE "on"' runme.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -385,3 +388,16 @@ bvp_scores_proposed:
 ### 2026-11-17T22:49:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-18T00:57:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1014246c
+- **Timestamp:** 2026-11-18T00:57:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

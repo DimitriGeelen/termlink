@@ -24813,3 +24813,21 @@ scan_id: R-700ecb41
 task_id: T-3814
 payload:
   task_file: .tasks/active/T-3814-widened-closes-under-t-3800sd-ab145e8e-m.md
+---
+kind: scan_emitted
+timestamp: '2026-11-18T00:57:27Z'
+scan_id: R-1014246c
+task_id: T-3817
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-18T00:57:27Z'
+scan_id: R-1014246c
+task_id: T-3817
+payload:
+  task_file: .tasks/active/T-3817-switch-per-project-tmux-servers-on-again.md
