@@ -1,0 +1,23 @@
+# T-3703 confirmation round 3 — dispositions (review cap reached)
+
+Seats (isolated, `review-3-independence.json`): claude-code (`review-3-claude-code.md`) FAIL on one new MAJOR (N1),
+every round-2 finding CLOSED and both R/D SOUND; opencode (`review-3-opencode.md`) FAIL on one new MAJOR (its #1, the
+same root as its "CC 2 NOT CLOSED"), everything else CLOSED, both R/D SOUND. This is the third review round for the
+unit (design r1, code r2, confirmation r3), the cap (ring20 lesson 5.16): every remaining point is accepted with a
+change, rejected with a reason, or deferred as a criterion of a named task, and is not sent round again.
+
+| # | Finding | Disp. | Change / where it lands |
+|---|---|---|---|
+| CC N1 (MAJOR) | a torn committed row blocks the list again on every later start (the reissue clears memory only; substring match also counts the reconcile row itself) | A | a line is torn only if it is not JSON; readable rows of other events are ignored whatever their text; only torn lines AFTER the last readable committed row count, so a reissue's committed row supersedes them. Test `r3_a_torn_row_stops_blocking_after_reissue_and_a_tear_before_the_event_name_still_blocks` (also covers OC 2 and the reconcile row naming the event); mutant b12. |
+| OC 1 (MAJOR), CC N2, OC "CC 2 not closed" | the receive check fingerprints the roster entry of the claimed `from`, not the key that verified | A | the fingerprint is of the envelope's signer key, the one whose signature `verify_open` checked (`check_signer` also requires its fingerprint to equal `from`, so the reviewer's sequence is refused earlier as FromMismatch, but the check no longer relies on it). Existing E-39 test and mutant c3. |
+| OC 2 | a tear before the event name escapes the torn count | A | as CC N1 (any non-JSON line counts). |
+| OC 3, CC N2 (reason) | the underivable-key refusal reuses the reason `revoked` | A | its own reason `bad-signer-key` (`pull::BAD_SIGNER_KEY`); not counted as a revocation refusal. No test: a key `verify_open` accepts always yields a fingerprint (the helper takes any hex case), so the branch is defensive. |
+| CC N6 | a pinned hub that stops offering its public key is classed "predates", not tamper | A in part, R in part | a pinned hub offering a public key that does not parse is tamper (test `r3_a_pinned_hub_offering_a_malformed_key_is_tamper`). A MISSING key stays "predates": every pre-T-3703 hub (T-3366, already deployed) offers its pinned fingerprint without the key, so a stripped key cannot be told from an old hub; the stale rule still narrows after PN-13 and the daily `revocation-hub-predates` entry names the hub. |
+| CC N3 | an orphaned claim (deliverer crash, no ABSENT) keeps a revoked sender's stored message out of every sweep | D | criterion of P-31 (T-3713, the roll-out on .107): close or expire an attempt whose claim has no attempt record after a restart (the deliverer's `recover()` path) and re-run the sweep, with a crash test through the real deliver path. Meanwhile such a message is not offered again (its claim stays open, FC-4) and is named by the existing open-attempt reporting, so it is not handed over a second time. |
+| CC N4 | a store-less `BuiltIn` turns the stale gate off; no downgrade reason; E-41.3 timing not run through `assess` | R in part, D in part | R: the daemon always builds `BuiltIn` with its store; the store-less constructor is the PH-1 test form, and treating it as narrowing would make every store-less test policy downgrade urgent. D to the unit that widens the urgent allow-list (named in design 6.3): record the reason `revocation list stale` and run E-41.3 through `assess` with an admitted urgent sender at 59:59 / 60:01; until a widening exists the gate's effect is nil by construction (an equivalent call), which is why the pure gate is what the mutant binds. Criterion added to T-3708 (status reasons). |
+| CC N5, OC 4 | during a pending reconcile every carded post re-reads the admin log; a same-length rewrite within mtime granularity; the sidecar's no-snapshot fallback re-parses the stored list | D | criterion of P-31 (T-3713): cache the committed-key set by the log's stamp and add the list digest to the hub cache key; cache the sidecar fallback by (len, mtime). Both paths are transient (a pending reconcile lasts until the operator's reissue; the fallback only before the receiver's tracker publishes) and both fail closed. |
+| CC 4 / OC 3 (D, round 2) | sender-side WAITING reason | — | SOUND in both seats; criterion on T-3708. |
+| OC 11 (R, round 2) | 16-hex prefix over-refusal | — | SOUND in both seats. |
+
+None of the remaining items lets a message signed by a key on a verified list be stored or handed over, or makes a
+failed pull read as an empty list.

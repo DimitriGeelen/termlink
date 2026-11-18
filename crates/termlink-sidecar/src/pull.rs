@@ -41,6 +41,8 @@ use termlink_session::client::{rpc_call_addr_with_timeout, unwrap_result};
 pub const RECEIVED: &str = "RECEIVED";
 pub const STORED: &str = "STORED";
 pub const REFUSED: &str = "REFUSED";
+/// T-3703 (r3 OC 3): reason for a verified message whose signer key fingerprint cannot be derived.
+pub const BAD_SIGNER_KEY: &str = "bad-signer-key";
 /// Chain event and notice: held for this side's operator (OQ-2 ruling E).
 pub const HELD: &str = "HELD";
 /// Notice: the operator refused the sender.
@@ -486,13 +488,12 @@ impl Inner {
             return self.refuse(env, None, "bad-name", "conv or msg_id is not a valid name");
         }
         // T-3703 (FCW-99, E-39): a message signed by a key on the held revocation list is refused, not stored,
-        // and the sender gets a signed REVOKED notice. The fingerprint is of the key that verified (the roster's
-        // copy of it, equal to the signer's); one that cannot be derived is refused, never passed (r2 CC 2).
-        let fp = self.cfg.roster.get(&msg.from).map(termlink_session::signed_state::key_fingerprint).or_else(|| {
-            env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk))
-        });
+        // and the sender gets a signed REVOKED notice. The fingerprint is of the key whose signature `verify_open`
+        // just checked (the envelope's signer key, never a roster entry looked up by the claimed name, r3 OC 1); one
+        // that cannot be derived is refused under its own reason, never passed (r2 CC 2, r3 OC 3).
+        let fp = env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk));
         let Some(fp) = fp else {
-            return self.refuse(env, Some(&msg), crate::revocation::REASON_REVOKED, "signer key fingerprint cannot be derived");
+            return self.refuse(env, Some(&msg), BAD_SIGNER_KEY, "signer key fingerprint cannot be derived");
         };
         if crate::revocation::revoked(&self.store, &fp) {
             let out = self.refuse(env, Some(&msg), crate::revocation::REASON_REVOKED, &format!("signed by revoked key {fp}"));

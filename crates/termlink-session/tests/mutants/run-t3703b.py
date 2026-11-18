@@ -42,6 +42,9 @@ MUTANTS = [
      "    let prev = if file_top >= logged_top {", "    let prev = if true {"),
     ("b11-torn-row-ignored", "a torn committed row does not block (r2 OC 6)", HUB,
      "    if torn > 0 {", "    if false {"),
+    # round 3 (r3-dispositions.md)
+    ("b12-torn-never-superseded", "a torn row keeps blocking after a reissue (r3 CC N1)", HUB,
+     "                rows.push(r);\n                torn_since_last = 0;", "                rows.push(r);"),
 ]
 
 CMDS = [

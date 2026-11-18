@@ -15,7 +15,7 @@ Runners: `crates/termlink-session/tests/mutants/run-t3703a.py` (slice A), `run-t
 
 6/6 killed
 
-## Slice B (hub revocation list) — 11/11 killed, 2026-11-18 (after review round 2; b9–b11 added for the r2 fixes)
+## Slice B (hub revocation list) — 12/12 killed, 2026-11-18 (after review round 3; b9–b11 for r2, b12 for r3)
 
 In the first run b5 as first written did not compile (not a kill); it was rewritten (`Ok(_) => return None`) and is killed here.
 
@@ -32,10 +32,11 @@ In the first run b5 as first written did not compile (not a kill); it was rewrit
 | b9-post-check-ignores-reconcile | while reconciling, the post check misses keys the restore lost (r2 OC 1) | killed |
 | b10-reissue-chains-to-file | a reissue chains to the restored file, not the committed head (r2 CC 5) | killed |
 | b11-torn-row-ignored | a torn committed row does not block (r2 OC 6) | killed |
+| b12-torn-never-superseded | a torn row keeps blocking after a reissue (r3 CC N1) | killed |
 
-11/11 killed
+## Slice C (sidecar revocation pull) — 18/18 killed, 2026-11-18 (after review round 3; c12–c18 for r2, c3 retargeted)
 
-## Slice C (sidecar revocation pull) — 18/18 killed, 2026-11-18 (after review round 2; c12–c18 added, c3 retargeted)
+Runner: `crates/termlink-session/tests/mutants/run-t3703c.py` (sidecar lib revocation tests, `t3703_revocation_sidecar`, `policy_tests`).
 
 | mutant | what | verdict |
 |---|---|---|
@@ -57,5 +58,3 @@ In the first run b5 as first written did not compile (not a kill); it was rewrit
 | c16-raise-all | the entry names every key, not the new ones (r2 CC 10) | killed |
 | c17-no-heal | an unverifiable stored list keeps its floor and keys (r2 CC 7) | killed |
 | c18-sweep-open-attempt | the sweep refuses a message whose attempt is open (r2 CC 9) | killed |
-
-18/18 killed

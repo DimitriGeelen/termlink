@@ -329,27 +329,37 @@ type Committed = (i64, String, Vec<serde_json::Value>);
 
 /// Committed rows in the admin log, in order: (seq, digest, entries added), and how many lines named the event
 /// but could not be read (a torn row; reconcile treats any as a block, r2 OC 6).
+/// A line counts as torn only if it is not JSON at all (a write cut short; it may stop before the event name, r3 OC
+/// 2) AND it comes after the last readable committed row: a later committed row (a reissue) supersedes it, so a torn
+/// line cannot block every later start (r3 CC N1). Readable rows of other events are ignored, whatever their text.
 fn committed_rows_checked(admin_log: &Path) -> (Vec<Committed>, usize) {
     let Ok(text) = std::fs::read_to_string(admin_log) else { return (vec![], 0) };
     let mut rows = Vec::new();
-    let mut torn = 0;
-    for l in text.lines().filter(|l| l.contains(COMMITTED_EVENT)) {
-        let parsed = serde_json::from_str::<serde_json::Value>(l).ok().and_then(|v| {
-            if v.get("event").and_then(|e| e.as_str()) != Some(COMMITTED_EVENT) {
-                return None;
-            }
+    let mut torn_since_last = 0;
+    for l in text.lines().filter(|l| !l.trim().is_empty()) {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(l) else {
+            torn_since_last += 1;
+            continue;
+        };
+        if v.get("event").and_then(|e| e.as_str()) != Some(COMMITTED_EVENT) {
+            continue;
+        }
+        let row = (|| {
             Some((
                 v.get("seq")?.as_i64()?,
                 v.get("digest")?.as_str()?.to_string(),
                 v.get("added").and_then(|a| a.as_array()).cloned().unwrap_or_default(),
             ))
-        });
-        match parsed {
-            Some(r) => rows.push(r),
-            None => torn += 1,
+        })();
+        match row {
+            Some(r) => {
+                rows.push(r);
+                torn_since_last = 0;
+            }
+            None => torn_since_last += 1, // a committed row without its seq or digest
         }
     }
-    (rows, torn)
+    (rows, torn_since_last)
 }
 
 fn committed_rows(admin_log: &Path) -> Vec<Committed> {
@@ -706,5 +716,29 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0]["seq"], 1);
         assert_eq!(rows[0]["added"][0]["key"], fp(1));
+    }
+
+    #[test]
+    fn r3_a_torn_row_stops_blocking_after_reissue_and_a_tear_before_the_event_name_still_blocks() {
+        let d = tmp();
+        let k = hub_key();
+        let log = d.path().join("admin.jsonl");
+        revoke(d.path(), HUB, &k, &op(&fp(1)), 1, logger(&log)).unwrap();
+        let tear = |text: &str| {
+            use std::io::Write;
+            let mut f = std::fs::OpenOptions::new().append(true).open(&log).unwrap();
+            writeln!(f, "{text}").unwrap();
+        };
+        tear("{\"event\":\"revoc"); // cut before the event name is complete (r3 OC 2)
+        assert!(!startup_reconcile(d.path(), &log, HUB, &k).is_empty());
+        assert!(head(d.path(), HUB, &k).is_err(), "a trailing torn line blocks");
+        reissue(d.path(), &log, HUB, &k, 2, logger(&log)).unwrap();
+        // a restart: the torn line is still in the append-only log, but a committed row now follows it (r3 CC N1)
+        let msgs = startup_reconcile(d.path(), &log, HUB, &k);
+        assert!(msgs.is_empty(), "{msgs:?}");
+        assert!(head(d.path(), HUB, &k).is_ok());
+        // a readable row of another event that merely mentions the event name is not torn
+        tear(&serde_json::json!({"event": "revocation-reconcile", "detail": format!("1 {COMMITTED_EVENT} row(s) cannot be read")}).to_string());
+        assert!(startup_reconcile(d.path(), &log, HUB, &k).is_empty());
     }
 }

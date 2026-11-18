@@ -1,0 +1,28 @@
+**Verdict: FAIL** — one round-2 MAJOR (CC 2) is not actually closed and the fix introduces a new MAJOR fail-open (defect 1 below); everything else is closed as dispositioned or soundly disposed.
+
+**A findings**
+
+- CC 1 — CLOSED — `pull.rs` now routes both `PinError::Unreachable` and `Mismatch` to `Tracker::outage`→`failed`, and the L4 test drives a really-stopped hub to `State::Stale` with `revocation-stale` raised (`e41_l4_a_hub_outage_makes_the_list_stale_through_the_receive_pass`); c13 killed.
+- CC 2 — NOT CLOSED — the check still discards the `_signer` that `wire::verify` returns: it now fingerprints `roster[msg.from]`'s key (asserted "equal to the signer's", never enforced), so a revoked signer naming a rostered, non-revoked `from` skips the refusal entirely (see NEW 1).
+- CC 3 / OC 2 — CLOSED — `policy.rs` calls `stale_gate(urgent, trust, narrowing)` inside `assess`, pinned by `t3703_stale_gate_keeps_urgent_only_for_the_own_project_while_narrowing`; c14 killed.
+- CC 5 — CLOSED — `reissue` chains to the committed digest when the file is behind (`prev = rows.last()` branch) and `r2_a_key_lost_by_a_restore…` asserts seq 3 with `prev_digest == two.digest`; b10 killed.
+- CC 6 / OC 5 — CLOSED — the `(None, _)` arm is now "hub predates revocation list" (tamper false), and `r2_an_old_hub_without_a_public_key_is_predates…` asserts that status plus the `revocation-hub-predates` entry.
+- CC 7 — CLOSED — `held_unverified` short-circuits `pull` into a fetch with no floor/chain/subset check that replaces the corrupt copy, proven by `r2_a_corrupted_stored_list_heals_on_the_first_verified_fetch` (seq 1,000,000 / fp(7) heals to Verified seq 9); c17 killed.
+- CC 8 — CLOSED — `name_ok` now runs before the revocation branch and a failed notice is `eprintln!`'d, never `Outcome::Retry`, with `count_refusal` still gated on `Done`.
+- CC 9 — CLOSED — `revoked`/`revoked_from` fall back to the stored list via `held_keys` and the sweep skips attempts not closed by an ABSENT line (`r2_without_a_tracker_the_stored_list_still_refuses`, `r2_the_sweep_leaves_an_open_attempt_to_its_finalize`); c15/c18 killed.
+- CC 10 / OC 7 — CLOSED — `RAISED_KEYS_STATE` persists named keys, names are `take(20)` + "and N more", an empty delta raises nothing, and `Tracker::new` raises for a verified stored list (`r2_the_entry_names_only_new_keys_and_a_reissue_raises_nothing`); c16 killed.
+- CC 11 — CLOSED — head/list mismatch is tamper=false, "not pinned yet" is split from pin-mismatch (tested, no `revocation-tamper`), `status_written` throttles re-stamps to once a minute, and `since_wall` is stored once.
+- CC 12 / OC 1 / OC 4 / OC 6 / OC 8 / OC 9 — CLOSED — `revoked_keys` unions committed-row keys during reconcile (hub r2 test, b9), identity-less is an `Err` in `key_card_gate`, `KEY_CACHE` keys on (len, mtime), torn rows block and lost rows are repaired via `startup_reconcile_with` (b11), `refuse_stored` writes one attention per sweep, and refused-request rows are capped at 10/min.
+- OC 10 — CLOSED — c12 "handle-before-head" was added to the slice-C table and is killed.
+
+**R / D**
+
+- CC 4 / OC 3 (D) — SOUND — the sender genuinely has no recipient name→key binding (the roster is receive-side only), no mail is dropped or wrongly accepted meanwhile (E-39 keeps it stored), and the deferral is formally routed to T-3708 for round-3 re-review — exactly what CC 4 asked instead of a self-declared deferral.
+- OC 11 (R) — SOUND — the 16-hex prefix collision is over-refusal only (fail-closed), needs ~2^64 grinding plus a roster entry, is documented in 6.5, and persisting full keys is a store-format change outside this unit.
+
+**New defects**
+
+1. `<MAJOR>` — `termlink-sidecar/src/pull.rs` handle_msg, the `let fp = self.cfg.roster.get(&msg.from)…` lines — the revocation fingerprint is taken from the roster's key for the *claimed* name, not from the `_signer` `wire::verify` returned; equality is assumed, never checked — Input: revoke fx-b's key; fx-b signs a message whose signed `from = "fx-c"` (fx-c rostered, key unrevoked) → fp = fp(fx-c's key) → `revoked()` false → the message is assessed and STORED (pre-fix it was REFUSED; only the later sweep, matching the true signer hash, may catch it) — Fix: use `key_fingerprint(&_signer)` (always derivable) and drop the roster lookup; keep the refusal only for a genuinely underivable key.
+2. `<MINOR>` — hub `revocation.rs: committed_rows_checked` — a torn committed row whose tear falls before the `COMMITTED_EVENT` substring completes contains no "revocation-committed" text, so the `contains` filter skips it and `torn` stays 0 — Input: crash mid-append leaving `{"event":"revoc` as the last line, then restore the seq-1 file → last parsed row matches → served without RECONCILE, post check missing k2 — Fix: treat any trailing line that fails JSON parsing as torn, not only lines containing the event string.
+3. `<MINOR>` — `pull.rs` handle_msg underivable-fp refusal — it reuses `REASON_REVOKED`, so a non-roster signer whose key form the helper rejects (e.g. upper-case hex) gets a REFUSED line reason "revoked" for a key on no list — Input: non-roster sender with upper-case-hex `signer_pk` → REFUSED "revoked", no count, operator hunts a nonexistent revocation — Fix: a distinct reason (e.g. "bad-signer-key") for the underivable case.
+4. `<MINOR>` — sidecar `revocation.rs: held_keys` — whenever no tracker has published for the store (other processes, pre-`Tracker::new` window), every `revoked()`/`revoked_from()` call re-reads and re-parses the up-to-1 MiB `LIST_STATE` — Input: a deliver-side loop calling `revoked_from` per stored message with a ~3000-entry list does O(messages × 1 MiB) reads per sweep — Fix: cache the parsed keys by (len, mtime) as the hub now does.

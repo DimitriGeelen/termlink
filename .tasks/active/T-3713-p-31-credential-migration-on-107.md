@@ -94,6 +94,9 @@ Unblocks: part of gate G-2 (the T1 release installed on .107).
 - [ ] (from T-3704 r3 dispositions) receiver half live: with named rosters on the W1 pair, a forged post claiming a bound name is refused at the receiver with the hub check off
 - [ ] (from T-3704 r3) sidecar `key-card-written` entry keyed on (agent, seq, signing key); attention on a `hub.key_card_list` error and on a `key-card-mode` change; last-seen persisted so a fresh sidecar raises nothing for existing cards
 - [ ] (from T-3704 r3) the setting file baselined like the store digest (an outside change while running is refused or raises attention); the card's own key exempt from the 16-signer cap
+- [ ] (from T-3703 r3 CC N3) an attempt whose claim has no attempt record after a sidecar restart is closed by `recover()` and the revocation sweep re-run; crash test through the real deliver path shows a stored message from a revoked key ends REFUSED with its notice
+- [ ] (from T-3703 r3 CC N5 / OC 4) the hub caches the committed-key set by the admin log's stamp during a pending reconcile and keys its list cache on the list digest too; the sidecar's no-snapshot fallback caches by (len, mtime)
+- [ ] (from T-3703, roll-out) the hub binary with the revocation list (T-3703) is live on .107 before any sidecar with the pull; `termlink hub revocation show --head` answers seq 0 signed; each W1 sidecar's status reads `verified seq 0 at …`
 - [ ] The latest runme log shows the action OK and `finished rc=0`
 
 ### Human

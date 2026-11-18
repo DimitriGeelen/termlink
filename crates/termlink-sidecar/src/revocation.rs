@@ -286,6 +286,9 @@ impl Tracker {
         let pk = match (pk_hex.and_then(ss::verifying_key_of_hex), pinned) {
             (Some(k), Some(fp)) if ss::key_fingerprint(&k) == fp => k,
             (Some(_), Some(_)) => return Err(("hub public key does not hash to the pinned fingerprint".into(), true)),
+            // a pinned hub offering a public key that is not one is interference (r3 CC N6); a missing key is not:
+            // every pre-T-3703 hub offers its pinned fingerprint without the key, so it cannot be told apart
+            (None, _) if pin_stored && pk_hex.is_some() => return Err(("hub offers a malformed signing public key".into(), true)),
             // a hub older than T-3703 offers no public key: the same class as `method not found` (r2 CC 6, OC 5)
             (None, _) => return Err(("hub predates revocation list".into(), false)),
             // a pin that differs is interference; no pin yet (first contact not over a trusted path) is not
@@ -945,5 +948,40 @@ mod tests {
             .unwrap();
         assert_eq!(refuse_stored(&f.store, &keys, None), 1, "closed attempt: refused");
         assert_eq!(kinds(&f.store).iter().filter(|k| *k == "refused-revoked").count(), 1, "one entry per sweep");
+    }
+
+    #[test]
+    fn r3_a_pinned_hub_offering_a_malformed_key_is_tamper() {
+        let f = fx();
+        let hub = Hub::new();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        let mut v = f.version.clone();
+        v["signing_public_key"] = Value::from("not-a-key");
+        t.tick(&f.store, &v, &|m| hub.call(m), Instant::now(), None);
+        assert!(line(&f.store).contains("malformed"), "{}", line(&f.store));
+        assert!(kinds(&f.store).contains(&"revocation-tamper".to_string()));
+    }
+
+    /// E-40 (c): a sidecar restored from a backup taken before F was revoked, with the hub unreachable, cannot know
+    /// about F: verdict LIMIT (RR-20). What it must do: stay unreconciled (narrowing, so no urgent delivery from
+    /// outside the own project) and never claim a verified list.
+    #[test]
+    fn e40c_limit_rr20_restored_while_the_hub_is_unreachable() {
+        let f = fx();
+        let hub = Hub::new();
+        let l5 = list(&f.k, 5, Z, &[]);
+        hub.serve(&f.k, &l5);
+        let now = Instant::now();
+        Tracker::new(&f.store, HUB, PN13).tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        // restore (the snapshot holds seq 5, F not on it) and the hub is unreachable
+        *hub.fail.borrow_mut() = Some((0, "connection refused".into()));
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        let limit = !revoked(&f.store, &fp(1)); // RR-20: normal delivery from F is the stated limit
+        assert!(limit, "LIMIT RR-20: a key revoked after the backup is unknown while cut off");
+        assert_eq!(t.state(), &State::UnverifiedSinceStart);
+        assert!(narrowing(&f.store), "no urgent delivery from outside the own project while unreconciled");
+        assert!(line(&f.store).starts_with("unverified since"), "{}", line(&f.store));
+        println!("E-40 (c) verdict: LIMIT (RR-20)");
     }
 }

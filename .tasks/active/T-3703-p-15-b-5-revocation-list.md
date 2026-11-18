@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:39Z
-last_update: 2026-11-18T18:11:31Z
+last_update: 2026-11-18T18:39:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -108,9 +108,9 @@ Unblocks: P-24 (T-3708), P-37 (T-3716, live); part of gate G-2.
 - [x] Operator ruling recorded (2026-11-18: A, see Decisions): whether the same-uid stated limit (2026-11-18 ruling A on card writes) extends to `hub.revoke` (design v2 5.12), before slice B
 - [x] Slice B (hub: state, admin revoke with intent/committed rows, self-revoke for carded keys, head/get, reconcile + reissue, post check KEY_REVOKED, runme action): E-43 and E-167 pass, mutants killed (`crates/termlink-hub/src/revocation.rs` 9 unit tests; `crates/termlink-cli/tests/t3703_revocation.rs` 3 real-hub tests; hub suite 645/0; mutants 8/8, docs/reports/T-3703-mutants.md; runme action 33 + 7 fixtures, suite 423/0)
 - [x] Slice C (sidecar: head every pass, pin, states, stale gate, status, receive and hand-over refusal, sender-side waiting): E-39, E-40, E-41 pass, mutants killed (`crates/termlink-sidecar/src/revocation.rs` 7 unit tests; `tests/t3703_revocation_sidecar.rs` E-39 on a real hub; sidecar suite 42 binaries, 0 failed; mutants 11/11. Departures named in design §6: no policy.rs change for DR-8 A (equivalent), sender-side WAITING reason deferred to P-24)
-- [ ] Code review of slices B and C by two isolated seats (docs/reports/T-3703-reviews/ round 2), BLOCKER/MAJOR fixed or disposed
-- [ ] The B-5 specs pass (hub state, admin revoke, self-revoke, tick pull, stale rule DR-8 A)
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-5 E-n and its mutant list is all killed (FP 3.1.b)
+- [x] Code review of slices B and C by two isolated seats (docs/reports/T-3703-reviews/ round 2), BLOCKER/MAJOR fixed or disposed (round 2: 0 BLOCKER, 13 MAJOR between the seats, all A or D, r2-dispositions.md; round 3 confirmation, the cap: every round-2 item CLOSED or SOUND in both seats, two new MAJORs fixed, minors disposed, r3-dispositions.md)
+- [x] The B-5 specs pass (hub state, admin revoke, self-revoke, tick pull, stale rule DR-8 A)
+- [x] The unit's fixture suite exits 0 with a PASS line per B-5 E-n and its mutant list is all killed (FP 3.1.b) (E-39 real hub; E-40 a/b/c incl. the LIMIT verdict; E-41 unit + L4 outage; E-42 vectors + 10^5 fuzz; E-43 hub unit + real hub; E-167 hub unit + real hub. E-127 is an operational check row: its reader is a criterion of T-3708 and its drill is P-37 (T-3716). Mutants A 6/6, B 12/12, C 18/18, docs/reports/T-3703-mutants.md)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -163,7 +163,13 @@ Unblocks: P-24 (T-3708), P-37 (T-3716, live); part of gate G-2.
 ## Verification
 
 # Plan P-15 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-5 E-n, mutant list all killed
-# (FP 3.1.b). Replace with the suite's command before closing (redirect-then-grep form, L-387).
+# (FP 3.1.b). The mutant runners take ~45 min and are recorded in docs/reports/T-3703-mutants.md (not re-run here).
+env -u PROJECT_ROOT cargo test -p termlink-session --test t3703_signed_state > .context/working/.t3703-v1 2>&1 && grep -q 'E-42 PASS' .context/working/.t3703-v1
+env -u PROJECT_ROOT cargo test -p termlink-hub --lib revocation > .context/working/.t3703-v2 2>&1 && grep -q 'test result: ok. 12 passed' .context/working/.t3703-v2
+env -u PROJECT_ROOT cargo build -p termlink > .context/working/.t3703-v3b 2>&1 && env -u PROJECT_ROOT cargo test -p termlink --test t3703_revocation > .context/working/.t3703-v3 2>&1 && grep -q 'test result: ok. 3 passed' .context/working/.t3703-v3
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --lib revocation > .context/working/.t3703-v4 2>&1 && grep -q 'test result: ok. 14 passed' .context/working/.t3703-v4
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --test t3703_revocation_sidecar > .context/working/.t3703-v5 2>&1 && grep -q 'test result: ok. 2 passed' .context/working/.t3703-v5
+grep -q '12/12 killed' docs/reports/T-3703-mutants.md && grep -q '18/18 killed' docs/reports/T-3703-mutants.md && grep -q '6/6 killed' docs/reports/T-3703-mutants.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
