@@ -33,7 +33,15 @@ pub const STAGE_ORDER: [&str; 4] = ["RECEIVED", "STORED", "HANDED_OVER", "REPLIE
 /// stored message not handed over, or a handed-over one not answered, while the
 /// recipient's agent is ready. They are not stages of the order above; each is
 /// recorded once.
-pub const NOTICES: [&str; 5] = ["HELD", "ADMITTED", "DENIED", crate::deadline::OVERDUE_HANDOVER, crate::deadline::OVERDUE_ANSWER];
+pub const NOTICES: [&str; 6] = [
+    "HELD",
+    "ADMITTED",
+    "DENIED",
+    crate::deadline::OVERDUE_HANDOVER,
+    crate::deadline::OVERDUE_ANSWER,
+    // T-3703 (FCW-99, FCW-200): the message was refused because its signing key is revoked.
+    crate::revocation::REVOKED,
+];
 
 /// The signed message body (section 5.1).
 #[derive(Debug, Clone, PartialEq, Eq)]

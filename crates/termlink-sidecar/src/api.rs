@@ -1225,7 +1225,10 @@ fn status_at(
             // OQ-2 E: held for an operator, on either side.
             let ev = |e: &str| rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == e);
             if sent_here {
-                if ev(crate::pull::DENIED) {
+                if ev(crate::revocation::REVOKED) {
+                    // T-3703 (E-39.4): the recipient refused it because this sender's key is revoked
+                    v["label"] = json!("refused-revoked");
+                } else if ev(crate::pull::DENIED) {
                     v["label"] = json!(REFUSED_BY_RECIPIENTS_OPERATOR);
                 } else if ev(crate::pull::HELD) && !ev(crate::pull::ADMITTED) && !handed {
                     v["label"] = json!(HELD_BY_RECIPIENT);
@@ -1250,6 +1253,8 @@ fn status_at(
         "hub_id": hub_id.map(Value::from).unwrap_or_else(|| json!("not configured")),
         "hub": crate::hub_key_pin::hub_status(store, hub_id),
         "hub_signing_key": crate::hub_key_pin::status(store, hub_id),
+        // T-3703 (OBS-41, design 5.5): `revocation` and the `refused_revoked` count
+        "revocation": crate::revocation::status(store),
         "stages": STAGES,
         "rows": rows,
         "messages": msgs,

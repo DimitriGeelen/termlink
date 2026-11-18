@@ -128,3 +128,28 @@ UNVERIFIED_SINCE_START); no extra downgrade of rostered senders.
 5.11 **Sender side**: WAITING FOR RECIPIENT `key revoked, operator action needed`; `refused-revoked` on a notice.
 5.12 **Open for the operator before slice B**: does the same-uid stated limit (ruling A of 2026-11-18 on card writes)
 extend to `hub.revoke`, which cannot be undone?
+
+## 6. As built (slices B and C), and where it departs from v2
+
+6.1 **Hub (slice B)**: `crates/termlink-hub/src/revocation.rs`; RPCs `hub.revocation_head`, `hub.revocation_get`
+(Observe), `hub.revoke`, `hub.revocation_reissue` (Execute, local socket), `hub.revocation_request` (Interact, signed);
+`hub.version` offers `signing_public_key`; the key-card post check refuses a revoked card key (`-32046`); CLI
+`termlink hub revocation revoke|show|reissue`; runme action 33 (rows only for ruled revocations; none yet).
+6.2 **Sidecar (slice C)**: `crates/termlink-sidecar/src/revocation.rs` (`Tracker`); the pull runs at the start of every
+receive pass after `hub.version`, before any message is handled; the receive check refuses a revoked signer (REFUSED
+reason `revoked`, signed `REVOKED` notice to the sender, which labels the message `refused-revoked`); stage records
+signed by a revoked key are ignored; every verified pull sweeps STORED-not-handed-over mail from revoked keys to
+REFUSED (FCW-200), and the deliverer's candidate scan does the same before offering a message.
+6.3 **Departure: DR-8 A gate (5.3).** No code change in `policy.rs`: urgent already requires `Trust::OwnProject`
+(rostered sender), which is exactly the narrowed allow-list, so a gate would be an equivalent mutant. `revocation::
+narrowing()` is exported for the unit that widens the urgent allow-list (it must consult it). The stale state, its
+attention entry and status are built and tested (E-41).
+6.4 **Departure: sender-side WAITING reason (5.11 first half).** Not built: the sender's sidecar has no binding of a
+recipient name to its key (the roster is receiver-side), so it cannot tell that a recipient's key is revoked. Mail to a
+revoked agent is not dropped (E-39 test: stored at the recipient). Deferred as a criterion of P-24 (T-3708): the
+status/reason vocabulary unit gives the sender the recipient's card key. The second half (`refused-revoked` on a
+notice) is built.
+6.5 **Hand-over re-check form.** A stored message carries only the 16-hex short sender id, so the hand-over re-check
+matches it as a prefix of the held fingerprints: it can only over-refuse (a 64-bit prefix collision), never pass a
+revoked key. The receive-time check uses the full fingerprint.
+6.6 **Switch.** `revocation-pull` is a store state (`off`); its flip is observed each pass and raises attention.

@@ -29,3 +29,22 @@ First run 7/8: b5 as first written did not compile (not a kill); rewritten to `O
 | b6-restore-not-blocked | a list behind the committed log is served (design 5.7) | killed |
 | b7-no-card-needed | a self-request without a key card is accepted with the request's names (r1 finding 8) | killed |
 | b8-write-failure-ignored | a failed list write is reported as success (FCW-92) | killed |
+
+## Slice C (sidecar revocation pull) — 11/11 killed, 2026-11-18
+
+Runner: `crates/termlink-session/tests/mutants/run-t3703c.py` (sidecar lib revocation tests + `t3703_revocation_sidecar`).
+
+| mutant | what | verdict |
+|---|---|---|
+| c1-failed-pull-empty | a failed pull is treated as an empty list (E-41.5, 04 6.2.6) | killed |
+| c2-any-seq | a lower seq is accepted (E-40.5) | killed |
+| c3-no-receive-check | the receiver does not check the held list (E-39.5) | killed |
+| c4-leave-stored | a message stored before the revocation is left STORED (E-39.6) | killed |
+| c5-no-pin-check | the hub key is used without checking it against the pin | killed |
+| c6-stale-reset | a failed pull resets the stale timer (E-41 59:59 / 60:01) | killed |
+| c7-start-verified | a started sidecar is VERIFIED from its store (FCW-96) | killed |
+| c8-accept-fork | the same seq with another digest is accepted | killed |
+| c9-no-hub-id | a head naming another hub is accepted | killed |
+| c10-no-load-verify | the stored list is trusted on load (r1 M1) | killed |
+| c11-no-chain | a list that does not chain at held + 1 is accepted | killed |
+

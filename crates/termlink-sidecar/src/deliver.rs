@@ -393,6 +393,12 @@ impl Deliverer {
                     );
                     continue;
                 }
+                // T-3703 (FCW-200, E-39.6): a key revoked since STORED: REFUSED now, with its notice, and out of
+                // the pending set, so no ring or watchdog line names it afterwards.
+                if crate::revocation::revoked_from(&self.store, &msg.from) {
+                    crate::revocation::refuse_stored_now(&self.store, self.sender.as_deref());
+                    continue;
+                }
                 // Second run of the receiver checks (7.1).
                 let assessment = self.policy.assess(&msg);
                 if assessment.withheld.is_some() {

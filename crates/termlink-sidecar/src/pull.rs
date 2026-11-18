@@ -102,6 +102,8 @@ struct Inner {
     /// Last time the background loop came round (ms since the epoch); the
     /// component heartbeat (K-3, FP-1 failure 4).
     beat: AtomicU64,
+    /// T-3703 (AL-22): the revocation pull, run at the start of every pass.
+    revocation: Mutex<crate::revocation::Tracker>,
 }
 
 #[derive(Default)]
@@ -176,6 +178,7 @@ impl Receiver {
     ) -> std::io::Result<Receiver> {
         let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build()?;
         let interval = cfg.poll_interval;
+        let revocation = Mutex::new(crate::revocation::Tracker::new(&store, &cfg.declared_hub_id, crate::revocation::PN13));
         let inner = Arc::new(Inner {
             cfg,
             store,
@@ -185,6 +188,7 @@ impl Receiver {
             pass: Mutex::new(PassMemory::default()),
             stop: AtomicBool::new(false),
             beat: AtomicU64::new(crate::store::now_ms()),
+            revocation,
         });
         let thread = interval.map(|iv| {
             let i = inner.clone();
@@ -222,6 +226,16 @@ impl Receiver {
     pub fn topic(&self) -> String {
         inbox_topic(&self.inner.cfg.declared_hub_id, &self.inner.cfg.agent)
     }
+
+    /// T-3703: PN-13 for this receiver (tests shorten it; the daemon keeps 1 hour).
+    pub fn set_revocation_stale_after(&self, d: std::time::Duration) {
+        self.inner.revocation.lock().unwrap_or_else(|p| p.into_inner()).set_stale_after(d);
+    }
+
+    /// T-3703: the revocation pull's state (tests and status).
+    pub fn revocation_state(&self) -> crate::revocation::State {
+        self.inner.revocation.lock().unwrap_or_else(|p| p.into_inner()).state().clone()
+    }
 }
 
 impl Drop for Receiver {
@@ -240,7 +254,7 @@ impl Inner {
             .map_err(|e| e.to_string())
     }
 
-    fn check_pin(&self) -> Result<(), PinError> {
+    fn check_pin(&self) -> Result<Value, PinError> {
         let resp = self.rpc("hub.version", json!({})).map_err(PinError::Unreachable)?;
         let v = unwrap_result(resp).map_err(PinError::Unreachable)?;
         let found = v.get("hub_id").and_then(Value::as_str).map(str::to_owned);
@@ -249,7 +263,7 @@ impl Inner {
             // T-3366 (AL-18): pin / compare the hub's signing key; never holds mail.
             let trusted = matches!(self.cfg.hub, termlink_protocol::TransportAddr::Unix { .. });
             crate::hub_key_pin::observe(&self.store, &self.cfg.declared_hub_id, &v, trusted);
-            Ok(())
+            Ok(v)
         } else {
             Err(PinError::Mismatch { declared: self.cfg.declared_hub_id.clone(), found })
         }
@@ -306,6 +320,19 @@ impl Inner {
         }
     }
 
+    /// T-3703 (AL-22): one revocation pull. A failure never holds mail (the stale rule narrows, never stops).
+    fn pull_revocations(&self, version: &Value) {
+        let rpc = |m: &str| -> Result<Value, (i64, String)> {
+            match self.rpc(m, json!({})) {
+                Err(e) => Err((0, e)),
+                Ok(RpcResponse::Success(s)) => Ok(s.result),
+                Ok(RpcResponse::Error(e)) => Err((e.error.code, e.error.message)),
+            }
+        };
+        let mut t = self.revocation.lock().unwrap_or_else(|p| p.into_inner());
+        t.tick(&self.store, version, &rpc, std::time::Instant::now(), Some(&self.sender));
+    }
+
     fn cursor(&self) -> u64 {
         self.store
             .read_state(CURSOR_STATE)
@@ -341,9 +368,11 @@ impl Inner {
             return PassResult::Drained;
         }
         match self.check_pin() {
-            Ok(()) => {
+            Ok(version) => {
                 mem.held = None;
                 self.observe_impersonation();
+                // T-3703 (design 5.4): the revocation head is compared before any message is handled.
+                self.pull_revocations(&version);
             }
             Err(PinError::Unreachable(_)) => return PassResult::Waiting,
             Err(PinError::Mismatch { declared, found }) => {
@@ -442,6 +471,20 @@ impl Inner {
             Ok((m, _signer)) => m,
             Err(r) => return self.refuse(env, None, wire::refusal_code(&r), &r.to_string()),
         };
+        // T-3703 (FCW-99, E-39): a message signed by a key on the held revocation list is refused, not stored,
+        // and the sender gets a signed REVOKED notice.
+        if let Some(fp) = env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk))
+            && crate::revocation::revoked(&self.store, &fp)
+        {
+            let out = self.refuse(env, Some(&msg), crate::revocation::REASON_REVOKED, &format!("signed by revoked key {fp}"));
+            if matches!(out, Outcome::Done) {
+                crate::revocation::count_refusal(&self.store);
+                if let Err(e) = self.report(&msg, crate::revocation::REVOKED) {
+                    return Outcome::Retry(e);
+                }
+            }
+            return out;
+        }
         if !name_ok(&msg.conv) || !name_ok(&msg.msg_id) {
             return self.refuse(env, None, "bad-name", "conv or msg_id is not a valid name");
         }
@@ -619,6 +662,11 @@ impl Inner {
             Ok(s) => s,
             Err(r) => return self.ignore_stage(env, &r.to_string()),
         };
+        if let Some(fp) = env.signed.as_ref().and_then(|s| termlink_session::signed_state::fingerprint_of_hex(&s.signer_pk))
+            && crate::revocation::revoked(&self.store, &fp)
+        {
+            return self.ignore_stage(env, &format!("signed by revoked key {fp} (FCW-99)"));
+        }
         if st.to_agent != self.cfg.agent {
             return self.ignore_stage(env, &format!("addressed to {}, this is {}", st.to_agent, self.cfg.agent));
         }

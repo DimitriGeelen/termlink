@@ -1,0 +1,780 @@
+//! T-3703 (arc-011 P-15, B-5; AL-22): the revocation pull, its verification and the stale rule.
+//!
+//! Rules (06a 2.6; 06 4.7; design note v2 `docs/reports/T-3703-design.md` section 5, r1 dispositions):
+//! 1. At the start of every receive pass (before any message is handled) the hub's head is read and verified;
+//!    the list is fetched only when the head moved (design 5.4). PN-3's 30 s tick is met a fortiori.
+//! 2. Verified means one of the two cases of 06 4.7: the head verifies under the pinned key and equals the held
+//!    list, or a higher head whose list verifies, hashes to the head's digest, has the head's seq, chains when
+//!    seq = held + 1, and names this hub. **Everything else is a failed pull**, never an empty list: a transport
+//!    error, a hub refusal (REVOCATION_RECONCILE included), `method not found` (status `hub predates revocation
+//!    list`, design 5.10), a bad signature, an unpinned key, a lower seq (`ROLLBACK refused, kept seq N`), a fork.
+//! 3. The hub's public key comes from `hub.version` (`signing_public_key`, design 5.1) and is used only when
+//!    `ed25519:` + sha256(key) equals the stored pin (`hub_key_pin::verified_hub_key`).
+//! 4. Keys on the held list stay refused whatever happens later (lists only grow); the held list is re-verified
+//!    on load (r1 M1): a stored list that fails is tamper, its keys stay refused, its seq stays the floor.
+//! 5. A started sidecar is UNVERIFIED_SINCE_START until its first verified pull (FCW-96); PN-13 without one makes
+//!    it STALE (FCW-95) with one needs-attention entry. While either holds, `narrowing()` is true (DR-8 A: urgent
+//!    from outside the own project's roster is downgraded; in PH-2 urgent already needs the roster, so this is
+//!    the gate any later widening must pass).
+//! 6. Every list with new entries raises ONE coalesced `key-revoked` entry (design 5.9); STORED mail from a newly
+//!    revoked key that is not handed over is REFUSED at once (FCW-200), so no ring names it afterwards.
+//! 7. The switch `revocation-pull` (state `off`) returns to PH-1 trust; a flip raises attention (design 5.10).
+
+use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+use termlink_session::signed_state::{self as ss, J};
+
+use crate::store::{LineExtra, Store};
+
+pub const SCHEMA: &str = "termlink.revocation/1";
+pub const HEAD_SCHEMA: &str = "termlink.revocation-head/1";
+/// PN-13: the stale limit, equal to PN-1 (1 hour).
+pub const PN13: Duration = Duration::from_secs(3600);
+/// Chain reason (and notice) for a message refused because its signer is revoked (FCW-99, FCW-200).
+pub const REVOKED: &str = "REVOKED";
+pub const REASON_REVOKED: &str = "revoked";
+
+const LIST_STATE: &str = "revocation-list";
+const HUB_PK_STATE: &str = "revocation-hub-pk";
+const ATTENTION_STATE: &str = "revocation-attention-seq";
+const STATUS_STATE: &str = "revocation-status";
+const SWITCH_STATE: &str = "revocation-pull";
+const SWITCH_SEEN_STATE: &str = "revocation-pull-seen";
+const REFUSED_COUNT_STATE: &str = "revocation-refused-count";
+
+/// What every other part of the sidecar reads: the refused keys and whether the stale rule narrows.
+#[derive(Debug, Clone, Default)]
+struct Snap {
+    keys: BTreeSet<String>,
+    narrowing: bool,
+}
+
+static SNAPS: Mutex<BTreeMap<PathBuf, Snap>> = Mutex::new(BTreeMap::new());
+
+fn publish(store: &Store, keys: &BTreeSet<String>, narrowing: bool) {
+    SNAPS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .insert(store.dir().to_path_buf(), Snap { keys: keys.clone(), narrowing });
+}
+
+/// FCW-99: the full fingerprint `ed25519:<64 hex>` of a signer is on the held list.
+pub fn revoked(store: &Store, fingerprint: &str) -> bool {
+    SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()).is_some_and(|s| s.keys.contains(fingerprint))
+}
+
+/// The short sender id of a stored message (`from`, the first 16 hex of sha256(key)) matches a held key. Used
+/// where only the stored message is at hand (the hand-over re-check); a prefix match can only over-refuse.
+pub fn revoked_from(store: &Store, from: &str) -> bool {
+    if from.len() < 16 {
+        return false;
+    }
+    SNAPS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(store.dir())
+        .is_some_and(|s| s.keys.iter().any(|k| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from))))
+}
+
+/// DR-8 A: true while the list is STALE or not yet verified since start.
+pub fn narrowing(store: &Store) -> bool {
+    SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()).is_none_or(|s| s.narrowing)
+}
+
+/// Status (OBS-41): the line the pull last wrote, and the count of messages refused as revoked.
+pub fn status(store: &Store) -> Value {
+    let line = store.read_state(STATUS_STATE).ok().flatten().unwrap_or_else(|| "unverified since start (no pull yet)".into());
+    let n: u64 = store.read_state(REFUSED_COUNT_STATE).ok().flatten().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
+    serde_json::json!({"revocation": line.trim(), "refused_revoked": n})
+}
+
+/// Count one refusal of a revoked key (status `refused_revoked`, for E-127's reader).
+pub fn count_refusal(store: &Store) {
+    let n: u64 = store.read_state(REFUSED_COUNT_STATE).ok().flatten().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
+    let _ = store.write_state(REFUSED_COUNT_STATE, &(n + 1).to_string());
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum State {
+    UnverifiedSinceStart,
+    Verified,
+    Stale,
+    Off,
+}
+
+#[derive(Debug, Clone)]
+struct Held {
+    seq: i64,
+    digest: String,
+    keys: BTreeSet<String>,
+    entries: Vec<J>,
+}
+
+fn keys_of(entries: &[J]) -> BTreeSet<String> {
+    entries.iter().filter_map(|e| e.get("key").and_then(J::as_str).map(str::to_string)).collect()
+}
+
+fn entries_of(l: &J) -> Vec<J> {
+    match l.get("entries") {
+        Some(J::Arr(a)) => a.clone(),
+        _ => vec![],
+    }
+}
+
+/// The per-hub pull state machine (one per receiver).
+pub struct Tracker {
+    hub_id: String,
+    stale_after: Duration,
+    started: Instant,
+    last_verified: Option<Instant>,
+    state: State,
+    held: Option<Held>,
+    stale_raised: bool,
+}
+
+/// One RPC to the home hub: Ok(result) or Err((code, message)). Code 0 = transport.
+pub type Rpc<'a> = &'a dyn Fn(&str) -> Result<Value, (i64, String)>;
+
+impl Tracker {
+    /// On start: the last verified list from the store, re-verified (r1 M1); state UNVERIFIED_SINCE_START.
+    pub fn new(store: &Store, hub_id: &str, stale_after: Duration) -> Tracker {
+        let mut t = Tracker {
+            hub_id: hub_id.to_string(),
+            stale_after,
+            started: Instant::now(),
+            last_verified: None,
+            state: State::UnverifiedSinceStart,
+            held: None,
+            stale_raised: false,
+        };
+        if let Ok(Some(text)) = store.read_state(LIST_STATE) {
+            let pk = store.read_state(HUB_PK_STATE).ok().flatten().and_then(|h| ss::verifying_key_of_hex(h.trim()));
+            let pin_ok = pk.as_ref().is_some_and(|k| {
+                store.read_state(&crate::hub_key_pin::pin_state_name(hub_id)).ok().flatten().map(|p| p.trim().to_string())
+                    == Some(ss::key_fingerprint(k))
+            });
+            match (pk, pin_ok) {
+                (Some(k), true) => match ss::parse_and_verify(text.as_bytes(), &k, SCHEMA) {
+                    Ok(l) => t.held = Some(held_of(&l)),
+                    Err(e) => t.tamper_load(store, &text, &format!("stored list does not verify: {e}")),
+                },
+                _ => t.tamper_load(store, &text, "stored list cannot be checked against the pinned hub key"),
+            }
+        }
+        t.publish(store);
+        t.write_status(store, "unverified since start (no pull yet)");
+        t
+    }
+
+    /// A stored list that fails verification: tamper; its keys stay refused and its seq stays the floor.
+    fn tamper_load(&mut self, store: &Store, text: &str, why: &str) {
+        let hour = crate::store::now_ms() / 3_600_000;
+        let _ = store.attention_coalesced("revocation-tamper", &hour.to_string(), &format!("revocation list in the store: {why}"));
+        if let Ok(l) = ss::parse_strict(text.as_bytes()) {
+            let mut h = held_of(&l);
+            h.digest = String::new(); // never matches a head: the next pull fetches the full list
+            self.held = Some(h);
+        }
+    }
+
+    pub fn set_stale_after(&mut self, d: Duration) {
+        self.stale_after = d;
+    }
+
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+
+    pub fn held_seq(&self) -> Option<i64> {
+        self.held.as_ref().map(|h| h.seq)
+    }
+
+    fn narrowing(&self) -> bool {
+        matches!(self.state, State::Stale | State::UnverifiedSinceStart)
+    }
+
+    fn publish(&self, store: &Store) {
+        let keys = self.held.as_ref().map(|h| h.keys.clone()).unwrap_or_default();
+        publish(store, &keys, self.narrowing());
+    }
+
+    fn write_status(&self, store: &Store, line: &str) {
+        if store.read_state(STATUS_STATE).ok().flatten().as_deref().map(str::trim) != Some(line) {
+            let _ = store.write_state(STATUS_STATE, line);
+        }
+    }
+
+    fn since(&self) -> Instant {
+        self.last_verified.unwrap_or(self.started)
+    }
+
+    /// One pull. `version` is this pass's `hub.version` answer (already hub-id checked).
+    pub fn tick(&mut self, store: &Store, version: &Value, rpc: Rpc<'_>, now: Instant, sender: Option<&crate::send::Sender>) {
+        // the switch (design 5.10): off = PH-1 trust, said so; a flip either way raises attention
+        let off = store.read_state(SWITCH_STATE).ok().flatten().is_some_and(|s| s.trim() == "off");
+        let seen = store.read_state(SWITCH_SEEN_STATE).ok().flatten().map(|s| s.trim().to_string());
+        let now_s = if off { "off" } else { "on" };
+        if seen.as_deref() != Some(now_s) {
+            if seen.is_some() || off {
+                let _ = store.attention(
+                    "revocation-pull-switched",
+                    &format!("revocation pull switched {now_s}{}", if off { ": PH-1 trust, revoked keys are no longer refused" } else { "" }),
+                );
+            }
+            let _ = store.write_state(SWITCH_SEEN_STATE, now_s);
+        }
+        if off {
+            self.state = State::Off;
+            publish(store, &BTreeSet::new(), false);
+            self.write_status(store, "off (PH-1 trust)");
+            return;
+        }
+        if self.state == State::Off {
+            self.state = State::UnverifiedSinceStart;
+            self.last_verified = None;
+            self.started = now;
+        }
+        match self.pull(store, version, rpc) {
+            Ok(()) => self.verified(store, now, sender),
+            Err((why, tamper)) => self.failed(store, now, &why, tamper),
+        }
+    }
+
+    fn pull(&mut self, store: &Store, version: &Value, rpc: Rpc<'_>) -> Result<(), (String, bool)> {
+        let pk_hex = version.get("signing_public_key").and_then(Value::as_str);
+        let pinned = crate::hub_key_pin::verified_hub_key(store, &self.hub_id, version);
+        let pk = match (pk_hex.and_then(ss::verifying_key_of_hex), pinned) {
+            (Some(k), Some(fp)) if ss::key_fingerprint(&k) == fp => k,
+            (Some(_), Some(_)) => return Err(("hub public key does not hash to the pinned fingerprint".into(), true)),
+            (None, _) => return Err(("hub offers no signing public key".into(), false)),
+            (Some(_), None) => return Err(("hub signing key not pinned (or pin mismatch)".into(), true)),
+        };
+        let h = match rpc("hub.revocation_head") {
+            Ok(v) => v,
+            Err((-32601, _)) => return Err(("hub predates revocation list".into(), false)),
+            Err((0, e)) => return Err((format!("head: {e}"), false)),
+            Err((c, e)) => return Err((format!("head: hub refused ({c}): {e}"), false)),
+        };
+        let text = h.get("text").and_then(Value::as_str).ok_or(("head: no text".to_string(), true))?;
+        let head = ss::parse_and_verify(text.as_bytes(), &pk, HEAD_SCHEMA).map_err(|e| (format!("head-signature: {e}"), true))?;
+        if head.get("hub_id").and_then(J::as_str) != Some(self.hub_id.as_str()) {
+            return Err(("head names another hub".into(), true));
+        }
+        let hseq = head.get("seq").and_then(J::as_int).ok_or(("head without seq".to_string(), true))?;
+        let hdig = head.get("digest").and_then(J::as_str).unwrap_or("").to_string();
+        if let Some(held) = &self.held {
+            if hseq < held.seq {
+                return Err((format!("ROLLBACK refused, kept seq {}", held.seq), true));
+            }
+            if hseq == held.seq {
+                return if hdig == held.digest {
+                    Ok(())
+                } else if held.digest.is_empty() {
+                    self.fetch(store, &pk, hseq, &hdig, rpc) // a held list that failed its load check
+                } else {
+                    Err((format!("fork: seq {hseq} with another digest"), true))
+                };
+            }
+        }
+        self.fetch(store, &pk, hseq, &hdig, rpc)
+    }
+
+    fn fetch(&mut self, store: &Store, pk: &ss::VerifyingKey, hseq: i64, hdig: &str, rpc: Rpc<'_>) -> Result<(), (String, bool)> {
+        let g = match rpc("hub.revocation_get") {
+            Ok(v) => v,
+            Err((c, e)) => return Err((format!("get: ({c}) {e}"), false)),
+        };
+        let text = g.get("text").and_then(Value::as_str).ok_or(("get: no text".to_string(), true))?;
+        let l = ss::parse_and_verify(text.as_bytes(), pk, SCHEMA).map_err(|e| (format!("list: {e}"), true))?;
+        let lseq = l.get("seq").and_then(J::as_int).unwrap_or(-1);
+        let ldig = l.get("digest").and_then(J::as_str).unwrap_or("");
+        if lseq != hseq || ldig != hdig {
+            return Err(("list does not match its head".into(), true));
+        }
+        if l.get("hub_id").and_then(J::as_str) != Some(self.hub_id.as_str()) {
+            return Err(("list names another hub".into(), true));
+        }
+        if let Some(held) = &self.held {
+            if !held.digest.is_empty()
+                && lseq == held.seq + 1
+                && l.get("prev_digest").and_then(J::as_str) != Some(held.digest.as_str())
+            {
+                return Err(("list does not chain to the held one".into(), true));
+            }
+            // lists only grow: a list that drops a held key is tamper
+            let new_keys = keys_of(&entries_of(&l));
+            if !held.keys.is_subset(&new_keys) {
+                return Err(("list drops a key this sidecar holds as revoked".into(), true));
+            }
+        }
+        store.write_state(LIST_STATE, text).map_err(|e| (format!("list not stored: {e}"), false))?;
+        let _ = store.write_state(HUB_PK_STATE, &ss::hex(pk.as_bytes()));
+        self.held = Some(held_of(&l));
+        Ok(())
+    }
+
+    fn verified(&mut self, store: &Store, now: Instant, sender: Option<&crate::send::Sender>) {
+        self.last_verified = Some(now);
+        self.state = State::Verified;
+        self.stale_raised = false;
+        self.publish(store);
+        let seq = self.held.as_ref().map(|h| h.seq).unwrap_or(0);
+        self.write_status(store, &format!("verified seq {seq} at {}", crate::store::now_ms()));
+        self.raise_new_entries(store);
+        if let Some(h) = &self.held {
+            refuse_stored(store, &h.keys, sender);
+        }
+    }
+
+    /// Design 5.9: one coalesced `key-revoked` entry for the entries above the last raised seq.
+    fn raise_new_entries(&self, store: &Store) {
+        let Some(h) = &self.held else { return };
+        let raised: i64 = store.read_state(ATTENTION_STATE).ok().flatten().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
+        if h.seq <= raised {
+            return;
+        }
+        let names: Vec<String> = h
+            .entries
+            .iter()
+            .map(|e| {
+                let s = |n: &str| e.get(n).and_then(J::as_str).unwrap_or("?").to_string();
+                format!("{}/{} ({}, by {}: {})", s("project"), s("agent"), s("key"), s("by"), s("reason"))
+            })
+            .collect();
+        let detail = format!(
+            "hub {} revocation list is at seq {}: {} key(s) revoked: {}; messages signed by them are refused",
+            self.hub_id,
+            h.seq,
+            names.len(),
+            names.join("; ")
+        );
+        if store.attention_coalesced("key-revoked", &h.seq.to_string(), &detail).is_ok() {
+            let _ = store.write_state(ATTENTION_STATE, &h.seq.to_string());
+        }
+    }
+
+    fn failed(&mut self, store: &Store, now: Instant, why: &str, tamper: bool) {
+        let hour = crate::store::now_ms() / 3_600_000;
+        if tamper {
+            let _ = store.attention_coalesced("revocation-tamper", &hour.to_string(), &format!("hub {}: {why}", self.hub_id));
+        }
+        if why == "hub predates revocation list" {
+            let day = hour / 24;
+            let _ = store.attention_coalesced(
+                "revocation-hub-predates",
+                &day.to_string(),
+                &format!("hub {} serves no revocation list (it predates T-3703); revoked keys are not known here", self.hub_id),
+            );
+        }
+        let since_ms = crate::store::now_ms().saturating_sub(now.duration_since(self.since()).as_millis() as u64);
+        if self.state != State::Stale && now.duration_since(self.since()) > self.stale_after {
+            self.state = State::Stale;
+            if !self.stale_raised {
+                self.stale_raised = true;
+                let _ = store.attention(
+                    "revocation-stale",
+                    &format!(
+                        "hub {}: no verified revocation pull since {since_ms} ({why}); urgent mail from outside the own project is downgraded, never dropped",
+                        self.hub_id
+                    ),
+                );
+            }
+        }
+        self.publish(store);
+        let line = if why.starts_with("ROLLBACK") || why == "hub predates revocation list" {
+            why.to_string()
+        } else if self.state == State::Stale {
+            format!("stale since {since_ms} ({why})")
+        } else {
+            format!("unverified since {since_ms} ({why})")
+        };
+        self.write_status(store, &line);
+    }
+}
+
+fn held_of(l: &J) -> Held {
+    let entries = entries_of(l);
+    Held {
+        seq: l.get("seq").and_then(J::as_int).unwrap_or(0),
+        digest: l.get("digest").and_then(J::as_str).unwrap_or("").to_string(),
+        keys: keys_of(&entries),
+        entries,
+    }
+}
+
+/// [`refuse_stored`] with the keys currently held (the hand-over re-check calls this).
+pub fn refuse_stored_now(store: &Store, sender: Option<&crate::send::Sender>) -> usize {
+    let keys = SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()).map(|s| s.keys.clone()).unwrap_or_default();
+    refuse_stored(store, &keys, sender)
+}
+
+/// FCW-200 sweep: every STORED message from a revoked key that is not handed over, refused or held open by an
+/// attempt is REFUSED (reason `revoked`) at once, with one attention entry and a signed notice to its sender
+/// when a sender is at hand. Returns how many were refused.
+pub fn refuse_stored(store: &Store, keys: &BTreeSet<String>, sender: Option<&crate::send::Sender>) -> usize {
+    if keys.is_empty() {
+        return 0;
+    }
+    let mut n = 0;
+    for conv in store.conversations() {
+        let Ok(lines) = store.chain_lines(&conv) else { continue };
+        for st in lines.iter().filter(|l| l.event == "STORED") {
+            let from = st.sender.as_str();
+            let is_revoked = from.len() >= 16 && keys.iter().any(|k| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from)));
+            if !is_revoked {
+                continue;
+            }
+            let done = |ev: &str| lines.iter().any(|l| l.event == ev && l.msg_id == st.msg_id && l.sender == st.sender);
+            if done("HANDED_OVER") || done("REFUSED") {
+                continue;
+            }
+            let extra = LineExtra { reason: Some(REASON_REVOKED.to_owned()), ..Default::default() };
+            let (id, sd, dg) = (st.msg_id.clone(), st.sender.clone(), st.digest.clone());
+            let wrote = store.append_event_unless(&conv, "REFUSED", &st.msg_id, &st.sender, &st.digest, extra, move |ls| {
+                ls.iter().any(|l| l.event == "REFUSED" && l.msg_id == id && l.sender == sd && l.digest == dg)
+            });
+            if let Ok(Some(_)) = wrote {
+                n += 1;
+                count_refusal(store);
+                let _ = store.attention(
+                    "refused-revoked",
+                    &format!("{conv}/{} from {from}: stored before its key was revoked; refused, not handed over (FCW-200)", st.msg_id),
+                );
+                if let (Some(s), Ok((_, payload))) = (sender, store.read_record(&conv, st.seq, &st.msg_id))
+                    && let Ok(msg) = crate::wire::parse_payload(&payload)
+                    && let Ok(stage) = crate::pull::build_stage(store, s.fingerprint(), s.agent().0, &msg, REVOKED)
+                {
+                    let _ = s.post_stage(&msg.from_agent, &stage);
+                }
+            }
+        }
+    }
+    n
+}
+
+
+#[cfg(test)]
+mod tests {
+    //! AL-22 at L2 (E-40 (a)(b), E-41, 06 4.7 classes) with signed test lists and a stub hub; the real hub is
+    //! `tests/t3703_revocation_sidecar.rs` (E-39).
+    use super::*;
+    use ed25519_dalek::SigningKey;
+    use std::cell::RefCell;
+
+    const HUB: &str = "cacc73ea32b121dd";
+
+    struct Fx {
+        _e: crate::testkit::Estate,
+        store: Store,
+        k: SigningKey,
+        version: Value,
+    }
+
+    fn fx() -> Fx {
+        let e = crate::testkit::Estate::create_without_hub().unwrap();
+        let store = Store::open(&e.store_root(), "fx-b").unwrap();
+        let k = SigningKey::from_bytes(&[5u8; 32]);
+        let fp = ss::key_fingerprint(&k.verifying_key());
+        store.write_state(&crate::hub_key_pin::pin_state_name(HUB), &fp).unwrap();
+        let version = serde_json::json!({"hub_id": HUB, "signing_key": fp, "signing_public_key": ss::hex(k.verifying_key().as_bytes())});
+        Fx { _e: e, store, k, version }
+    }
+
+    fn fp(n: u8) -> String {
+        ss::key_fingerprint(&SigningKey::from_bytes(&[n; 32]).verifying_key())
+    }
+
+    fn list(k: &SigningKey, seq: i64, prev: &str, keys: &[String]) -> J {
+        let entries = keys
+            .iter()
+            .map(|key| {
+                J::Obj(vec![
+                    ("scope".into(), J::Str("agent_key".into())),
+                    ("key".into(), J::Str(key.clone())),
+                    ("project".into(), J::Str("p".into())),
+                    ("agent".into(), J::Str("fx-a".into())),
+                    ("reason".into(), J::Str("r".into())),
+                    ("revoked_at".into(), J::Int(1)),
+                    ("by".into(), J::Str("operator".into())),
+                    ("event".into(), J::Str("admin-revoke".into())),
+                ])
+            })
+            .collect();
+        ss::seal(
+            k,
+            J::Obj(vec![
+                ("schema".into(), J::Str(SCHEMA.into())),
+                ("hub_id".into(), J::Str(HUB.into())),
+                ("seq".into(), J::Int(seq)),
+                ("issued_at".into(), J::Int(1)),
+                ("prev_digest".into(), J::Str(prev.into())),
+                ("entries".into(), J::Arr(entries)),
+            ]),
+        )
+        .unwrap()
+    }
+
+    fn head_of(k: &SigningKey, l: &J) -> J {
+        ss::seal(
+            k,
+            J::Obj(vec![
+                ("schema".into(), J::Str(HEAD_SCHEMA.into())),
+                ("hub_id".into(), J::Str(HUB.into())),
+                ("seq".into(), l.get("seq").unwrap().clone()),
+                ("digest".into(), l.get("digest").unwrap().clone()),
+            ]),
+        )
+        .unwrap()
+    }
+
+    fn text(o: &J) -> Value {
+        serde_json::json!({"text": serde_json::to_string(&o.to_serde()).unwrap()})
+    }
+
+    /// A stub hub serving `served` (head, list), or failing with `fail`.
+    struct Hub {
+        served: RefCell<Option<(J, J)>>,
+        fail: RefCell<Option<(i64, String)>>,
+        gets: RefCell<u32>,
+    }
+
+    impl Hub {
+        fn new() -> Hub {
+            Hub { served: RefCell::new(None), fail: RefCell::new(None), gets: RefCell::new(0) }
+        }
+        fn serve(&self, k: &SigningKey, l: &J) {
+            *self.served.borrow_mut() = Some((head_of(k, l), l.clone()));
+            *self.fail.borrow_mut() = None;
+        }
+        fn call(&self, m: &str) -> Result<Value, (i64, String)> {
+            if let Some(f) = self.fail.borrow().clone() {
+                return Err(f);
+            }
+            let s = self.served.borrow();
+            let (h, l) = s.as_ref().expect("served");
+            if m == "hub.revocation_get" {
+                *self.gets.borrow_mut() += 1;
+                Ok(text(l))
+            } else {
+                Ok(text(h))
+            }
+        }
+    }
+
+    fn kinds(store: &Store) -> Vec<String> {
+        store
+            .attention_entries()
+            .iter()
+            .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+            .map(|v| v["kind"].as_str().unwrap_or("").to_string())
+            .collect()
+    }
+
+    fn line(store: &Store) -> String {
+        status(store)["revocation"].as_str().unwrap().to_string()
+    }
+
+    const Z: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+    #[test]
+    fn empty_list_then_a_revocation_is_verified_installed_and_raised_once() {
+        let f = fx();
+        let hub = Hub::new();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        assert!(narrowing(&f.store), "unverified since start narrows (FCW-96)");
+        let l0 = list(&f.k, 0, Z, &[]);
+        hub.serve(&f.k, &l0);
+        let now = Instant::now();
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(t.state(), &State::Verified);
+        assert!(line(&f.store).starts_with("verified seq 0 at"), "{}", line(&f.store));
+        assert!(!narrowing(&f.store));
+        let l1 = list(&f.k, 1, l0.get("digest").unwrap().as_str().unwrap(), &[fp(1)]);
+        hub.serve(&f.k, &l1);
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(revoked(&f.store, &fp(1)));
+        assert!(revoked_from(&f.store, &fp(1)["ed25519:".len()..][..16]));
+        let gets = *hub.gets.borrow();
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(*hub.gets.borrow(), gets, "an unchanged head fetches nothing");
+        assert_eq!(kinds(&f.store).iter().filter(|k| *k == "key-revoked").count(), 1, "one entry per list");
+        // a fresh tracker (restart) does not raise it again
+        let mut t2 = Tracker::new(&f.store, HUB, PN13);
+        assert!(revoked(&f.store, &fp(1)), "held keys refused from the start (load verified)");
+        t2.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(kinds(&f.store).iter().filter(|k| *k == "key-revoked").count(), 1);
+    }
+
+    #[test]
+    fn e40a_rollback_and_fork_are_refused_and_the_list_kept() {
+        let f = fx();
+        let hub = Hub::new();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        let l7 = list(&f.k, 7, Z, &[fp(1)]);
+        hub.serve(&f.k, &l7);
+        let now = Instant::now();
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(t.held_seq(), Some(7));
+        hub.serve(&f.k, &list(&f.k, 5, Z, &[]));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(line(&f.store), "ROLLBACK refused, kept seq 7");
+        assert_eq!(t.held_seq(), Some(7));
+        assert!(revoked(&f.store, &fp(1)), "keys on the last verified list stay refused");
+        assert!(kinds(&f.store).contains(&"revocation-tamper".to_string()));
+        hub.serve(&f.k, &list(&f.k, 7, Z, &[fp(2)])); // same seq, another digest
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(line(&f.store).contains("fork"), "{}", line(&f.store));
+        assert!(!revoked(&f.store, &fp(2)));
+    }
+
+    #[test]
+    fn e40b_a_restored_store_detects_the_higher_head_and_refuses_the_key() {
+        let f = fx();
+        let hub = Hub::new();
+        let l5 = list(&f.k, 5, Z, &[]);
+        hub.serve(&f.k, &l5);
+        let now = Instant::now();
+        {
+            let mut t = Tracker::new(&f.store, HUB, PN13);
+            t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        }
+        // the hub moved on to seq 7 with F revoked at 6; the store still holds seq 5 (the snapshot)
+        let l6 = list(&f.k, 6, l5.get("digest").unwrap().as_str().unwrap(), &[fp(1)]);
+        let l7 = list(&f.k, 7, l6.get("digest").unwrap().as_str().unwrap(), &[fp(1)]);
+        hub.serve(&f.k, &l7);
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        assert!(!revoked(&f.store, &fp(1)) && narrowing(&f.store), "restored: unreconciled, narrowed");
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(t.held_seq(), Some(7), "first head read shows 7, list fetched (seq 5 -> 7 skips the chain check)");
+        assert!(revoked(&f.store, &fp(1)));
+        assert!(!narrowing(&f.store));
+    }
+
+    #[test]
+    fn e41_a_failed_pull_is_not_an_empty_list_and_goes_stale_after_pn13() {
+        let f = fx();
+        let hub = Hub::new();
+        let stale = Duration::from_secs(3600);
+        let mut t = Tracker::new(&f.store, HUB, stale);
+        hub.serve(&f.k, &list(&f.k, 1, Z, &[fp(1)]));
+        let t0 = Instant::now();
+        t.tick(&f.store, &f.version, &|m| hub.call(m), t0, None);
+        *hub.fail.borrow_mut() = Some((0, "connection refused".into()));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), t0 + Duration::from_secs(3599), None);
+        assert_eq!(t.state(), &State::Verified, "59:59: not yet stale");
+        assert!(line(&f.store).starts_with("unverified since"), "{}", line(&f.store));
+        assert!(!narrowing(&f.store));
+        assert!(revoked(&f.store, &fp(1)), "a failed pull is not an empty list");
+        t.tick(&f.store, &f.version, &|m| hub.call(m), t0 + Duration::from_secs(3601), None);
+        assert_eq!(t.state(), &State::Stale, "60:01: stale");
+        assert!(line(&f.store).starts_with("stale since"), "{}", line(&f.store));
+        assert!(narrowing(&f.store));
+        assert!(revoked(&f.store, &fp(1)), "keys on the last verified list stay refused");
+        t.tick(&f.store, &f.version, &|m| hub.call(m), t0 + Duration::from_secs(4000), None);
+        assert_eq!(kinds(&f.store).iter().filter(|k| *k == "revocation-stale").count(), 1, "one stale entry");
+        // a hub refusal counts the same (RECONCILE)
+        *hub.fail.borrow_mut() = Some((-32048, "RECONCILE".into()));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), t0 + Duration::from_secs(4100), None);
+        assert_eq!(t.state(), &State::Stale);
+        // a verified pull ends it
+        hub.serve(&f.k, &list(&f.k, 1, Z, &[fp(1)]));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), t0 + Duration::from_secs(4200), None);
+        assert_eq!(t.state(), &State::Verified);
+        assert!(!narrowing(&f.store));
+    }
+
+    #[test]
+    fn the_06_4_7_failure_classes_never_verify() {
+        let f = fx();
+        let hub = Hub::new();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        let now = Instant::now();
+        // method not found: a hub that predates the list
+        *hub.fail.borrow_mut() = Some((-32601, "method not found".into()));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(line(&f.store), "hub predates revocation list");
+        assert_eq!(t.state(), &State::UnverifiedSinceStart);
+        // a list signed by another key
+        let other = SigningKey::from_bytes(&[6u8; 32]);
+        hub.serve(&other, &list(&other, 1, Z, &[fp(1)]));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(line(&f.store).contains("head-signature"), "{}", line(&f.store));
+        assert!(!revoked(&f.store, &fp(1)));
+        // an offered public key that does not hash to the pin
+        let mut v = f.version.clone();
+        v["signing_public_key"] = Value::from(ss::hex(other.verifying_key().as_bytes()));
+        hub.serve(&f.k, &list(&f.k, 1, Z, &[fp(1)]));
+        t.tick(&f.store, &v, &|m| hub.call(m), now, None);
+        assert!(line(&f.store).contains("pin"), "{}", line(&f.store));
+        // a head for another hub
+        let foreign = ss::seal(
+            &f.k,
+            J::Obj(vec![
+                ("schema".into(), J::Str(HEAD_SCHEMA.into())),
+                ("hub_id".into(), J::Str("ffffffffffffffff".into())),
+                ("seq".into(), J::Int(1)),
+                ("digest".into(), J::Str(Z.into())),
+            ]),
+        )
+        .unwrap();
+        *hub.served.borrow_mut() = Some((foreign, list(&f.k, 1, Z, &[])));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(line(&f.store).contains("another hub"), "{}", line(&f.store));
+        // a list that breaks the chain at held + 1
+        let l1 = list(&f.k, 1, Z, &[fp(1)]);
+        hub.serve(&f.k, &l1);
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(t.state(), &State::Verified);
+        hub.serve(&f.k, &list(&f.k, 2, &"1".repeat(64), &[fp(1), fp(2)]));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(line(&f.store).contains("chain"), "{}", line(&f.store));
+        // a list that drops a held key
+        hub.serve(&f.k, &list(&f.k, 2, l1.get("digest").unwrap().as_str().unwrap(), &[fp(2)]));
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(line(&f.store).contains("drops a key"), "{}", line(&f.store));
+        assert!(revoked(&f.store, &fp(1)));
+    }
+
+    #[test]
+    fn m1_a_tampered_stored_list_is_tamper_and_refetched() {
+        let f = fx();
+        let hub = Hub::new();
+        let l = list(&f.k, 3, Z, &[fp(1), fp(2)]);
+        hub.serve(&f.k, &l);
+        let now = Instant::now();
+        Tracker::new(&f.store, HUB, PN13).tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        // edit the stored list: drop an entry, keep the digest and signature
+        let mut edited = l.clone();
+        edited.set("entries", J::Arr(vec![]));
+        f.store.write_state(LIST_STATE, &serde_json::to_string(&edited.to_serde()).unwrap()).unwrap();
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        assert!(kinds(&f.store).contains(&"revocation-tamper".to_string()));
+        assert_eq!(t.held_seq(), Some(3), "seq kept as the floor");
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(t.state(), &State::Verified, "the full list is fetched again");
+        assert!(revoked(&f.store, &fp(1)) && revoked(&f.store, &fp(2)));
+    }
+
+    #[test]
+    fn the_switch_off_is_ph1_trust_said_so_and_a_flip_is_raised() {
+        let f = fx();
+        let hub = Hub::new();
+        hub.serve(&f.k, &list(&f.k, 1, Z, &[fp(1)]));
+        let mut t = Tracker::new(&f.store, HUB, PN13);
+        let now = Instant::now();
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(revoked(&f.store, &fp(1)));
+        f.store.write_state(SWITCH_STATE, "off").unwrap();
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert_eq!(line(&f.store), "off (PH-1 trust)");
+        assert!(!revoked(&f.store, &fp(1)));
+        assert!(kinds(&f.store).contains(&"revocation-pull-switched".to_string()));
+        f.store.write_state(SWITCH_STATE, "on").unwrap();
+        t.tick(&f.store, &f.version, &|m| hub.call(m), now, None);
+        assert!(revoked(&f.store, &fp(1)));
+        assert_eq!(kinds(&f.store).iter().filter(|k| *k == "revocation-pull-switched").count(), 2);
+    }
+}
