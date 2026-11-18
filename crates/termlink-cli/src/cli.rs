@@ -1445,6 +1445,54 @@ pub(crate) enum TmuxAction {
     },
 }
 
+/// `termlink hub key-card` actions (T-3704).
+#[derive(Subcommand)]
+pub(crate) enum KeyCardAction {
+    /// Write (or, with --replace, change the key or project of) one agent's card
+    Put {
+        /// Agent name (plain: [a-z0-9][a-z0-9._-]{0,63})
+        #[arg(long)]
+        agent: String,
+        /// The agent's project id
+        #[arg(long)]
+        project: String,
+        /// ed25519-pub:<64 hex> — or --signing-key-file with the raw 64-hex public key (P7-2 register)
+        #[arg(long, conflicts_with = "signing_key_file")]
+        signing_key: Option<String>,
+        /// File holding the agent's raw 64-hex ed25519 public key (e.g. /etc/termlink-sidecar/keys/<agent>.pub)
+        #[arg(long)]
+        signing_key_file: Option<std::path::PathBuf>,
+        /// x25519-pub:<64 hex> (optional)
+        #[arg(long)]
+        encryption_key: Option<String>,
+        /// Instance ids of the agent (repeatable)
+        #[arg(long = "instance")]
+        instances: Vec<String>,
+        /// Allow changing an existing card's key or project (raises attention, names old and new)
+        #[arg(long)]
+        replace: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show one agent's card
+    Get {
+        agent: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// List all cards, the check setting, and refusal counts per claimed agent
+    List {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the check setting, or set it: off | log | enforce
+    Mode {
+        mode: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 /// Hub server actions
 #[derive(Subcommand)]
 pub(crate) enum HubAction {
@@ -1626,6 +1674,13 @@ pub(crate) enum HubAction {
         /// Output as JSON: {"runtime_dir","hub_id","id_source","key_generated","signing_key","dry_run"}
         #[arg(long)]
         json: bool,
+    },
+    /// Agent key cards at the local hub (T-3704, arc-011 B-6): write, read, list, and the
+    /// off|log|enforce check setting. Writes go over the local unix socket only, are admin-logged,
+    /// and raise attention; runme is the intended writer.
+    KeyCard {
+        #[command(subcommand)]
+        action: KeyCardAction,
     },
     /// Probe a remote hub via TLS handshake and print its leaf cert sha256
     ///

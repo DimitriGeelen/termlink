@@ -2341,6 +2341,24 @@ mod tests {
     use serde_json::json;
     use std::path::{Path, PathBuf};
 
+    #[test]
+    fn t3704_key_card_writes_are_refused_off_the_local_socket() {
+        let put = json!({"agent": "fx-a", "project": "p", "signing_key": format!("ed25519-pub:{}", "01".repeat(32))});
+        for (resp, m) in [
+            (handle_key_card_put(json!(1), &put, Some("10.0.0.9:5000")), "hub.key_card_put"),
+            (handle_key_card_mode(json!(1), &json!({"mode": "off"}), Some("10.0.0.9:5000")), "hub.key_card_mode"),
+        ] {
+            match resp {
+                RpcResponse::Error(e) => {
+                    assert_eq!(e.error.code, control::error_code::KEY_CARD_REFUSED, "{m}");
+                    assert!(e.error.message.contains("local unix socket"), "{m}: {}", e.error.message);
+                }
+                RpcResponse::Success(_) => panic!("{m} accepted over TCP"),
+            }
+        }
+        assert!(crate::rpc_audit::is_admin_method("hub.key_card_put") && crate::rpc_audit::is_admin_method("hub.key_card_mode"));
+    }
+
     /// A scratch root that is writable and NOT under /tmp (the volatile-dir
     /// heuristic must not fire). T-3677: it sits in this build's own target dir
     /// (`<target-dir>/<profile>/test-tmp`, from the test binary's location), not

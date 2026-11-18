@@ -985,6 +985,61 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
 
 /// T-3366: `termlink hub adopt-id` — the AL-17 legacy migration, the only path past FCW-79.
 /// Exit 0 with what it did (or would do); an unreadable/malformed id or key file is an error.
+/// T-3704: `termlink hub key-card put|get|list|mode` against the local hub socket. A refusal
+/// exits non-zero with the hub's reason (runme reads it).
+pub(crate) async fn cmd_hub_key_card(action: crate::cli::KeyCardAction) -> Result<()> {
+    use crate::cli::KeyCardAction as A;
+    use termlink_session::client;
+    let socket_path = termlink_hub::server::hub_socket_path();
+    let (method, params, json_out) = match action {
+        A::Put { agent, project, signing_key, signing_key_file, encryption_key, instances, replace, json } => {
+            let key = match (signing_key, signing_key_file) {
+                (Some(k), _) => k,
+                (None, Some(f)) => {
+                    let raw = std::fs::read_to_string(&f).with_context(|| format!("reading {}", f.display()))?;
+                    let hex = raw.trim().to_ascii_lowercase();
+                    if hex.len() != 64 || !hex.bytes().all(|c| c.is_ascii_hexdigit()) {
+                        anyhow::bail!("{} does not hold a raw 64-hex public key", f.display());
+                    }
+                    format!("{}{hex}", termlink_hub::key_card::SIGNING_PREFIX)
+                }
+                (None, None) => anyhow::bail!("give --signing-key or --signing-key-file"),
+            };
+            (
+                "hub.key_card_put",
+                json!({"agent": agent, "project": project, "signing_key": key,
+                       "encryption_key": encryption_key, "instances": instances, "replace": replace}),
+                json,
+            )
+        }
+        A::Get { agent, json } => ("hub.key_card_get", json!({"agent": agent}), json),
+        A::List { json } => ("hub.key_card_list", json!({}), json),
+        A::Mode { mode, json } => match mode {
+            Some(m) => ("hub.key_card_mode", json!({"mode": m}), json),
+            None => ("hub.key_card_list", json!({}), json),
+        },
+    };
+    let resp = tokio::time::timeout(std::time::Duration::from_secs(10), client::rpc_call(&socket_path, method, params))
+        .await
+        .map_err(|_| anyhow::anyhow!("{method}: the local hub did not answer within 10s"))??;
+    let result = client::unwrap_result(resp).map_err(|e| anyhow::anyhow!("{method}: {e}"))?;
+    if json_out {
+        println!("{result}");
+    } else if let Some(cards) = result.get("cards").and_then(|c| c.as_array()) {
+        println!("mode: {}", result["mode"].as_str().unwrap_or("?"));
+        for c in cards {
+            println!("{}  project={}  key={}  seq={}", c["agent"].as_str().unwrap_or("?"), c["project"].as_str().unwrap_or("?"),
+                c["signing_key"].as_str().unwrap_or("?"), c["seq"]);
+        }
+        if let Some(r) = result.get("refusals").and_then(|r| r.as_object()).filter(|r| !r.is_empty()) {
+            println!("refusals: {}", serde_json::Value::Object(r.clone()));
+        }
+    } else {
+        println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+    }
+    Ok(())
+}
+
 pub(crate) fn cmd_hub_adopt_id(dry_run: bool, expect: Option<&str>, json_output: bool) -> Result<()> {
     let dir = termlink_session::discovery::runtime_dir();
     let a = termlink_hub::hub_identity::adopt_legacy(&dir, dry_run, expect)
