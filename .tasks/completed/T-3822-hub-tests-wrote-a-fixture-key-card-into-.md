@@ -4,12 +4,12 @@ name: "Hub tests wrote a fixture key card into the production runtime dir"
 description: >
   Hub tests wrote a fixture key card into the production runtime dir
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/arc011-mutants.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-18T19:04:22Z
-last_update: 2026-11-18T19:04:22Z
-date_finished: null
+last_update: 2026-11-18T22:28:08Z
+date_finished: 2026-11-18T22:28:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -72,10 +72,10 @@ commands run with a scratch `TERMLINK_RUNTIME_DIR`; a runme action moves the two
 ## Acceptance Criteria
 
 ### Agent
-- [ ] In test builds of the hub crate, the key-card store/setting writers and the revocation list writer refuse (panic with a named message) when the target dir is `/var/lib/termlink` or `/tmp/termlink-<uid>`; a unit test proves the guard
-- [ ] The T-3704 and T-3703 mutant runners run cargo with `TERMLINK_RUNTIME_DIR` set to a scratch dir
-- [ ] A runme action moves `/var/lib/termlink/key-cards.json` and `key-card-check` aside ONLY when the store holds nothing but fixture cards (`fx-*`, key `01…01` pattern) and no admin row names a card put; idempotent, verified on disk, hermetic fixture
-- [ ] The latest runme log shows the action OK and `finished rc=0`
+- [x] In test builds of the hub crate, the key-card store/setting writers and the revocation list writer refuse (panic with a named message) when the target dir is `/var/lib/termlink` or `/tmp/termlink-<uid>`; a unit test proves the guard (`key_card::guard_test_write`, test `t3822_test_builds_refuse_writes_into_a_production_runtime_dir`; full hub suite 640+4 green with the guard in place, so no current test writes there)
+- [x] The T-3704 and T-3703 mutant runners run cargo with `TERMLINK_RUNTIME_DIR` set to a scratch dir (`scripts/arc011-mutants.sh` for the T-3366/T-3704 patch sets; `run-t3703{a,b,c}.py`)
+- [x] A runme action moves `/var/lib/termlink/key-cards.json` and `key-card-check` aside ONLY when the store holds nothing but fixture cards (`fx-*`, key `01…01` pattern) and no admin row names a card put; idempotent, verified on disk, hermetic fixture (action 34, runs before the build; 7 fixture cases; suite 437/0)
+- [x] The latest runme log shows the action OK and `finished rc=0` (runme-20261118T202350Z: "OK stray fixture card store moved to /var/lib/termlink/t3822-stray-test-fixtures", rc=0; later runs skip: "no key-card store")
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +126,10 @@ commands run with a scratch `TERMLINK_RUNTIME_DIR`; a runme action moves the two
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT cargo test -p termlink-hub --lib t3822 > .context/working/.t3822-v1 2>&1 && grep -q 'test result: ok. 1 passed' .context/working/.t3822-v1
+test -e /var/lib/termlink/t3822-stray-test-fixtures/key-cards.json && ! grep -q '"fx-' /var/lib/termlink/key-cards.json
+grep -q 'TERMLINK_RUNTIME_DIR="$(mktemp -d' scripts/arc011-mutants.sh && grep -q 'SCRATCH_RT' crates/termlink-session/tests/mutants/run-t3703c.py
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -376,3 +380,16 @@ commands run with a scratch `TERMLINK_RUNTIME_DIR`; a runme action moves the two
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3822-hub-tests-wrote-a-fixture-key-card-into-.md
 - **Context:** Initial task creation
+
+### 2026-11-18T22:28:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b094f124
+- **Timestamp:** 2026-11-18T22:28:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
