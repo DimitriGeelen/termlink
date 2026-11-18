@@ -4,11 +4,11 @@
 # test: --lib key_card::tests::refusal_rows_are_coalesced_per_agent_key_minute
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -469,7 +469,7 @@
+@@ -482,7 +482,7 @@
      }
      match g.1.as_mut() {
-         Some(s) if s.len() >= MAX_ROWS_PER_MINUTE => false,
--        Some(s) => s.insert((agent.to_string(), signer_fp.to_string())),
+         Some(s) if carded && s.iter().filter(|(a, _)| a != UNCARDED).count() >= MAX_ROWS_PER_MINUTE => false,
+-        Some(s) => s.insert((key.to_string(), signer_fp.to_string())),
 +        Some(_) => false,
          None => true,
      }

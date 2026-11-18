@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::other_types_and_topics_are_never_gated
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -90,7 +90,8 @@
+@@ -96,7 +96,8 @@
  
  /// The arc-011 types on `inbox:*` the check applies to (tested before anything is read).
  pub fn is_gated(topic: &str, msg_type: &str) -> bool {

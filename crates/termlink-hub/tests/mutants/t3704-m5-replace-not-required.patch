@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::a_key_or_project_change_needs_replace_and_seq_rises
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -333,7 +333,7 @@
+@@ -339,7 +339,7 @@
              || o.project != req.project
              || o.encryption_key != req.encryption_key
              || o.instances != req.instances)

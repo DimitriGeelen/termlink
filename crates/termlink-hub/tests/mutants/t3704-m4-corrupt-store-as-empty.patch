@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::an_unreadable_store_refuses_never_reads_as_empty
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -181,7 +181,7 @@
+@@ -187,7 +187,7 @@
          }
          Err(e) => return Err(format!("key-card store unreadable: {e}")),
      };

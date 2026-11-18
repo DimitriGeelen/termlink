@@ -76,15 +76,21 @@ pub fn effective_mode(dir: &Path) -> Mode {
 
 pub fn write_mode(dir: &Path, mode: Mode) -> std::io::Result<()> {
     let _g = STORE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    write_mode_unlocked(dir, mode)
+}
+
+fn write_mode_unlocked(dir: &Path, mode: Mode) -> std::io::Result<()> {
     atomic_write(&dir.join(MODE_FILE), format!("{}\n", mode.as_str()).as_bytes(), 0o644)
 }
 
 /// Change the setting with its admin row written FIRST (r2 BLOCKER: refused if the row cannot be
 /// written). `log(before, after)` writes the row.
 pub fn set_mode(dir: &Path, mode: Mode, log: impl FnOnce(&str, &str) -> Result<(), String>) -> Result<String, String> {
+    // read, log and write under one lock, so the file and the last row agree (r3 MINOR 4)
+    let _g = STORE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let before = read_mode(dir).map(|m| m.as_str().to_string()).unwrap_or_else(|_| "invalid".into());
     log(&before, mode.as_str())?;
-    write_mode(dir, mode).map_err(|e| format!("setting not written: {e}"))?;
+    write_mode_unlocked(dir, mode).map_err(|e| format!("setting not written: {e}"))?;
     Ok(before)
 }
 
@@ -403,7 +409,11 @@ pub fn startup_reconcile(dir: &Path, admin_log: &Path) -> Vec<String> {
     }
     let _g = STORE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     match load_raw(dir) {
-        Err(e) => out.push(e),
+        Err(e) => {
+            // no file digest equals this, so a later outside write is still refused (r3 MINOR 2)
+            set_known(dir, "unreadable-at-start".into());
+            out.push(e)
+        }
         Ok((store, digest)) => {
             for c in store.cards.values() {
                 let d = card_digest(c);
@@ -458,18 +468,21 @@ pub fn refusal_counts() -> serde_json::Value {
 /// Admin rows for refusals are coalesced per (claimed agent, poster key, minute) so a token
 /// holder cannot flood the admin log (design v2, C-12). True = write a row for this one.
 static LOGGED: Mutex<(u64, Option<HashSet<(String, String)>>)> = Mutex::new((0, None));
-/// At most this many refusal rows per minute in all (r2 MAJOR 7: varied names cannot flood).
+/// At most this many refusal rows per minute for CARDED agents (r2 MAJOR 7). Refusals naming an
+/// agent without a card are coalesced under one key per signer, so made-up names can neither flood
+/// the log nor use up the carded budget (r3 MAJOR: a real impersonation is always logged).
 pub const MAX_ROWS_PER_MINUTE: usize = 60;
 
-pub fn first_in_minute(agent: &str, signer_fp: &str, now_ms: u64) -> bool {
+pub fn first_in_minute(agent: &str, signer_fp: &str, now_ms: u64, carded: bool) -> bool {
     let minute = now_ms / 60_000;
+    let key = if carded { agent } else { UNCARDED };
     let mut g = LOGGED.lock().unwrap_or_else(|p| p.into_inner());
     if g.0 != minute || g.1.is_none() {
         *g = (minute, Some(HashSet::new()));
     }
     match g.1.as_mut() {
-        Some(s) if s.len() >= MAX_ROWS_PER_MINUTE => false,
-        Some(s) => s.insert((agent.to_string(), signer_fp.to_string())),
+        Some(s) if carded && s.iter().filter(|(a, _)| a != UNCARDED).count() >= MAX_ROWS_PER_MINUTE => false,
+        Some(s) => s.insert((key.to_string(), signer_fp.to_string())),
         None => true,
     }
 }
@@ -477,6 +490,9 @@ pub fn first_in_minute(agent: &str, signer_fp: &str, now_ms: u64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The two tests that drive the process-wide per-minute row state run one at a time.
+    static MINUTE_STATE: Mutex<()> = Mutex::new(());
 
     fn key_hex(b: u8) -> String {
         format!("{SIGNING_PREFIX}{}", format!("{b:02x}").repeat(32))
@@ -712,16 +728,23 @@ mod tests {
         assert!(c.get("t-r2-x1").is_none() && c.get("t-r2-x2").is_none(), "{c}");
         assert!(c[UNCARDED]["refused"].as_u64().unwrap() >= 2);
         assert_eq!(c["t-r2-carded"]["signers"]["fpz"], 1);
+        let _s = MINUTE_STATE.lock().unwrap_or_else(|p| p.into_inner());
         let base = 600_000_000u64;
-        let n = (0..200).filter(|i| first_in_minute(&format!("cap-{i}"), "fp", base)).count();
+        let n = (0..200).filter(|i| first_in_minute(&format!("cap-{i}"), "fp", base, true)).count();
         assert_eq!(n, MAX_ROWS_PER_MINUTE);
+        // r3 MAJOR: 60 made-up (uncarded) names in a minute do not suppress a carded refusal row
+        let m = base + 60_000;
+        let uncarded = (0..60).filter(|i| first_in_minute(&format!("x{i}"), "k1", m, false)).count();
+        assert_eq!(uncarded, 1, "uncarded refusals coalesce to one row per signer");
+        assert!(first_in_minute("fx-a", "k2", m, true), "the real impersonation is still logged");
     }
 
     #[test]
     fn refusal_rows_are_coalesced_per_agent_key_minute() {
-        assert!(first_in_minute("t-agent", "fp1", 120_000));
-        assert!(!first_in_minute("t-agent", "fp1", 120_500));
-        assert!(first_in_minute("t-agent", "fp2", 120_600));
-        assert!(first_in_minute("t-agent", "fp1", 180_000), "a new minute logs again");
+        let _s = MINUTE_STATE.lock().unwrap_or_else(|p| p.into_inner());
+        assert!(first_in_minute("t-agent", "fp1", 120_000, true));
+        assert!(!first_in_minute("t-agent", "fp1", 120_500, true));
+        assert!(first_in_minute("t-agent", "fp2", 120_600, true));
+        assert!(first_in_minute("t-agent", "fp1", 180_000, true), "a new minute logs again");
     }
 }

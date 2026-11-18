@@ -4,7 +4,7 @@
 # test: --test t3704_key_card e69_posts_are_checked_against_the_card_and_e169_no_card_is_refused
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -440,7 +440,7 @@
+@@ -450,7 +450,7 @@
      let key = if carded { agent } else { UNCARDED };
      let mut m = REFUSALS.lock().unwrap_or_else(|p| p.into_inner());
      let e = m.entry(key.to_string()).or_default();

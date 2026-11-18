@@ -22,4 +22,4 @@
 | NID | `t3704-m8-gate-every-type` | the check also gates other message types and topics | `key_card::tests::other_types_and_topics_are_never_gated` | killed |
 | operator ruling A (local socket only) | `t3704-m9-put-over-tcp` | a card write is accepted from a TCP peer | `router::tests::t3704_key_card_writes_are_refused_off_the_local_socket` | killed |
 
-PASS: all 21 mutants turned their test red. Run 2026-11-18T01:46Z on 3d8e0cd01.
+PASS: all 21 mutants turned their test red. Run 2026-11-18T02:11Z on 36af5af05.

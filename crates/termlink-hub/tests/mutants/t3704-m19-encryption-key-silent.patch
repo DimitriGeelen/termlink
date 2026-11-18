@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::r2_every_field_change_needs_replace_and_a_key_has_one_card
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -331,7 +331,6 @@
+@@ -337,7 +337,6 @@
      if let Some(o) = &old
          && (o.signing_key != req.signing_key
              || o.project != req.project

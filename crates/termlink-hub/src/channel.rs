@@ -2917,7 +2917,7 @@ pub(crate) fn key_card_gate(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    if key_card::first_in_minute(&agent, signer_fp, now) {
+    if key_card::first_in_minute(&agent, signer_fp, now, carded) {
         let row = json!({
             "event": if enforced { "key-card-refused" } else { "key-card-would-refuse" },
             "fcw": fcw, "agent": agent, "signer": signer_fp, "topic": topic,

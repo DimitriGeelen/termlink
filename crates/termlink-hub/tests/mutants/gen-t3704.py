@@ -64,7 +64,7 @@ M = [
   [('    if enforced { e.refused += 1 } else { e.would += 1 }', '    let _ = enforced;')],
   'termlink', L4),
  ('t3704-m14-refusals-never-logged', 'AL-33 step 2 (admin_log)', 'no admin row is ever written for a refusal', KC,
-  [('        Some(s) => s.insert((agent.to_string(), signer_fp.to_string())),', '        Some(_) => false,')],
+  [('        Some(s) => s.insert((key.to_string(), signer_fp.to_string())),', '        Some(_) => false,')],
   'termlink-hub', LIB + 'refusal_rows_are_coalesced_per_agent_key_minute'),
  ('t3704-m15-impersonation-silent', 'design v2 C-12 (sidecar)', 'the impersonated agent\'s sidecar never raises the attention entry', 'crates/termlink-sidecar/src/pull.rs',
   [('            if total > base {', '            if false && total > base {')],

@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::al33_startup_reconcile_flags_a_card_the_admin_log_does_not_show
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -410,7 +410,7 @@
+@@ -420,7 +420,7 @@
                  match logged.get(&c.agent) {
                      Some(l) if *l == d => {}
                      Some(_) => out.push(format!("card {} (seq {}) differs from its last logged key-card-put", c.agent, c.seq)),

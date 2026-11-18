@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::r2_mode_changes_are_logged_first_and_reconciled_at_start
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -397,7 +397,7 @@
+@@ -403,7 +403,7 @@
      // the setting: deleting or editing the file is not an admin act (r2 MINOR 10)
      let now = read_mode(dir).map(|m| m.as_str().to_string()).unwrap_or_else(|e| format!("invalid ({e})"));
      match &last_mode {

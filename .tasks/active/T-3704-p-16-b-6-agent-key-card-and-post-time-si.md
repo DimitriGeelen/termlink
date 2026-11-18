@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:40Z
-last_update: 2026-11-18T01:46:56Z
+last_update: 2026-11-18T02:11:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -108,9 +108,9 @@ AL-20, which P-15 (T-3703) builds first; slice B gets its own task after P-15.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Design note's gap settlements reviewed by two isolated seats before code (docs/reports/T-3704-reviews/), WRONG items fixed
-- [ ] Slice A built: card store + `hub.key_card_put/get` (admin, execute scope, admin-log row first) + post check for sidecar.msg.v1 / sidecar.stage.v1 / sidecar.liveness.v1 behind `off|log|enforce` (default off) + receiver `from_agent` check
-- [ ] E-169 card case (L2, hub fake) and E-69 post half (L4, throwaway real hub: `fx-a` signed with `fx-b`'s key, hub secret only, no card; at hub and at receiver) PASS; mutants incl. `fc-01-verify-accepts-any-signature` all killed
+- [x] Design note's gap settlements reviewed by two isolated seats before code (docs/reports/T-3704-reviews/), WRONG items fixed (round 1: no WRONG; dispositions r1; design v2)
+- [x] Slice A built: card store + `hub.key_card_put/get` (admin, execute scope, admin-log row first) + post check for sidecar.msg.v1 / sidecar.stage.v1 / sidecar.liveness.v1 behind `off|log|enforce` (default off) + receiver `from_agent` check (liveness dropped from the gate per design v2 O-1: AL-33 scopes inbox:* only; code review rounds 2 and 3 answered, r2/r3 dispositions; final commit after r3)
+- [x] E-169 card case (L2, hub fake) and E-69 post half (L4, throwaway real hub: `fx-a` signed with `fx-b`'s key, hub secret only, no card; at hub and at receiver) PASS; mutants incl. `fc-01-verify-accepts-any-signature` all killed (hub lib 627/0 + key_card 18/18; real hub t3704_key_card 2/2, t3704_impersonation 3/3 incl. a genuine sidecar msg+stage through enforce; receiver half at unit level with real keys, live receiver check deferred to T-3713 per r3; mutants 21/21, docs/reports/T-3704-mutants.md)
 - [ ] Slice B captured as its own task, depending on T-3703
 
 ### Human

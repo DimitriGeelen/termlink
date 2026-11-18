@@ -90,6 +90,10 @@ Unblocks: part of gate G-2 (the T1 release installed on .107).
 - [ ] The hub id is unchanged from the fingerprint-derived one
 - [ ] Status `hub {id, declared, match}` reads true
 - [ ] The action is idempotent, verifies itself on disk and has a hermetic case in `tests/runme-fixtures.sh`
+- [ ] (from T-3704 design v2 O-M4) after cards are published the key-card check moves to `log`, and to `enforce` only after 7 days of log with zero false refusal; each move is a runme action with an admin row
+- [ ] (from T-3704 r3 dispositions) receiver half live: with named rosters on the W1 pair, a forged post claiming a bound name is refused at the receiver with the hub check off
+- [ ] (from T-3704 r3) sidecar `key-card-written` entry keyed on (agent, seq, signing key); attention on a `hub.key_card_list` error and on a `key-card-mode` change; last-seen persisted so a fresh sidecar raises nothing for existing cards
+- [ ] (from T-3704 r3) the setting file baselined like the store digest (an outside change while running is refused or raises attention); the card's own key exempt from the 16-signer cap
 - [ ] The latest runme log shows the action OK and `finished rc=0`
 
 ### Human
