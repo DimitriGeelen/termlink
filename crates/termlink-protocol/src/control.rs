@@ -563,6 +563,15 @@ pub mod error_code {
     /// written, at the session or at the hub. Nothing was done. `data` carries
     /// `{fcw: "FCW-132"}`. (-32040/-32041 are the hub's mail-guard codes.)
     pub const USE_LOG_UNWRITABLE: i64 = -32042;
+    /// T-3704 (arc-011 B-6, FCW-135): an arc-011 post (`sidecar.msg.v1` / `sidecar.stage.v1` on
+    /// `inbox:*`) names an agent with no key card at the hub, names no valid agent, or the card
+    /// store cannot be read. `data` carries `{fcw, agent}`.
+    pub const CHANNEL_NO_KEY_CARD: i64 = -32043;
+    /// T-3704 (FCW-133): the post is signed by a key other than the claimed agent's card key.
+    pub const CHANNEL_KEY_CARD_MISMATCH: i64 = -32044;
+    /// T-3704: a key-card write was refused (not over the local socket, bad name or key, or a
+    /// change of an existing card's key or project without `replace`).
+    pub const KEY_CARD_REFUSED: i64 = -32045;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

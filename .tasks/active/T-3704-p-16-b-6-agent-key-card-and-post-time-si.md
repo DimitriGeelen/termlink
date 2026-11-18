@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:40Z
-last_update: 2026-11-17T17:16:20Z
+last_update: 2026-11-18T00:15:14Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -398,6 +398,12 @@ AL-20, which P-15 (T-3703) builds first; slice B gets its own task after P-15.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-18 — Card writes while agents run as root: A, a stated limit (operator ruling)
+- **Operator words:** "A" (on the brief recommending A; design review r1 items O-9 / C-9).
+- **Chose:** A — build slice A now. Card writes are unix-socket only, admin-log row first (refused if unwritable), a needs-attention entry to the operator on every put/replace naming old and new key, and a change of an existing card's key or project only with explicit `replace`. **Stated limit:** while agents run as root, a root agent can write a card the way runme does; the controls make that visible, not impossible. The limit closes when agents run non-root.
+- **Why:** closes today's hole (any token holder can post as any agent) now; the residual gap is visible and is the same root-equals-root limit every control on this host has.
+- **Rejected:** B (hold slice A until non-root agents; leaves the forgery hole open for an unplanned time); C (operator approval with a digest for every card write; strongest, but a manual step on every agent setup for little gain while agents are root).
 
 ## Decision
 

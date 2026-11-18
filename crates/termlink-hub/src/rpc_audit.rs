@@ -617,6 +617,9 @@ pub const ADMIN_METHODS: &[&str] = &[
     termlink_protocol::control::method::CHANNEL_DELETE,
     termlink_protocol::control::method::CHANNEL_FORCE_RELEASE,
     termlink_protocol::control::method::CHANNEL_TRANSFER_CLAIM,
+    // T-3704 (B-6): card writes and the check setting (admin row before the act, FCW-128).
+    "hub.key_card_put",
+    "hub.key_card_mode",
 ];
 
 pub fn is_admin_method(method: &str) -> bool {
@@ -713,6 +716,16 @@ fn admin_append(row: &serde_json::Value) -> std::io::Result<()> {
         enqueue(main, row.to_string());
     }
     Ok(())
+}
+
+/// T-3704: one admin-log event row that is not an RPC's intent/result pair (a key-card refusal,
+/// a card put). `ts` and `admin: true` are added here.
+pub(crate) fn admin_note(mut row: serde_json::Value) -> std::io::Result<()> {
+    if let Some(o) = row.as_object_mut() {
+        o.insert("ts".into(), serde_json::json!(now_ms() as u64));
+        o.insert("admin".into(), serde_json::json!(true));
+    }
+    admin_append(&row)
 }
 
 /// FCW-128: write the intent row for an admin RPC. `Err` → the caller refuses

@@ -168,6 +168,10 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
             crate::artifact::handle_artifact_get(id, &req.params).await
         }
         "hub.version" => handle_hub_version(id),
+        "hub.key_card_put" => handle_key_card_put(id, &req.params, peer_addr),
+        "hub.key_card_mode" => handle_key_card_mode(id, &req.params, peer_addr),
+        "hub.key_card_get" => handle_key_card_get(id, &req.params),
+        "hub.key_card_list" => handle_key_card_list(id),
         "hub.legacy_usage" => handle_hub_legacy_usage(id, &req.params),
         "hub.bus_state" => handle_hub_bus_state(id),
         "hub.governor_status" => handle_hub_governor_status(id),
@@ -891,6 +895,117 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
 /// T-3366 (AL-17 invariant 3): `hub_id` is the minted `hub.id` the hub read at start, never
 /// recomputed from the certificate (so a rotation renames nothing); `signing_key` is
 /// `ed25519:<sha256 of the public key>` (AL-18). Both null only before the hub has started.
+/// T-3704 (B-6): key-card writes are accepted only over the local unix socket (no peer address;
+/// operator ruling A 2026-11-18). They are admin RPCs, so the intent row is already written.
+fn key_card_local_only(id: &serde_json::Value, method: &str, peer_addr: Option<&str>) -> Option<RpcResponse> {
+    peer_addr.map(|p| {
+        ErrorResponse::with_data(
+            id.clone(),
+            control::error_code::KEY_CARD_REFUSED,
+            &format!("refused: {method} is accepted only over the hub's local unix socket, not from {p}"),
+            serde_json::json!({"method": method}),
+        )
+        .into()
+    })
+}
+
+fn key_card_refused(id: serde_json::Value, reason: &str) -> RpcResponse {
+    ErrorResponse::with_data(
+        id,
+        control::error_code::KEY_CARD_REFUSED,
+        &format!("refused: {reason}"),
+        serde_json::json!({}),
+    )
+    .into()
+}
+
+fn handle_key_card_put(id: serde_json::Value, params: &serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {
+    if let Some(r) = key_card_local_only(&id, "hub.key_card_put", peer_addr) {
+        return r;
+    }
+    let req: crate::key_card::PutRequest = match serde_json::from_value(params.clone()) {
+        Ok(r) => r,
+        Err(e) => return key_card_refused(id, &format!("bad params: {e}")),
+    };
+    let dir = termlink_session::discovery::runtime_dir();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    match crate::key_card::put(&dir, &req, now) {
+        Ok((card, old)) => {
+            // Every put raises attention (operator ruling A: visible, not impossible); the row
+            // names old and new key so a silent replacement cannot happen.
+            let row = serde_json::json!({
+                "event": "key-card-put", "attention": true, "agent": card.agent, "project": card.project,
+                "seq": card.seq, "signing_key": card.signing_key,
+                "old_signing_key": old.as_ref().map(|o| o.signing_key.clone()),
+                "old_project": old.as_ref().map(|o| o.project.clone()), "replace": req.replace,
+            });
+            if let Err(e) = crate::rpc_audit::admin_note(row) {
+                tracing::error!(error = %e, "T-3704: key-card put admin row not written");
+            }
+            Response::success(id, serde_json::json!({"ok": true, "card": card, "replaced": old})).into()
+        }
+        Err(e) => key_card_refused(id, &e),
+    }
+}
+
+fn handle_key_card_mode(id: serde_json::Value, params: &serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {
+    let dir = termlink_session::discovery::runtime_dir();
+    let Some(want) = params.get("mode").and_then(|v| v.as_str()) else {
+        let cur = crate::key_card::read_mode(&dir);
+        return Response::success(
+            id,
+            serde_json::json!({"mode": cur.as_ref().map(|m| m.as_str()).unwrap_or("enforce"), "error": cur.err()}),
+        )
+        .into();
+    };
+    if let Some(r) = key_card_local_only(&id, "hub.key_card_mode", peer_addr) {
+        return r;
+    }
+    let Some(mode) = crate::key_card::Mode::parse(want) else {
+        return key_card_refused(id, &format!("mode {want:?} is not off|log|enforce"));
+    };
+    let before = crate::key_card::read_mode(&dir).map(|m| m.as_str()).unwrap_or("invalid");
+    if let Err(e) = crate::key_card::write_mode(&dir, mode) {
+        return key_card_refused(id, &format!("setting not written: {e}"));
+    }
+    let row = serde_json::json!({"event": "key-card-mode", "attention": true, "from": before, "to": mode.as_str()});
+    if let Err(e) = crate::rpc_audit::admin_note(row) {
+        tracing::error!(error = %e, "T-3704: key-card mode admin row not written");
+    }
+    Response::success(id, serde_json::json!({"ok": true, "mode": mode.as_str(), "was": before})).into()
+}
+
+fn handle_key_card_get(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let Some(agent) = params.get("agent").and_then(|v| v.as_str()) else {
+        return key_card_refused(id, "missing 'agent'");
+    };
+    match crate::key_card::get(&termlink_session::discovery::runtime_dir(), agent) {
+        Ok(card) => Response::success(id, serde_json::json!({"card": card})).into(),
+        Err(e) => key_card_refused(id, &e),
+    }
+}
+
+fn handle_key_card_list(id: serde_json::Value) -> RpcResponse {
+    let dir = termlink_session::discovery::runtime_dir();
+    let mode = crate::key_card::read_mode(&dir);
+    match crate::key_card::list(&dir) {
+        Ok(cards) => Response::success(
+            id,
+            serde_json::json!({
+                "mode": mode.as_ref().map(|m| m.as_str()).unwrap_or("enforce"),
+                "mode_error": mode.err(),
+                "cards": cards,
+                "refusals": crate::key_card::refusal_counts(),
+            }),
+        )
+        .into(),
+        Err(e) => key_card_refused(id, &e),
+    }
+}
+
 fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
     let instance = crate::tls::own_cert_fingerprint();
     let ident = crate::hub_identity::current();
@@ -1150,6 +1265,10 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::ARTIFACT_PUT,
         control::method::ARTIFACT_GET,
         "hub.version",
+        "hub.key_card_put",
+        "hub.key_card_mode",
+        "hub.key_card_get",
+        "hub.key_card_list",
         "hub.legacy_usage",
         "hub.bus_state",
         "hub.governor_status",

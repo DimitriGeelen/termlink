@@ -969,6 +969,20 @@ pub(crate) async fn handle_channel_post_with_peer(
         .into();
     }
 
+    // T-3704 (arc-011 B-6, 06a AL-33): an arc-011 post must be signed by the key on the card of
+    // the agent it claims to come from (FCW-133 / FCW-135), behind the off|log|enforce setting.
+    if let Some(resp) = key_card_gate(
+        &termlink_session::discovery::runtime_dir(),
+        &id,
+        &topic,
+        &msg_type,
+        &payload,
+        &verifying_key,
+        &expected_fp,
+    ) {
+        return resp;
+    }
+
     // T-1287: optional metadata routing-hint map. NOT included in canonical
     // signed bytes — trusted-mesh threat model treats it as routing only.
     // Well-known keys: conversation_id, event_type (per T-1288 catalog).
@@ -2871,6 +2885,58 @@ fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
 /// envelope's signature).
 fn hex_lower(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// T-3704: the key-card gate for one post whose transport signature verified. `None` = go on.
+/// In `log` mode a would-be refusal is counted and logged but the post is stored; in `enforce`
+/// (or with an unreadable setting) it is refused. Admin rows are coalesced per (agent, key, minute).
+pub(crate) fn key_card_gate(
+    dir: &std::path::Path,
+    id: &Value,
+    topic: &str,
+    msg_type: &str,
+    payload: &[u8],
+    signer: &VerifyingKey,
+    signer_fp: &str,
+) -> Option<RpcResponse> {
+    use crate::key_card::{self, Check, Mode};
+    let mode = key_card::effective_mode(dir);
+    if mode == Mode::Off {
+        return None;
+    }
+    let Check::Refuse { code, fcw, agent, reason } = key_card::check_post(dir, topic, msg_type, payload, signer.as_bytes())
+    else {
+        return None;
+    };
+    let enforced = mode == Mode::Enforce;
+    key_card::note_refusal(&agent, enforced);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    if key_card::first_in_minute(&agent, signer_fp, now) {
+        let row = json!({
+            "event": if enforced { "key-card-refused" } else { "key-card-would-refuse" },
+            "fcw": fcw, "agent": agent, "signer": signer_fp, "topic": topic,
+            "msg_type": msg_type, "reason": reason, "mode": mode.as_str(),
+        });
+        if let Err(e) = crate::rpc_audit::admin_note(row) {
+            tracing::error!(error = %e, "T-3704: key-card refusal admin row not written");
+        }
+    }
+    tracing::warn!(%agent, fcw, %reason, mode = mode.as_str(), "T-3704: arc-011 post failed the key-card check");
+    if !enforced {
+        return None;
+    }
+    Some(
+        ErrorResponse::with_data(
+            id.clone(),
+            code,
+            &format!("refused: {reason} ({fcw})"),
+            json!({"fcw": fcw, "agent": agent}),
+        )
+        .into(),
+    )
 }
 
 fn parse_pubkey_hex(hex: &str) -> Option<VerifyingKey> {

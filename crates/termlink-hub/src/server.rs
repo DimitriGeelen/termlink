@@ -771,7 +771,12 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | control::method::EVENT_COLLECT
         | "hub.version"
         | "hub.bus_state"
-        | "hub.governor_status" => PermissionScope::Observe,
+        | "hub.governor_status"
+        | "hub.key_card_get"
+        | "hub.key_card_list" => PermissionScope::Observe,
+
+        // T-3704 (B-6): card writes and the check setting; also local-socket only (router).
+        "hub.key_card_put" | "hub.key_card_mode" => PermissionScope::Execute,
 
         // Observe: read-only channel/bus + agent introspection (T-2267).
         // Before this arm existed the entire channel.* surface fell through
