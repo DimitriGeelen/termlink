@@ -70,6 +70,9 @@ M = [
  ('t3704-m15-impersonation-silent', 'design v2 C-12 (sidecar)', 'the impersonated agent\'s sidecar never raises the attention entry', 'crates/termlink-sidecar/src/pull.rs',
   [('        if total == seen {\n            return;\n        }', '        if total == seen || total != seen {\n            return;\n        }')],
   'termlink-sidecar', '--test t3704_impersonation a_refused_post_claiming_to_be_me_raises_one_attention_entry'),
+ ('t3704-m16-no-startup-reconcile', 'AL-33 2.17.f(2)', 'a card ahead of the admin log is never reported at start', KC,
+  [('        .filter(|c| logged.get(&c.agent).copied().unwrap_or(0) != c.seq)', '        .filter(|c| logged.get(&c.agent).copied().unwrap_or(0) != c.seq && false)')],
+  'termlink-hub', LIB + 'al33_startup_reconcile_flags_a_card_ahead_of_the_admin_log'),
 ]
 
 out_dir = 'crates/termlink-hub/tests/mutants'

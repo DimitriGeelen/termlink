@@ -15,5 +15,7 @@
 | FCW-133 at the hub | `t3704-m7-enforce-stores` | in enforce mode a refused post is stored anyway | `e69_posts_are_checked_against_the_card_and_e169_no_card_is_refused` | killed |
 | NID | `t3704-m8-gate-every-type` | the check also gates other message types and topics | `key_card::tests::other_types_and_topics_are_never_gated` | killed |
 | operator ruling A (local socket only) | `t3704-m9-put-over-tcp` | a card write is accepted from a TCP peer | `router::tests::t3704_key_card_writes_are_refused_off_the_local_socket` | killed |
+| AL-33 2.17.f(2) | `t3704-m16-no-startup-reconcile` | a card ahead of the admin log is never reported at start | `key_card::tests::al33_startup_reconcile_flags_a_card_ahead_of_the_admin_log` | killed |
 
 PASS: all 15 mutants turned their test red. Run 2026-11-18T00:56Z on f213ffd7a.
+Mutant 16 (start-up reconcile) added after the run above: killed, 2026-11-18T01:06Z. Total: 16 of 16 killed.

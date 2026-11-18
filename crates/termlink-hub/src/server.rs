@@ -607,6 +607,15 @@ pub async fn run_with_tcp(
     // for T-1166 entry-gate measurement.
     crate::rpc_audit::init(&runtime_dir);
     crate::circuit_breaker::init(&runtime_dir);
+    // T-3704 (AL-33 2.17.f(2)): a card whose seq the admin log does not show (a crash between
+    // persist and log, or an edit outside hub.key_card_put) raises an attention row at start.
+    for m in crate::key_card::startup_reconcile(&runtime_dir, &runtime_dir.join(crate::rpc_audit::ADMIN_FILE_NAME)) {
+        tracing::warn!(detail = %m, "T-3704: key-card seq not in the admin log");
+        let row = serde_json::json!({"event": "key-card-seq-mismatch", "attention": true, "detail": m});
+        if let Err(e) = crate::rpc_audit::admin_note(row) {
+            tracing::error!(error = %e, "T-3704: key-card seq mismatch row not written");
+        }
+    }
 
     // T-2048: Install connection-cap + per-sender rate-limit governors.
     // Reads TERMLINK_MAX_CONNECTIONS / TERMLINK_RATE_LIMIT_PER_SEC from env,

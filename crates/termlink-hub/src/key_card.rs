@@ -301,6 +301,43 @@ pub fn list(dir: &Path) -> Result<Vec<Card>, String> {
     Ok(load(dir)?.cards.into_values().collect())
 }
 
+/// AL-33 2.17.f(2): compare each card's `seq` with the highest `seq` the admin log records for a
+/// `key-card-put` of that agent. A card ahead of the log (a crash between persist and log, or a
+/// card written outside `hub.key_card_put`) or an unreadable store is reported; the caller raises
+/// attention. Known limit: an admin log pruned past a card's last put reports that card too.
+pub fn startup_reconcile(dir: &Path, admin_log: &Path) -> Vec<String> {
+    let cards = match list(dir) {
+        Ok(c) => c,
+        Err(e) => return vec![e],
+    };
+    if cards.is_empty() {
+        return vec![];
+    }
+    let mut logged: BTreeMap<String, u64> = BTreeMap::new();
+    if let Ok(text) = std::fs::read_to_string(admin_log) {
+        for v in text.lines().filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok()) {
+            if v.get("event").and_then(|e| e.as_str()) == Some("key-card-put")
+                && let (Some(a), Some(s)) = (v.get("agent").and_then(|a| a.as_str()), v.get("seq").and_then(|s| s.as_u64()))
+            {
+                let e = logged.entry(a.to_string()).or_insert(0);
+                *e = (*e).max(s);
+            }
+        }
+    }
+    cards
+        .iter()
+        .filter(|c| logged.get(&c.agent).copied().unwrap_or(0) != c.seq)
+        .map(|c| {
+            format!(
+                "card {} has seq {} but the admin log's last key-card-put for it shows {}",
+                c.agent,
+                c.seq,
+                logged.get(&c.agent).map_or("none".to_string(), |s| s.to_string())
+            )
+        })
+        .collect()
+}
+
 /// Refusals per claimed agent since hub start (the impersonated agent's sidecar reads these,
 /// design v2 C-12), and would-be refusals in `log` mode.
 static REFUSALS: Mutex<BTreeMap<String, (u64, u64)>> = Mutex::new(BTreeMap::new());
@@ -480,6 +517,23 @@ mod tests {
         assert!(put(d.path(), &r, 1).is_err(), "the fingerprint form is not a card key");
         r.signing_key = key_hex(1).to_uppercase();
         assert!(put(d.path(), &r, 1).is_err());
+    }
+
+    #[test]
+    fn al33_startup_reconcile_flags_a_card_ahead_of_the_admin_log() {
+        let d = tempfile::tempdir().unwrap();
+        let log = d.path().join("rpc-admin.jsonl");
+        put(d.path(), &put_req("fx-a", "p", 1), 1).unwrap();
+        put(d.path(), &put_req("fx-b", "p", 2), 1).unwrap();
+        // fx-a's put was logged; fx-b's crashed between persist and log
+        std::fs::write(&log, "{\"event\":\"key-card-put\",\"agent\":\"fx-a\",\"seq\":1}\n").unwrap();
+        let m = startup_reconcile(d.path(), &log);
+        assert_eq!(m.len(), 1, "{m:?}");
+        assert!(m[0].contains("fx-b") && m[0].contains("none"), "{m:?}");
+        std::fs::write(&log, "{\"event\":\"key-card-put\",\"agent\":\"fx-a\",\"seq\":1}\n{\"event\":\"key-card-put\",\"agent\":\"fx-b\",\"seq\":1}\n").unwrap();
+        assert!(startup_reconcile(d.path(), &log).is_empty());
+        std::fs::write(store_path(d.path()), "{x").unwrap();
+        assert_eq!(startup_reconcile(d.path(), &log).len(), 1, "an unreadable store is reported");
     }
 
     #[test]
