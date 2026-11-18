@@ -2900,16 +2900,19 @@ pub(crate) fn key_card_gate(
     signer_fp: &str,
 ) -> Option<RpcResponse> {
     use crate::key_card::{self, Check, Mode};
+    if !key_card::is_gated(topic, msg_type) {
+        return None; // other types and topics never read the setting or the store (NID)
+    }
     let mode = key_card::effective_mode(dir);
     if mode == Mode::Off {
         return None;
     }
-    let Check::Refuse { code, fcw, agent, reason } = key_card::check_post(dir, topic, msg_type, payload, signer.as_bytes())
+    let Check::Refuse { code, fcw, agent, reason, carded } = key_card::check_post(dir, topic, msg_type, payload, signer.as_bytes())
     else {
         return None;
     };
     let enforced = mode == Mode::Enforce;
-    key_card::note_refusal(&agent, enforced);
+    key_card::note_refusal(&agent, signer_fp, enforced, carded);
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)

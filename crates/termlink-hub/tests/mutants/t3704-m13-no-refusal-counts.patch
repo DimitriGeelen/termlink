@@ -4,12 +4,12 @@
 # test: --test t3704_key_card e69_posts_are_checked_against_the_card_and_e169_no_card_is_refused
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -309,7 +309,7 @@
- pub fn note_refusal(agent: &str, enforced: bool) {
+@@ -440,7 +440,7 @@
+     let key = if carded { agent } else { UNCARDED };
      let mut m = REFUSALS.lock().unwrap_or_else(|p| p.into_inner());
-     let e = m.entry(agent.to_string()).or_insert((0, 0));
--    if enforced { e.0 += 1 } else { e.1 += 1 }
-+    let _ = (enforced, e);
+     let e = m.entry(key.to_string()).or_default();
+-    if enforced { e.refused += 1 } else { e.would += 1 }
++    let _ = enforced;
+     let s = if e.signers.contains_key(signer_fp) || e.signers.len() < MAX_SIGNERS { signer_fp } else { "other" };
+     *e.signers.entry(s.to_string()).or_insert(0) += 1;
  }
- 
- /// `{agent: {refused, would_refuse}}`.

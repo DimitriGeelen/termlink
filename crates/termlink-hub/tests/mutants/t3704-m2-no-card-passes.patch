@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::e169_fcw135_a_poster_without_a_card_is_refused
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -214,7 +214,7 @@
+@@ -269,7 +269,7 @@
          Err(e) => return refuse_no_card(&agent, e),
      };
      let Some(card) = store.cards.get(&agent) else {

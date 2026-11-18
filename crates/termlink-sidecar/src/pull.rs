@@ -262,34 +262,47 @@ impl Inner {
     fn observe_impersonation(&self) {
         let Ok(resp) = self.rpc("hub.key_card_list", json!({})) else { return };
         let Ok(v) = unwrap_result(resp) else { return };
-        let r = &v["refusals"][self.cfg.agent.as_str()];
-        let (refused, would) = (r["refused"].as_u64().unwrap_or(0), r["would_refuse"].as_u64().unwrap_or(0));
-        let total = refused + would;
-        let seen: u64 = self
-            .store
-            .read_state(IMPERSONATION_STATE)
-            .ok()
-            .flatten()
-            .and_then(|s| s.trim().parse().ok())
-            .unwrap_or(0);
-        if total == seen {
-            return;
-        }
-        let _ = self.store.write_state(IMPERSONATION_STATE, &total.to_string());
-        if total < seen {
-            return; // the hub restarted and its counts began again
-        }
         let day = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() / 86_400)
             .unwrap_or(0);
-        let detail = format!(
-            "posts claiming to be agent {} were refused at the hub by its key card: {refused} refused, \
-             {would} would be refused (log mode); see `termlink hub key-card list` and rpc-admin.jsonl",
-            self.cfg.agent
-        );
-        if let Err(e) = self.store.attention_coalesced("posts-claiming-to-be-you-refused", &day.to_string(), &detail) {
-            eprintln!("termlink-sidecar: needs attention (posts-claiming-to-be-you-refused): {detail} [could not record it: {e}]");
+        let start = v["hub_start_ms"].as_u64().unwrap_or(0);
+        // (1) refusals of posts claiming to be this agent, NOT signed by this agent's own key
+        //     (its own posts refused during the P-31 roll-out are not an impersonation, r2 MINOR 11)
+        let me = self.sender.fingerprint().to_string();
+        let r = &v["refusals"][self.cfg.agent.as_str()];
+        let total: u64 = r["signers"]
+            .as_object()
+            .map(|m| m.iter().filter(|(fp, _)| **fp != me).filter_map(|(_, n)| n.as_u64()).sum())
+            .unwrap_or(0);
+        let now = format!("{start}:{total}");
+        let seen = self.store.read_state(IMPERSONATION_STATE).ok().flatten().unwrap_or_default();
+        if now != seen.trim() {
+            let _ = self.store.write_state(IMPERSONATION_STATE, &now);
+            let (seen_start, seen_total) = seen
+                .trim()
+                .split_once(':')
+                .map(|(a, b)| (a.parse::<u64>().unwrap_or(0), b.parse::<u64>().unwrap_or(0)))
+                .unwrap_or((0, 0));
+            // a new hub start resets its counts: compare against 0, so none are lost
+            let base = if seen_start == start { seen_total } else { 0 };
+            if total > base {
+                let detail = format!(
+                    "posts claiming to be agent {} were refused at the hub by its key card ({} since the hub started, signed by keys other than this agent's); see `termlink hub key-card list` and rpc-admin.jsonl",
+                    self.cfg.agent, total
+                );
+                if let Err(e) = self.store.attention_coalesced("posts-claiming-to-be-you-refused", &day.to_string(), &detail) {
+                    eprintln!("termlink-sidecar: needs attention (posts-claiming-to-be-you-refused): {detail} [could not record it: {e}]");
+                }
+            }
+        }
+        // (2) every card write is the operator's to know (ruling A): one entry per (agent, seq)
+        for c in v["cards"].as_array().into_iter().flatten() {
+            let (Some(agent), Some(seq), Some(key)) = (c["agent"].as_str(), c["seq"].as_u64(), c["signing_key"].as_str()) else {
+                continue;
+            };
+            let detail = format!("key card for agent {agent} is at seq {seq} (key {key}); written via hub.key_card_put, see rpc-admin.jsonl for old and new values");
+            let _ = self.store.attention_coalesced("key-card-written", &format!("{agent}:{seq}"), &detail);
         }
     }
 

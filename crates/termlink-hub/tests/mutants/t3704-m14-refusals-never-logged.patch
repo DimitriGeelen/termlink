@@ -4,13 +4,12 @@
 # test: --lib key_card::tests::refusal_rows_are_coalesced_per_agent_key_minute
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -332,7 +332,8 @@
-     if g.0 != minute || g.1.is_none() {
-         *g = (minute, Some(HashSet::new()));
+@@ -469,7 +469,7 @@
      }
--    g.1.as_mut().map(|s| s.insert((agent.to_string(), signer_fp.to_string()))).unwrap_or(true)
-+    let _ = (agent, signer_fp);
-+    false
+     match g.1.as_mut() {
+         Some(s) if s.len() >= MAX_ROWS_PER_MINUTE => false,
+-        Some(s) => s.insert((agent.to_string(), signer_fp.to_string())),
++        Some(_) => false,
+         None => true,
+     }
  }
- 
- #[cfg(test)]

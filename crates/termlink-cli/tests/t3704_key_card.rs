@@ -118,6 +118,24 @@ fn e69_posts_are_checked_against_the_card_and_e169_no_card_is_refused() {
     );
     assert!(admin.contains("\"key-card-refused\""), "refusals are admin-logged:\n{admin}");
 
+    // review r2 BLOCKER: when the admin row cannot be written the put is refused and the card
+    // is unchanged (the log is made unwritable by putting a directory in its place)
+    let admin_path = dir.path.join("rpc-admin.jsonl");
+    let saved = std::fs::read(&admin_path).unwrap();
+    std::fs::remove_file(&admin_path).unwrap();
+    std::fs::create_dir(&admin_path).unwrap();
+    let r = put(&dir, "fx-a", "proj-p", &a, true);
+    assert!(!r.status.success(), "a put whose admin row cannot be written is refused");
+    std::fs::remove_dir(&admin_path).unwrap();
+    std::fs::write(&admin_path, saved).unwrap();
+    let got = rpc(&sock, "hub.key_card_get", serde_json::json!({"agent": "fx-a"}));
+    assert_eq!(got["result"]["card"]["signing_key"], format!("ed25519-pub:{}", c.public_key_hex()), "card unchanged: {got}");
+    // another project's agent cannot post as fx-a
+    let q = Identity::generate();
+    assert!(put(&dir, "q-agent", "proj-q", &q, false).status.success());
+    assert!(cmd(&dir, &["hub", "key-card", "mode", "enforce"]).status().unwrap().success());
+    assert_eq!(code(&post(&sock, &q, "fx-a", "sidecar.msg.v1")), Some(-32044), "project Q's key claiming P's agent");
+
     // per-agent refusal counts for the impersonated agent
     let list = rpc(&sock, "hub.key_card_list", serde_json::json!({}));
     let refused = list["result"]["refusals"]["fx-a"]["refused"].as_u64().unwrap_or(0);

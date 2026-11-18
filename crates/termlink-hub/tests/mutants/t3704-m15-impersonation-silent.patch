@@ -4,12 +4,12 @@
 # test: --test t3704_impersonation a_refused_post_claiming_to_be_me_raises_one_attention_entry
 --- a/crates/termlink-sidecar/src/pull.rs
 +++ b/crates/termlink-sidecar/src/pull.rs
-@@ -272,7 +272,7 @@
-             .flatten()
-             .and_then(|s| s.trim().parse().ok())
-             .unwrap_or(0);
--        if total == seen {
-+        if total == seen || total != seen {
-             return;
-         }
-         let _ = self.store.write_state(IMPERSONATION_STATE, &total.to_string());
+@@ -286,7 +286,7 @@
+                 .unwrap_or((0, 0));
+             // a new hub start resets its counts: compare against 0, so none are lost
+             let base = if seen_start == start { seen_total } else { 0 };
+-            if total > base {
++            if false && total > base {
+                 let detail = format!(
+                     "posts claiming to be agent {} were refused at the hub by its key card ({} since the hub started, signed by keys other than this agent's); see `termlink hub key-card list` and rpc-admin.jsonl",
+                     self.cfg.agent, total

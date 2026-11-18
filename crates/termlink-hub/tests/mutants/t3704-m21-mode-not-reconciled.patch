@@ -1,0 +1,15 @@
+# fc: r2 MINOR 10
+# mutation: a setting changed outside the RPC is not reported at start
+# package: termlink-hub
+# test: --lib key_card::tests::r2_mode_changes_are_logged_first_and_reconciled_at_start
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -397,7 +397,7 @@
+     // the setting: deleting or editing the file is not an admin act (r2 MINOR 10)
+     let now = read_mode(dir).map(|m| m.as_str().to_string()).unwrap_or_else(|e| format!("invalid ({e})"));
+     match &last_mode {
+-        Some(m) if *m != now => out.push(format!("key-card check setting is {now} but the admin log's last change set {m}")),
++        Some(m) if false && *m != now => out.push(format!("key-card check setting is {now} but the admin log's last change set {m}")),
+         None if now != "off" => out.push(format!("key-card check setting is {now} with no logged change")),
+         _ => {}
+     }

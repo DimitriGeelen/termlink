@@ -312,6 +312,11 @@ impl Roster {
     /// T-3704 (FCW-98): `from_agent` must be a plain name; if it is bound, the signer must be its
     /// key; and a key bound to some agent may not speak as another one.
     pub fn check_agent(&self, from_agent: &str, pk: &VerifyingKey) -> Result<(), Refusal> {
+        // No named entry: the PH-1 behaviour, nothing checked (r2 MAJOR 4: an upgraded receiver
+        // refuses nothing new until its roster is configured with names).
+        if self.1.is_empty() {
+            return Ok(());
+        }
         if !plain_agent_name(from_agent) {
             return Err(Refusal::Malformed("from_agent is not a plain agent name"));
         }
@@ -320,7 +325,9 @@ impl Roster {
         {
             return Err(Refusal::AgentKeyMismatch);
         }
-        if self.1.iter().any(|(name, k)| k.as_bytes() == pk.as_bytes() && name != from_agent) {
+        // a bound key may speak only as a name it is bound to (aliases allowed, r2 MINOR 9)
+        let bound: Vec<&String> = self.1.iter().filter(|(_, k)| k.as_bytes() == pk.as_bytes()).map(|(n, _)| n).collect();
+        if !bound.is_empty() && !bound.iter().any(|n| n.as_str() == from_agent) {
             return Err(Refusal::AgentKeyMismatch);
         }
         Ok(())
@@ -846,6 +853,13 @@ mod wire_tests {
         let eve = ident(13);
         let s = sign(&eve, "inbox:b", 42, &msg_from(&eve, "inst-b"));
         assert_eq!(verify_open(&s, &r, "inst-b").map(|_| ()), Err(Refusal::AgentKeyMismatch));
+        // aliases: one key bound to two names may speak as either
+        let mut ra = Roster::new();
+        ra.bind("alice", alice.verifying_key());
+        ra.bind("alice2", alice.verifying_key());
+        let mut m = msg_from(&alice, "inst-b");
+        m.from_agent = "alice2".into();
+        assert!(verify(&sign(&alice, "inbox:b", 42, &m), &ra, "inst-b").is_ok());
         // a traversal-style name is refused before any lookup
         let mut m = msg_from(&alice, "inst-b");
         m.from_agent = "../x".into();

@@ -109,6 +109,7 @@ impl Drop for Running {
 
 fn roster_of(keys: &[String]) -> Result<Roster, String> {
     let mut r = Roster::new();
+    let mut seen = std::collections::HashSet::new();
     for entry in keys {
         // T-3704 (B-6): `agent=<hex>` binds the key to that agent name; bare `<hex>` stays unbound.
         let (name, k) = match entry.split_once('=') {
@@ -128,6 +129,7 @@ fn roster_of(keys: &[String]) -> Result<Roster, String> {
         let arr: [u8; 32] = bytes.try_into().map_err(|_| format!("roster key is not 32 bytes: {k}"))?;
         let pk = VerifyingKey::from_bytes(&arr).map_err(|e| format!("roster key: {e}"))?;
         match name {
+            Some(n) if !seen.insert(n.to_string()) => return Err(format!("roster names agent {n:?} twice")),
             Some(n) => r.bind(n, pk),
             None => r.add(pk),
         };
@@ -477,4 +479,20 @@ pub fn main_start(config: &Path) -> i32 {
     drop(running);
     println!("termlink-sidecar: {} stopped", cfg.agent);
     0
+}
+
+#[cfg(test)]
+mod t3704_roster_tests {
+    use super::roster_of;
+
+    #[test]
+    fn named_entries_bind_and_a_name_given_twice_is_refused() {
+        let k1 = "11".repeat(32);
+        let k2 = "22".repeat(32);
+        let r = roster_of(&[format!("fx-a={k1}"), k2.clone()]).unwrap();
+        assert_eq!(r.bound_count(), 1, "one named, one legacy entry");
+        let e = roster_of(&[format!("fx-a={k1}"), format!("fx-a={k2}")]).unwrap_err();
+        assert!(e.contains("twice"), "{e}");
+        assert!(roster_of(&[format!("../x={k1}")]).is_err(), "a non-plain name is refused");
+    }
 }

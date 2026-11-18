@@ -4,7 +4,7 @@
 # test: --lib wire::wire_tests::t3704_named_roster_binds_from_agent_to_its_key
 --- a/crates/termlink-sidecar/src/wire.rs
 +++ b/crates/termlink-sidecar/src/wire.rs
-@@ -412,7 +412,6 @@
+@@ -419,7 +419,6 @@
      own.add(pk);
      let msg = verify(s, &own, my_instance)?;
      // T-3704: an unrostered key may still not claim an agent name the roster binds to another key.

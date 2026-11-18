@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::e69_fcw133_signed_by_a_sibling_key_is_refused_own_key_passes
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -217,6 +217,8 @@
+@@ -272,6 +272,8 @@
          return refuse_no_card(&agent, format!("no key card for agent {agent:?}"));
      };
      match parse_signing_key(&card.signing_key) {

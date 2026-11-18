@@ -1,0 +1,14 @@
+# fc: r2 MAJOR 3
+# mutation: the encryption key changes without replace
+# package: termlink-hub
+# test: --lib key_card::tests::r2_every_field_change_needs_replace_and_a_key_has_one_card
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -331,7 +331,6 @@
+     if let Some(o) = &old
+         && (o.signing_key != req.signing_key
+             || o.project != req.project
+-            || o.encryption_key != req.encryption_key
+             || o.instances != req.instances)
+         && !req.replace
+     {

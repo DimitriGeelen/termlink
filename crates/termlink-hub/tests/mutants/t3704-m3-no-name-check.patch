@@ -4,7 +4,7 @@
 # test: --lib key_card::tests::a_traversal_name_is_refused_and_never_read_as_a_path
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -201,7 +201,7 @@
+@@ -256,7 +256,7 @@
          return Check::NotGated;
      }
      let agent = match claimed_agent(payload) {

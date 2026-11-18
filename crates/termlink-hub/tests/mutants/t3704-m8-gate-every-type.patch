@@ -4,12 +4,13 @@
 # test: --lib key_card::tests::other_types_and_topics_are_never_gated
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -197,7 +197,7 @@
+@@ -90,7 +90,8 @@
  
- /// The card check for one post whose transport signature has already verified with `signer`.
- pub fn check_post(dir: &Path, topic: &str, msg_type: &str, payload: &[u8], signer: &[u8; 32]) -> Check {
--    if !topic.starts_with("inbox:") || !GATED_TYPES.contains(&msg_type) {
-+    if false {
-         return Check::NotGated;
-     }
-     let agent = match claimed_agent(payload) {
+ /// The arc-011 types on `inbox:*` the check applies to (tested before anything is read).
+ pub fn is_gated(topic: &str, msg_type: &str) -> bool {
+-    topic.starts_with("inbox:") && GATED_TYPES.contains(&msg_type)
++    let _ = (topic, msg_type);
++    true
+ }
+ 
+ #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

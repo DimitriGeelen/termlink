@@ -1,0 +1,15 @@
+# fc: r2 MAJOR 2/5 (O-4/C-4)
+# mutation: the receiver handles an unlisted type as mail
+# package: termlink-sidecar
+# test: --test t3704_impersonation an_unlisted_type_on_the_inbox_is_skipped_never_handled_as_mail
+--- a/crates/termlink-sidecar/src/pull.rs
++++ b/crates/termlink-sidecar/src/pull.rs
+@@ -419,7 +419,7 @@
+ 
+     fn handle(&self, env: &Envelope) -> Outcome {
+         match env.msg_type.as_str() {
+-            wire::MSG_TYPE => self.handle_msg(env),
++            wire::MSG_TYPE | "sidecar.receipt" => self.handle_msg(env),
+             wire::STAGE_TYPE => self.handle_stage(env),
+             other => {
+                 self.alert(

@@ -4,12 +4,12 @@
 # test: --lib key_card::tests::an_unreadable_store_refuses_never_reads_as_empty
 --- a/crates/termlink-hub/src/key_card.rs
 +++ b/crates/termlink-hub/src/key_card.rs
-@@ -145,7 +145,7 @@
+@@ -181,7 +181,7 @@
          }
          Err(e) => return Err(format!("key-card store unreadable: {e}")),
      };
--    let s: Store = serde_json::from_str(&text).map_err(|e| format!("key-card store corrupt: {e}"))?;
-+    let s: Store = serde_json::from_str(&text).unwrap_or(Store { schema: STORE_SCHEMA.into(), cards: BTreeMap::new() });
+-    let s: Store = serde_json::from_slice(&bytes).map_err(|e| format!("key-card store corrupt: {e}"))?;
++    let s: Store = serde_json::from_slice(&bytes).unwrap_or(Store { schema: STORE_SCHEMA.into(), cards: BTreeMap::new() });
      if s.schema != STORE_SCHEMA {
          return Err(format!("key-card store has schema {:?}, not {STORE_SCHEMA}", s.schema));
      }

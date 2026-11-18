@@ -75,7 +75,22 @@ pub fn effective_mode(dir: &Path) -> Mode {
 }
 
 pub fn write_mode(dir: &Path, mode: Mode) -> std::io::Result<()> {
+    let _g = STORE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     atomic_write(&dir.join(MODE_FILE), format!("{}\n", mode.as_str()).as_bytes(), 0o644)
+}
+
+/// Change the setting with its admin row written FIRST (r2 BLOCKER: refused if the row cannot be
+/// written). `log(before, after)` writes the row.
+pub fn set_mode(dir: &Path, mode: Mode, log: impl FnOnce(&str, &str) -> Result<(), String>) -> Result<String, String> {
+    let before = read_mode(dir).map(|m| m.as_str().to_string()).unwrap_or_else(|_| "invalid".into());
+    log(&before, mode.as_str())?;
+    write_mode(dir, mode).map_err(|e| format!("setting not written: {e}"))?;
+    Ok(before)
+}
+
+/// The arc-011 types on `inbox:*` the check applies to (tested before anything is read).
+pub fn is_gated(topic: &str, msg_type: &str) -> bool {
+    topic.starts_with("inbox:") && GATED_TYPES.contains(&msg_type)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,20 +149,56 @@ pub fn store_path(dir: &Path) -> PathBuf {
     dir.join(STORE_FILE)
 }
 
+pub fn sha256_hex(b: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(b).iter().map(|x| format!("{x:02x}")).collect()
+}
+
+/// sha256 of a card's serialized form (the admin row carries it; start-up compares it).
+pub fn card_digest(c: &Card) -> String {
+    sha256_hex(&serde_json::to_vec(c).unwrap_or_default())
+}
+
+const ABSENT: &str = "absent";
+
+/// The store digest this hub last wrote or baselined, per runtime dir (r2 MAJOR 2: a store changed
+/// outside `hub.key_card_put` is refused until the next start re-baselines it, with attention).
+/// No entry = not baselined (unit tests; a hub that never ran the start-up reconcile).
+static KNOWN_DIGEST: Mutex<BTreeMap<PathBuf, String>> = Mutex::new(BTreeMap::new());
+
+fn set_known(dir: &Path, digest: String) {
+    KNOWN_DIGEST.lock().unwrap_or_else(|p| p.into_inner()).insert(dir.to_path_buf(), digest);
+}
+
 /// Absent store = no cards. A store that exists but cannot be read or parsed is an `Err`, never
-/// "no cards" (design v2: an unreadable store refuses every gated post).
-fn load(dir: &Path) -> Result<Store, String> {
+/// "no cards" (design v2: an unreadable store refuses every gated post). Returns the file digest.
+fn load_raw(dir: &Path) -> Result<(Store, String), String> {
     let p = store_path(dir);
-    let text = match std::fs::read_to_string(&p) {
-        Ok(t) => t,
+    let bytes = match std::fs::read(&p) {
+        Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(Store { schema: STORE_SCHEMA.into(), cards: BTreeMap::new() });
+            return Ok((Store { schema: STORE_SCHEMA.into(), cards: BTreeMap::new() }, ABSENT.into()));
         }
         Err(e) => return Err(format!("key-card store unreadable: {e}")),
     };
-    let s: Store = serde_json::from_str(&text).map_err(|e| format!("key-card store corrupt: {e}"))?;
+    let s: Store = serde_json::from_slice(&bytes).map_err(|e| format!("key-card store corrupt: {e}"))?;
     if s.schema != STORE_SCHEMA {
         return Err(format!("key-card store has schema {:?}, not {STORE_SCHEMA}", s.schema));
+    }
+    Ok((s, sha256_hex(&bytes)))
+}
+
+/// `load_raw` plus the outside-edit check against the baselined digest.
+fn load(dir: &Path) -> Result<Store, String> {
+    let (s, d) = load_raw(dir)?;
+    if let Some(k) = KNOWN_DIGEST.lock().unwrap_or_else(|p| p.into_inner()).get(dir)
+        && *k != d
+    {
+        return Err(format!(
+            "key-card store changed outside hub.key_card_put (digest {} expected {}); restart the hub to re-baseline (raises attention)",
+            &d[..12.min(d.len())],
+            &k[..12.min(k.len())]
+        ));
     }
     Ok(s)
 }
@@ -173,7 +224,9 @@ fn atomic_write(path: &Path, bytes: &[u8], mode: u32) -> std::io::Result<()> {
 
 fn save(dir: &Path, s: &Store) -> std::io::Result<()> {
     let text = serde_json::to_string_pretty(s).map_err(std::io::Error::other)?;
-    atomic_write(&store_path(dir), text.as_bytes(), 0o600)
+    atomic_write(&store_path(dir), text.as_bytes(), 0o600)?;
+    set_known(dir, sha256_hex(text.as_bytes()));
+    Ok(())
 }
 
 /// The outcome of the post-time check.
@@ -182,11 +235,13 @@ pub enum Check {
     /// Not an arc-011 type on `inbox:*`: the check does not apply.
     NotGated,
     Pass { agent: String },
-    Refuse { code: i64, fcw: &'static str, agent: String, reason: String },
+    /// `carded`: the claimed agent has a card (refusal counts are kept per agent only then; the
+    /// rest share one bucket, so attacker-chosen names cannot grow the map, r2 MAJOR 7).
+    Refuse { code: i64, fcw: &'static str, agent: String, reason: String, carded: bool },
 }
 
 fn refuse_no_card(agent: &str, reason: String) -> Check {
-    Check::Refuse { code: error_code::CHANNEL_NO_KEY_CARD, fcw: "FCW-135", agent: agent.to_string(), reason }
+    Check::Refuse { code: error_code::CHANNEL_NO_KEY_CARD, fcw: "FCW-135", agent: agent.to_string(), reason, carded: false }
 }
 
 /// The claimed agent of an arc-011 payload: its `from_agent` (msg and stage records both carry it).
@@ -197,7 +252,7 @@ pub fn claimed_agent(payload: &[u8]) -> Option<String> {
 
 /// The card check for one post whose transport signature has already verified with `signer`.
 pub fn check_post(dir: &Path, topic: &str, msg_type: &str, payload: &[u8], signer: &[u8; 32]) -> Check {
-    if !topic.starts_with("inbox:") || !GATED_TYPES.contains(&msg_type) {
+    if !is_gated(topic, msg_type) {
         return Check::NotGated;
     }
     let agent = match claimed_agent(payload) {
@@ -223,6 +278,7 @@ pub fn check_post(dir: &Path, topic: &str, msg_type: &str, payload: &[u8], signe
             fcw: "FCW-133",
             agent: agent.clone(),
             reason: format!("the post is not signed by the key on agent {agent:?}'s card"),
+            carded: true,
         },
         None => refuse_no_card(&agent, format!("agent {agent:?}'s card holds no valid signing key")),
     }
@@ -242,9 +298,16 @@ pub struct PutRequest {
     pub replace: bool,
 }
 
-/// Write or replace one card. Returns the new card and the one it replaced. A change of an
-/// existing card's signing key or project needs `replace: true`, so it is never silent.
-pub fn put(dir: &Path, req: &PutRequest, now_ms: u64) -> Result<(Card, Option<Card>), String> {
+/// Write or replace one card. Returns the new card and the one it replaced. Any change to an
+/// existing card (key, project, encryption key, instances) needs `replace: true`, so it is never
+/// silent (r2 MAJOR 3). A signing key may sit on one card only. `log(new, old)` writes the admin
+/// row and runs BEFORE the store is written; if it fails nothing is written (r2 BLOCKER).
+pub fn put(
+    dir: &Path,
+    req: &PutRequest,
+    now_ms: u64,
+    log: impl FnOnce(&Card, Option<&Card>) -> Result<(), String>,
+) -> Result<(Card, Option<Card>), String> {
     if !valid_name(&req.agent) {
         return Err(format!("agent {:?} is not a plain name", req.agent));
     }
@@ -266,13 +329,19 @@ pub fn put(dir: &Path, req: &PutRequest, now_ms: u64) -> Result<(Card, Option<Ca
     let mut store = load(dir)?;
     let old = store.cards.get(&req.agent).cloned();
     if let Some(o) = &old
-        && (o.signing_key != req.signing_key || o.project != req.project)
+        && (o.signing_key != req.signing_key
+            || o.project != req.project
+            || o.encryption_key != req.encryption_key
+            || o.instances != req.instances)
         && !req.replace
     {
         return Err(format!(
-            "agent {:?} already has a card (project {:?}, key {}); changing its key or project needs replace: true",
+            "agent {:?} already has a card (project {:?}, key {}); changing any of its fields needs replace: true",
             req.agent, o.project, o.signing_key
         ));
+    }
+    if let Some(other) = store.cards.values().find(|c| c.agent != req.agent && c.signing_key == req.signing_key) {
+        return Err(format!("signing key {} is already on agent {:?}'s card; a key belongs to one agent", req.signing_key, other.agent));
     }
     let card = Card {
         schema: CARD_SCHEMA.into(),
@@ -282,9 +351,11 @@ pub fn put(dir: &Path, req: &PutRequest, now_ms: u64) -> Result<(Card, Option<Ca
         encryption_key: req.encryption_key.clone(),
         instances: req.instances.clone(),
         seq: old.as_ref().map_or(1, |o| o.seq + 1),
-        by: "runme".into(),
+        // what wrote it; the peer is not authenticated beyond the local socket (operator ruling A)
+        by: "hub.key_card_put (local socket)".into(),
         at_ms: now_ms,
     };
+    log(&card, old.as_ref())?;
     store.schema = STORE_SCHEMA.into();
     store.cards.insert(card.agent.clone(), card.clone());
     save(dir, &store).map_err(|e| format!("key-card store not written: {e}"))?;
@@ -306,55 +377,80 @@ pub fn list(dir: &Path) -> Result<Vec<Card>, String> {
 /// card written outside `hub.key_card_put`) or an unreadable store is reported; the caller raises
 /// attention. Known limit: an admin log pruned past a card's last put reports that card too.
 pub fn startup_reconcile(dir: &Path, admin_log: &Path) -> Vec<String> {
-    let cards = match list(dir) {
-        Ok(c) => c,
-        Err(e) => return vec![e],
-    };
-    if cards.is_empty() {
-        return vec![];
-    }
-    let mut logged: BTreeMap<String, u64> = BTreeMap::new();
+    let mut out = Vec::new();
+    // the last logged card digest per agent, and the last logged setting
+    let mut logged: BTreeMap<String, String> = BTreeMap::new();
+    let mut last_mode: Option<String> = None;
     if let Ok(text) = std::fs::read_to_string(admin_log) {
         for v in text.lines().filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok()) {
-            if v.get("event").and_then(|e| e.as_str()) == Some("key-card-put")
-                && let (Some(a), Some(s)) = (v.get("agent").and_then(|a| a.as_str()), v.get("seq").and_then(|s| s.as_u64()))
-            {
-                let e = logged.entry(a.to_string()).or_insert(0);
-                *e = (*e).max(s);
+            match v.get("event").and_then(|e| e.as_str()) {
+                Some("key-card-put") => {
+                    if let (Some(a), Some(d)) = (v.get("agent").and_then(|a| a.as_str()), v.get("card_digest").and_then(|s| s.as_str())) {
+                        logged.insert(a.to_string(), d.to_string());
+                    }
+                }
+                Some("key-card-mode") => last_mode = v.get("to").and_then(|m| m.as_str()).map(str::to_string),
+                _ => {}
             }
         }
     }
-    cards
-        .iter()
-        .filter(|c| logged.get(&c.agent).copied().unwrap_or(0) != c.seq)
-        .map(|c| {
-            format!(
-                "card {} has seq {} but the admin log's last key-card-put for it shows {}",
-                c.agent,
-                c.seq,
-                logged.get(&c.agent).map_or("none".to_string(), |s| s.to_string())
-            )
-        })
-        .collect()
+    // the setting: deleting or editing the file is not an admin act (r2 MINOR 10)
+    let now = read_mode(dir).map(|m| m.as_str().to_string()).unwrap_or_else(|e| format!("invalid ({e})"));
+    match &last_mode {
+        Some(m) if *m != now => out.push(format!("key-card check setting is {now} but the admin log's last change set {m}")),
+        None if now != "off" => out.push(format!("key-card check setting is {now} with no logged change")),
+        _ => {}
+    }
+    let _g = STORE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    match load_raw(dir) {
+        Err(e) => out.push(e),
+        Ok((store, digest)) => {
+            for c in store.cards.values() {
+                let d = card_digest(c);
+                match logged.get(&c.agent) {
+                    Some(l) if *l == d => {}
+                    Some(_) => out.push(format!("card {} (seq {}) differs from its last logged key-card-put", c.agent, c.seq)),
+                    None => out.push(format!("card {} (seq {}) has no logged key-card-put", c.agent, c.seq)),
+                }
+            }
+            set_known(dir, digest);
+        }
+    }
+    out
 }
 
-/// Refusals per claimed agent since hub start (the impersonated agent's sidecar reads these,
-/// design v2 C-12), and would-be refusals in `log` mode.
-static REFUSALS: Mutex<BTreeMap<String, (u64, u64)>> = Mutex::new(BTreeMap::new());
+/// The bucket for refusals naming an agent without a card (bounded: attacker-chosen names).
+pub const UNCARDED: &str = "_uncarded";
+const MAX_SIGNERS: usize = 16;
 
-/// Count one refusal (`enforced`) or one log-mode would-refuse for `agent`.
-pub fn note_refusal(agent: &str, enforced: bool) {
+#[derive(Default)]
+struct Count {
+    refused: u64,
+    would: u64,
+    signers: BTreeMap<String, u64>,
+}
+
+/// Refusals per claimed carded agent since hub start (the impersonated agent's sidecar reads these,
+/// design v2 C-12), with the signer fingerprints (at most 16 named, the rest "other"), so an agent
+/// does not report its own refused posts as someone else's.
+static REFUSALS: Mutex<BTreeMap<String, Count>> = Mutex::new(BTreeMap::new());
+
+/// Count one refusal (`enforced`) or one log-mode would-refuse.
+pub fn note_refusal(agent: &str, signer_fp: &str, enforced: bool, carded: bool) {
+    let key = if carded { agent } else { UNCARDED };
     let mut m = REFUSALS.lock().unwrap_or_else(|p| p.into_inner());
-    let e = m.entry(agent.to_string()).or_insert((0, 0));
-    if enforced { e.0 += 1 } else { e.1 += 1 }
+    let e = m.entry(key.to_string()).or_default();
+    if enforced { e.refused += 1 } else { e.would += 1 }
+    let s = if e.signers.contains_key(signer_fp) || e.signers.len() < MAX_SIGNERS { signer_fp } else { "other" };
+    *e.signers.entry(s.to_string()).or_insert(0) += 1;
 }
 
-/// `{agent: {refused, would_refuse}}`.
+/// `{agent: {refused, would_refuse, signers: {fp: n}}}`.
 pub fn refusal_counts() -> serde_json::Value {
     let m = REFUSALS.lock().unwrap_or_else(|p| p.into_inner());
     serde_json::Value::Object(
         m.iter()
-            .map(|(a, (r, w))| (a.clone(), serde_json::json!({"refused": r, "would_refuse": w})))
+            .map(|(a, c)| (a.clone(), serde_json::json!({"refused": c.refused, "would_refuse": c.would, "signers": c.signers})))
             .collect(),
     )
 }
@@ -362,6 +458,8 @@ pub fn refusal_counts() -> serde_json::Value {
 /// Admin rows for refusals are coalesced per (claimed agent, poster key, minute) so a token
 /// holder cannot flood the admin log (design v2, C-12). True = write a row for this one.
 static LOGGED: Mutex<(u64, Option<HashSet<(String, String)>>)> = Mutex::new((0, None));
+/// At most this many refusal rows per minute in all (r2 MAJOR 7: varied names cannot flood).
+pub const MAX_ROWS_PER_MINUTE: usize = 60;
 
 pub fn first_in_minute(agent: &str, signer_fp: &str, now_ms: u64) -> bool {
     let minute = now_ms / 60_000;
@@ -369,7 +467,11 @@ pub fn first_in_minute(agent: &str, signer_fp: &str, now_ms: u64) -> bool {
     if g.0 != minute || g.1.is_none() {
         *g = (minute, Some(HashSet::new()));
     }
-    g.1.as_mut().map(|s| s.insert((agent.to_string(), signer_fp.to_string()))).unwrap_or(true)
+    match g.1.as_mut() {
+        Some(s) if s.len() >= MAX_ROWS_PER_MINUTE => false,
+        Some(s) => s.insert((agent.to_string(), signer_fp.to_string())),
+        None => true,
+    }
 }
 
 #[cfg(test)]
@@ -428,8 +530,8 @@ mod tests {
     #[test]
     fn e69_fcw133_signed_by_a_sibling_key_is_refused_own_key_passes() {
         let d = tempfile::tempdir().unwrap();
-        put(d.path(), &put_req("fx-a", "p", 1), 1).unwrap();
-        put(d.path(), &put_req("fx-b", "p", 2), 1).unwrap();
+        put(d.path(), &put_req("fx-a", "p", 1), 1, |_, _| Ok(())).unwrap();
+        put(d.path(), &put_req("fx-b", "p", 2), 1, |_, _| Ok(())).unwrap();
         // fx-b's key claiming to be fx-a
         match check_post(d.path(), "inbox:h/x", "sidecar.msg.v1", &msg_payload("fx-a"), &[2; 32]) {
             Check::Refuse { code, fcw, .. } => assert_eq!((code, fcw), (error_code::CHANNEL_KEY_CARD_MISMATCH, "FCW-133")),
@@ -444,8 +546,8 @@ mod tests {
     #[test]
     fn r75e_another_projects_agent_cannot_post_as_ps_agent() {
         let d = tempfile::tempdir().unwrap();
-        put(d.path(), &put_req("p-agent", "p", 1), 1).unwrap();
-        put(d.path(), &put_req("q-agent", "q", 2), 1).unwrap();
+        put(d.path(), &put_req("p-agent", "p", 1), 1, |_, _| Ok(())).unwrap();
+        put(d.path(), &put_req("q-agent", "q", 2), 1, |_, _| Ok(())).unwrap();
         // q's session, signing with its own key, asserting it is p's agent
         assert!(matches!(
             check_post(d.path(), "inbox:h/x", "sidecar.stage.v1", &msg_payload("p-agent"), &[2; 32]),
@@ -484,24 +586,24 @@ mod tests {
             Check::Refuse { fcw: "FCW-135", reason, .. } => assert!(reason.contains("corrupt"), "{reason}"),
             o => panic!("{o:?}"),
         }
-        assert!(put(d.path(), &put_req("fx-a", "p", 1), 1).is_err(), "a put never overwrites a corrupt store");
+        assert!(put(d.path(), &put_req("fx-a", "p", 1), 1, |_, _| Ok(())).is_err(), "a put never overwrites a corrupt store");
     }
 
     #[test]
     fn a_key_or_project_change_needs_replace_and_seq_rises() {
         let d = tempfile::tempdir().unwrap();
-        let (c1, old) = put(d.path(), &put_req("fx-a", "p", 1), 1).unwrap();
+        let (c1, old) = put(d.path(), &put_req("fx-a", "p", 1), 1, |_, _| Ok(())).unwrap();
         assert_eq!((c1.seq, old), (1, None));
         // same key and project: an idempotent re-put moves seq, no replace needed
-        let (c2, _) = put(d.path(), &put_req("fx-a", "p", 1), 2).unwrap();
+        let (c2, _) = put(d.path(), &put_req("fx-a", "p", 1), 2, |_, _| Ok(())).unwrap();
         assert_eq!(c2.seq, 2);
-        let e = put(d.path(), &put_req("fx-a", "p", 9), 3).unwrap_err();
+        let e = put(d.path(), &put_req("fx-a", "p", 9), 3, |_, _| Ok(())).unwrap_err();
         assert!(e.contains("replace: true"), "{e}");
-        let e = put(d.path(), &put_req("fx-a", "q", 1), 3).unwrap_err();
+        let e = put(d.path(), &put_req("fx-a", "q", 1), 3, |_, _| Ok(())).unwrap_err();
         assert!(e.contains("replace: true"), "{e}");
         let mut r = put_req("fx-a", "p", 9);
         r.replace = true;
-        let (c3, old) = put(d.path(), &r, 4).unwrap();
+        let (c3, old) = put(d.path(), &r, 4, |_, _| Ok(())).unwrap();
         assert_eq!(c3.seq, 3);
         assert_eq!(old.unwrap().signing_key, key_hex(1));
     }
@@ -510,30 +612,109 @@ mod tests {
     fn the_store_is_0600_and_keys_are_validated() {
         use std::os::unix::fs::PermissionsExt;
         let d = tempfile::tempdir().unwrap();
-        put(d.path(), &put_req("fx-a", "p", 1), 1).unwrap();
+        put(d.path(), &put_req("fx-a", "p", 1), 1, |_, _| Ok(())).unwrap();
         assert_eq!(std::fs::metadata(store_path(d.path())).unwrap().permissions().mode() & 0o777, 0o600);
         let mut r = put_req("fx-b", "p", 1);
         r.signing_key = "ed25519:".to_string() + &"01".repeat(32);
-        assert!(put(d.path(), &r, 1).is_err(), "the fingerprint form is not a card key");
+        assert!(put(d.path(), &r, 1, |_, _| Ok(())).is_err(), "the fingerprint form is not a card key");
         r.signing_key = key_hex(1).to_uppercase();
-        assert!(put(d.path(), &r, 1).is_err());
+        assert!(put(d.path(), &r, 1, |_, _| Ok(())).is_err());
     }
 
     #[test]
-    fn al33_startup_reconcile_flags_a_card_ahead_of_the_admin_log() {
+    fn al33_startup_reconcile_flags_a_card_the_admin_log_does_not_show() {
         let d = tempfile::tempdir().unwrap();
         let log = d.path().join("rpc-admin.jsonl");
-        put(d.path(), &put_req("fx-a", "p", 1), 1).unwrap();
-        put(d.path(), &put_req("fx-b", "p", 2), 1).unwrap();
-        // fx-a's put was logged; fx-b's crashed between persist and log
-        std::fs::write(&log, "{\"event\":\"key-card-put\",\"agent\":\"fx-a\",\"seq\":1}\n").unwrap();
+        let (a, _) = put(d.path(), &put_req("fx-a", "p", 1), 1, |_, _| Ok(())).unwrap();
+        put(d.path(), &put_req("fx-b", "p", 2), 1, |_, _| Ok(())).unwrap();
+        // fx-a's put was logged; fx-b's was not (crash between persist and log, or an outside write)
+        std::fs::write(&log, format!("{{\"event\":\"key-card-put\",\"agent\":\"fx-a\",\"card_digest\":\"{}\"}}\n", card_digest(&a))).unwrap();
         let m = startup_reconcile(d.path(), &log);
         assert_eq!(m.len(), 1, "{m:?}");
-        assert!(m[0].contains("fx-b") && m[0].contains("none"), "{m:?}");
-        std::fs::write(&log, "{\"event\":\"key-card-put\",\"agent\":\"fx-a\",\"seq\":1}\n{\"event\":\"key-card-put\",\"agent\":\"fx-b\",\"seq\":1}\n").unwrap();
-        assert!(startup_reconcile(d.path(), &log).is_empty());
+        assert!(m[0].contains("fx-b") && m[0].contains("no logged"), "{m:?}");
         std::fs::write(store_path(d.path()), "{x").unwrap();
-        assert_eq!(startup_reconcile(d.path(), &log).len(), 1, "an unreadable store is reported");
+        assert!(startup_reconcile(d.path(), &log).iter().any(|s| s.contains("corrupt")), "an unreadable store is reported");
+    }
+
+    #[test]
+    fn r2_an_outside_edit_with_the_same_seq_is_refused_until_restart() {
+        let d = tempfile::tempdir().unwrap();
+        put(d.path(), &put_req("fx-a", "p", 1), 1, |_, _| Ok(())).unwrap();
+        // a root agent swaps fx-a's key in the file, seq unchanged
+        let text = std::fs::read_to_string(store_path(d.path())).unwrap().replace(&"01".repeat(32), &"07".repeat(32));
+        std::fs::write(store_path(d.path()), text).unwrap();
+        match check_post(d.path(), "inbox:h/x", "sidecar.msg.v1", &msg_payload("fx-a"), &[7; 32]) {
+            Check::Refuse { fcw: "FCW-135", reason, .. } => assert!(reason.contains("changed outside"), "{reason}"),
+            o => panic!("the edited key must not pass: {o:?}"),
+        }
+        assert!(put(d.path(), &put_req("fx-b", "p", 2), 2, |_, _| Ok(())).is_err(), "no put over an outside edit");
+        // a restart re-baselines and reports it
+        let log = d.path().join("rpc-admin.jsonl");
+        assert!(!startup_reconcile(d.path(), &log).is_empty());
+        assert!(matches!(check_post(d.path(), "inbox:h/x", "sidecar.msg.v1", &msg_payload("fx-a"), &[7; 32]), Check::Pass { .. }));
+    }
+
+    #[test]
+    fn r2_the_admin_row_is_written_first_and_a_failed_row_writes_nothing() {
+        let d = tempfile::tempdir().unwrap();
+        let e = put(d.path(), &put_req("fx-a", "p", 1), 1, |_, _| Err("admin log unwritable".into())).unwrap_err();
+        assert!(e.contains("unwritable"), "{e}");
+        assert!(!store_path(d.path()).exists(), "nothing persisted when the row fails");
+        let mut seen = None;
+        put(d.path(), &put_req("fx-a", "p", 1), 1, |new, old| {
+            assert!(!store_path(d.path()).exists(), "the row is written before the store");
+            seen = Some((new.seq, old.is_none()));
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(seen, Some((1, true)));
+    }
+
+    #[test]
+    fn r2_every_field_change_needs_replace_and_a_key_has_one_card() {
+        let d = tempfile::tempdir().unwrap();
+        let mut r = put_req("fx-a", "p", 1);
+        r.encryption_key = Some(format!("{ENCRYPTION_PREFIX}{}", "02".repeat(32)));
+        put(d.path(), &r, 1, |_, _| Ok(())).unwrap();
+        let mut swap = r.clone();
+        swap.encryption_key = Some(format!("{ENCRYPTION_PREFIX}{}", "03".repeat(32)));
+        assert!(put(d.path(), &swap, 2, |_, _| Ok(())).unwrap_err().contains("replace: true"));
+        let mut drop_enc = r.clone();
+        drop_enc.encryption_key = None;
+        assert!(put(d.path(), &drop_enc, 2, |_, _| Ok(())).unwrap_err().contains("replace: true"));
+        let mut inst = r.clone();
+        inst.instances = vec!["i1".into()];
+        assert!(put(d.path(), &inst, 2, |_, _| Ok(())).unwrap_err().contains("replace: true"));
+        // fx-a's key on fx-b's card is refused
+        assert!(put(d.path(), &put_req("fx-b", "p", 1), 2, |_, _| Ok(())).unwrap_err().contains("one agent"));
+    }
+
+    #[test]
+    fn r2_mode_changes_are_logged_first_and_reconciled_at_start() {
+        let d = tempfile::tempdir().unwrap();
+        let log = d.path().join("rpc-admin.jsonl");
+        assert!(set_mode(d.path(), Mode::Enforce, |_, _| Err("no row".into())).is_err());
+        assert_eq!(read_mode(d.path()), Ok(Mode::Off), "a failed row changes nothing");
+        assert_eq!(set_mode(d.path(), Mode::Enforce, |_, _| Ok(())).unwrap(), "off");
+        std::fs::write(&log, "{\"event\":\"key-card-mode\",\"to\":\"enforce\"}\n").unwrap();
+        assert!(startup_reconcile(d.path(), &log).is_empty());
+        std::fs::remove_file(d.path().join(MODE_FILE)).unwrap(); // the file deleted outside the RPC
+        let m = startup_reconcile(d.path(), &log);
+        assert!(m.iter().any(|s| s.contains("setting is off") && s.contains("enforce")), "{m:?}");
+    }
+
+    #[test]
+    fn r2_refusals_for_uncarded_names_share_one_bucket_and_rows_are_capped() {
+        note_refusal("t-r2-x1", "fpz", true, false);
+        note_refusal("t-r2-x2", "fpz", true, false);
+        note_refusal("t-r2-carded", "fpz", true, true);
+        let c = refusal_counts();
+        assert!(c.get("t-r2-x1").is_none() && c.get("t-r2-x2").is_none(), "{c}");
+        assert!(c[UNCARDED]["refused"].as_u64().unwrap() >= 2);
+        assert_eq!(c["t-r2-carded"]["signers"]["fpz"], 1);
+        let base = 600_000_000u64;
+        let n = (0..200).filter(|i| first_in_minute(&format!("cap-{i}"), "fp", base)).count();
+        assert_eq!(n, MAX_ROWS_PER_MINUTE);
     }
 
     #[test]

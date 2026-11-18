@@ -932,51 +932,51 @@ fn handle_key_card_put(id: serde_json::Value, params: &serde_json::Value, peer_a
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    match crate::key_card::put(&dir, &req, now) {
-        Ok((card, old)) => {
-            // Every put raises attention (operator ruling A: visible, not impossible); the row
-            // names old and new key so a silent replacement cannot happen.
-            let row = serde_json::json!({
-                "event": "key-card-put", "attention": true, "agent": card.agent, "project": card.project,
-                "seq": card.seq, "signing_key": card.signing_key,
-                "old_signing_key": old.as_ref().map(|o| o.signing_key.clone()),
-                "old_project": old.as_ref().map(|o| o.project.clone()), "replace": req.replace,
-            });
-            if let Err(e) = crate::rpc_audit::admin_note(row) {
-                tracing::error!(error = %e, "T-3704: key-card put admin row not written");
-            }
-            Response::success(id, serde_json::json!({"ok": true, "card": card, "replaced": old})).into()
-        }
+    // The row naming old and new values is written BEFORE the store; if it cannot be written the
+    // put is refused and nothing changes (operator ruling A; review r2 BLOCKER). Every sidecar
+    // raises the operator's needs-attention entry from the card list (seq/digest change).
+    let replace = req.replace;
+    let log = |card: &crate::key_card::Card, old: Option<&crate::key_card::Card>| {
+        let row = serde_json::json!({
+            "event": "key-card-put", "attention": true, "agent": card.agent, "project": card.project,
+            "seq": card.seq, "signing_key": card.signing_key, "encryption_key": card.encryption_key,
+            "instances": card.instances, "card_digest": crate::key_card::card_digest(card), "replace": replace,
+            "old": old.map(|o| serde_json::json!({"project": o.project, "signing_key": o.signing_key,
+                "encryption_key": o.encryption_key, "instances": o.instances, "seq": o.seq})),
+        });
+        crate::rpc_audit::admin_note(row).map_err(|e| format!("admin-log row not written ({e}); nothing changed"))
+    };
+    match crate::key_card::put(&dir, &req, now, log) {
+        Ok((card, old)) => Response::success(id, serde_json::json!({"ok": true, "card": card, "replaced": old})).into(),
         Err(e) => key_card_refused(id, &e),
     }
 }
 
 fn handle_key_card_mode(id: serde_json::Value, params: &serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {
-    let dir = termlink_session::discovery::runtime_dir();
-    let Some(want) = params.get("mode").and_then(|v| v.as_str()) else {
-        let cur = crate::key_card::read_mode(&dir);
-        return Response::success(
-            id,
-            serde_json::json!({"mode": cur.as_ref().map(|m| m.as_str()).unwrap_or("enforce"), "error": cur.err()}),
-        )
-        .into();
-    };
     if let Some(r) = key_card_local_only(&id, "hub.key_card_mode", peer_addr) {
         return r;
     }
+    let dir = termlink_session::discovery::runtime_dir();
+    // reading the setting is hub.key_card_list (observe); this RPC only changes it
+    let Some(want) = params.get("mode").and_then(|v| v.as_str()) else {
+        return key_card_refused(id, "missing 'mode' (off|log|enforce); read it with hub.key_card_list");
+    };
     let Some(mode) = crate::key_card::Mode::parse(want) else {
         return key_card_refused(id, &format!("mode {want:?} is not off|log|enforce"));
     };
-    let before = crate::key_card::read_mode(&dir).map(|m| m.as_str()).unwrap_or("invalid");
-    if let Err(e) = crate::key_card::write_mode(&dir, mode) {
-        return key_card_refused(id, &format!("setting not written: {e}"));
+    let log = |from: &str, to: &str| {
+        let row = serde_json::json!({"event": "key-card-mode", "attention": true, "from": from, "to": to});
+        crate::rpc_audit::admin_note(row).map_err(|e| format!("admin-log row not written ({e}); nothing changed"))
+    };
+    match crate::key_card::set_mode(&dir, mode, log) {
+        Ok(before) => Response::success(id, serde_json::json!({"ok": true, "mode": mode.as_str(), "was": before})).into(),
+        Err(e) => key_card_refused(id, &e),
     }
-    let row = serde_json::json!({"event": "key-card-mode", "attention": true, "from": before, "to": mode.as_str()});
-    if let Err(e) = crate::rpc_audit::admin_note(row) {
-        tracing::error!(error = %e, "T-3704: key-card mode admin row not written");
-    }
-    Response::success(id, serde_json::json!({"ok": true, "mode": mode.as_str(), "was": before})).into()
 }
+
+static HUB_START_MS: std::sync::LazyLock<u64> = std::sync::LazyLock::new(|| {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+});
 
 fn handle_key_card_get(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
     let Some(agent) = params.get("agent").and_then(|v| v.as_str()) else {
@@ -999,6 +999,8 @@ fn handle_key_card_list(id: serde_json::Value) -> RpcResponse {
                 "mode_error": mode.err(),
                 "cards": cards,
                 "refusals": crate::key_card::refusal_counts(),
+                // the sidecar keys its "seen" counts by this, so a restart's reset counts are not lost
+                "hub_start_ms": *HUB_START_MS,
             }),
         )
         .into(),

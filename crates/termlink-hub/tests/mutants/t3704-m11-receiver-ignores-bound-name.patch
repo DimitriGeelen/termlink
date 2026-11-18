@@ -4,7 +4,7 @@
 # test: --lib wire::wire_tests::t3704_named_roster_binds_from_agent_to_its_key
 --- a/crates/termlink-sidecar/src/wire.rs
 +++ b/crates/termlink-sidecar/src/wire.rs
-@@ -315,7 +315,7 @@
+@@ -320,7 +320,7 @@
          if !plain_agent_name(from_agent) {
              return Err(Refusal::Malformed("from_agent is not a plain agent name"));
          }

@@ -1,0 +1,15 @@
+# fc: r2 MAJOR 2
+# mutation: a card store edited outside hub.key_card_put is used
+# package: termlink-hub
+# test: --lib key_card::tests::r2_an_outside_edit_with_the_same_seq_is_refused_until_restart
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -192,7 +192,7 @@
+ fn load(dir: &Path) -> Result<Store, String> {
+     let (s, d) = load_raw(dir)?;
+     if let Some(k) = KNOWN_DIGEST.lock().unwrap_or_else(|p| p.into_inner()).get(dir)
+-        && *k != d
++        && false
+     {
+         return Err(format!(
+             "key-card store changed outside hub.key_card_put (digest {} expected {}); restart the hub to re-baseline (raises attention)",

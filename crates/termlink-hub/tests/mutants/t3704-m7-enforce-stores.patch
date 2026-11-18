@@ -4,7 +4,7 @@
 # test: --test t3704_key_card e69_posts_are_checked_against_the_card_and_e169_no_card_is_refused
 --- a/crates/termlink-hub/src/channel.rs
 +++ b/crates/termlink-hub/src/channel.rs
-@@ -2925,7 +2925,7 @@
+@@ -2928,7 +2928,7 @@
          }
      }
      tracing::warn!(%agent, fcw, %reason, mode = mode.as_str(), "T-3704: arc-011 post failed the key-card check");

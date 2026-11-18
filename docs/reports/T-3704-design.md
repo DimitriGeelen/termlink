@@ -82,16 +82,23 @@ Where section 3 and the dispositions differ, the dispositions win (v2): liveness
    row written before the answer (refused if it cannot be written), needs-attention raised on every put; a put that
    changes an existing card's project or key needs `replace: true` and names old and new.
 3. Hub: post check in `handle_channel_post` for `sidecar.msg.v1` / `sidecar.stage.v1` on `inbox:*`, behind
-   `off|log|enforce` (default `off`; changes admin-logged; shown in `hub.status`). `from_agent` validated as a plain
+   `off|log|enforce` (default `off`; changes admin-logged; shown in `hub.key_card_list`, amended after review r2). `from_agent` validated as a plain
    name; refusals `CHANNEL_NO_KEY_CARD` (FCW-135) and `CHANNEL_KEY_CARD_MISMATCH` (FCW-133), admin rows coalesced per
-   (claimed agent, poster key, minute); per-claimed-agent refusal counts in `hub.status`.
-4. CLI: `termlink hub key-card put|get|list` and `termlink hub key-card-check off|log|enforce` for runme.
+   (claimed agent, poster key, minute), at most 60 a minute; per-carded-agent refusal counts with signer fingerprints in `hub.key_card_list` (amended r2).
+4. CLI: `termlink hub key-card put|get|list` and `termlink hub key-card mode off|log|enforce` for runme (amended r2).
 5. Sidecar: named roster `{agent: key}`; `from_agent` must be a plain name and, when named in the roster, signed by
    that key (FCW-98); unnamed legacy entries accepted and counted "unbound"; admits only the two arc-011 types; reads
-   its own refusal count from `hub.status` and raises "posts claiming to be you were refused" (coalesced per day).
+   its own refusal count from `hub.key_card_list` (amended r2) and raises "posts claiming to be you were refused" (coalesced per day).
 6. Tests: E-169 card cases on the fake (no card; corrupt store; admin row unwritable on put); E-69 post half on a
    throwaway real hub (`fx-a` signed with `fx-b`'s key; hub secret only; no card; Q's agent claiming P's name; a
    traversal name) at the hub and, with the hub check off, at the receiver; put accepted and logged; replace without
    `replace: true` refused. Mutants: `fc-01-verify-accepts-any-signature`, one per refusal, the name check, the
    receiver type filter, the lock-free read, the unreadable-store-as-empty.
 7. No runme action in this slice: publishing cards and moving the setting are P-31 (T-3713).
+
+## 5. Round 2 (code review) amendments
+
+See `T-3704-reviews/r2-dispositions.md`: admin row before the store write (refused if unwritable), outside-edit
+digest check, every field change needs `replace`, one card per key, bounded refusal counting, start-up reconcile of
+card digests and the setting, the receiver's named roster as its own switch (no separate receiver mode), sidecar
+`key-card-written` attention per (agent, seq).

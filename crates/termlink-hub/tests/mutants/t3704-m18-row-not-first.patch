@@ -1,0 +1,14 @@
+# fc: r2 BLOCKER (operator ruling A)
+# mutation: the card is written without its admin row
+# package: termlink-hub
+# test: --lib key_card::tests::r2_the_admin_row_is_written_first_and_a_failed_row_writes_nothing
+--- a/crates/termlink-hub/src/key_card.rs
++++ b/crates/termlink-hub/src/key_card.rs
+@@ -355,7 +355,6 @@
+         by: "hub.key_card_put (local socket)".into(),
+         at_ms: now_ms,
+     };
+-    log(&card, old.as_ref())?;
+     store.schema = STORE_SCHEMA.into();
+     store.cards.insert(card.agent.clone(), card.clone());
+     save(dir, &store).map_err(|e| format!("key-card store not written: {e}"))?;
