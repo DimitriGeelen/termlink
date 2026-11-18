@@ -55,6 +55,9 @@ pub const HELD_ALERT: &str = "held-for-operator";
 pub const HELD_KEY_PREFIX: &str = "held-key-";
 /// The store state file holding the next inbox offset to read.
 pub const CURSOR_STATE: &str = "inbox-cursor";
+/// T-3823: the key cards this sidecar has seen ("agent:seq:signing key" per line) and the check setting it last saw.
+const CARDS_SEEN_STATE: &str = "key-cards-seen";
+const CARD_MODE_SEEN_STATE: &str = "key-card-mode-seen";
 /// T-3704: the last refusal count the hub reported for this agent (impersonation attention).
 pub const IMPERSONATION_STATE: &str = "key-card-refusals-seen";
 /// Conversation name used for a refused message whose own conv is unusable.
@@ -276,8 +279,20 @@ impl Inner {
     /// tick, raise one needs-attention entry per day naming the counts. Best effort: an old hub
     /// without `hub.key_card_list` or any read error changes nothing and never holds mail.
     fn observe_impersonation(&self) {
+        // transport errors are the pin check's to report; this reads only an answering hub
         let Ok(resp) = self.rpc("hub.key_card_list", json!({})) else { return };
-        let Ok(v) = unwrap_result(resp) else { return };
+        let v = match resp {
+            RpcResponse::Success(s) => s.result,
+            // a hub that predates key cards: method not found, or (older hubs) forwarded and refused for a target
+            RpcResponse::Error(e) if e.error.code == -32601 || e.error.message.contains("Missing 'target'") => return,
+            RpcResponse::Error(e) => {
+                // T-3823 (T-3704 r3): an unreadable card list is said, once an hour, never silently skipped
+                let hour = crate::store::now_ms() / 3_600_000;
+                let detail = format!("hub.key_card_list failed ({}): {}; card writes and refusals cannot be watched", e.error.code, e.error.message);
+                let _ = self.store.attention_coalesced("key-card-list-unreadable", &hour.to_string(), &detail);
+                return;
+            }
+        };
         let day = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() / 86_400)
@@ -312,13 +327,43 @@ impl Inner {
                 }
             }
         }
-        // (2) every card write is the operator's to know (ruling A): one entry per (agent, seq)
+        // (2) every card write is the operator's to know (ruling A): one entry per (agent, seq, signing key). The
+        //     keys seen are persisted; a sidecar's first look records the existing cards as its baseline and raises
+        //     nothing for them (T-3823, T-3704 r3).
+        let seen_text = self.store.read_state(CARDS_SEEN_STATE).ok().flatten();
+        let baseline = seen_text.is_none();
+        let mut seen: std::collections::BTreeSet<String> = seen_text.unwrap_or_default().lines().map(str::to_string).collect();
+        let mut grew = false;
         for c in v["cards"].as_array().into_iter().flatten() {
             let (Some(agent), Some(seq), Some(key)) = (c["agent"].as_str(), c["seq"].as_u64(), c["signing_key"].as_str()) else {
                 continue;
             };
-            let detail = format!("key card for agent {agent} is at seq {seq} (key {key}); written via hub.key_card_put, see rpc-admin.jsonl for old and new values");
-            let _ = self.store.attention_coalesced("key-card-written", &format!("{agent}:{seq}"), &detail);
+            let id = format!("{agent}:{seq}:{key}");
+            if seen.contains(&id) {
+                continue;
+            }
+            if !baseline {
+                let detail = format!("key card for agent {agent} is at seq {seq} (key {key}); written via hub.key_card_put, see rpc-admin.jsonl for old and new values");
+                let _ = self.store.attention_coalesced("key-card-written", &id, &detail);
+            }
+            seen.insert(id);
+            grew = true;
+        }
+        if grew || baseline {
+            let _ = self.store.write_state(CARDS_SEEN_STATE, &seen.into_iter().collect::<Vec<_>>().join("\n"));
+        }
+        // (3) a change of the check setting (off|log|enforce) is the operator's to know too (T-3823, T-3704 r3)
+        if let Some(mode) = v["mode"].as_str() {
+            let was = self.store.read_state(CARD_MODE_SEEN_STATE).ok().flatten().map(|s| s.trim().to_string());
+            if was.as_deref() != Some(mode) {
+                if let Some(w) = &was {
+                    let _ = self.store.attention(
+                        "key-card-mode-changed",
+                        &format!("the hub's key-card check moved {w} -> {mode} (see rpc-admin.jsonl key-card-mode)"),
+                    );
+                }
+                let _ = self.store.write_state(CARD_MODE_SEEN_STATE, mode);
+            }
         }
     }
 

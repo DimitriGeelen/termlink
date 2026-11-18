@@ -246,3 +246,69 @@ fn an_unlisted_type_on_the_inbox_is_skipped_never_handled_as_mail() {
         kinds(&store)
     );
 }
+
+/// T-3823 (T-3704 r3): a fresh sidecar raises nothing for cards that already exist (baseline); a new card raises one
+/// entry keyed on (agent, seq, signing key); a change of the check setting raises an entry; an unreadable card list
+/// is said, never skipped silently.
+#[test]
+fn t3823_card_attention_baseline_new_card_mode_change_and_unreadable_list() {
+    let e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let put = |agent: &str, who: &str| {
+        let r = rpc(&e, "hub.key_card_put", json!({"agent": agent, "project": "proj-p",
+            "signing_key": format!("ed25519-pub:{}", e.identity(who).unwrap().public_key_hex())}));
+        assert_eq!(r["result"]["ok"], true, "{r}");
+    };
+    put("fx-a", "a");
+    let store = Arc::new(Store::open(&e.store_root(), "fx-a").unwrap());
+    let sender = Arc::new(
+        Sender::new(
+            SendConfig {
+                agent: "fx-a".into(),
+                instance: "inst-a".into(),
+                identity: e.identity("a").unwrap(),
+                hub: e.hub_addr(),
+                declared_hub_id: id.clone(),
+                queue_path: e.root().join("outbox-a.sqlite"),
+                timeout: Duration::from_secs(10),
+                pump_interval: None,
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
+    let rx = Receiver::new(
+        ReceiveConfig {
+            agent: "fx-a".into(),
+            instance: "inst-a".into(),
+            hub: e.hub_addr(),
+            declared_hub_id: id.clone(),
+            roster: Roster::new(),
+            timeout: Duration::from_secs(10),
+            page: 50,
+            poll_interval: None,
+        },
+        store.clone(),
+        sender,
+        Box::new(BuiltIn::new(Roster::new())),
+    )
+    .unwrap();
+    let count = |k: &str| kinds(&store).iter().filter(|(x, _)| x == k).count();
+    let _ = rx.pass();
+    assert_eq!(count("key-card-written"), 0, "a fresh sidecar records existing cards as its baseline, raises nothing");
+    put("fx-b", "b");
+    let _ = rx.pass();
+    let written: Vec<_> = kinds(&store).into_iter().filter(|(k, _)| k == "key-card-written").collect();
+    assert_eq!(written.len(), 1, "{written:?}");
+    assert!(written[0].1.contains("fx-b"));
+    let _ = rx.pass();
+    assert_eq!(count("key-card-written"), 1, "seen cards raise nothing again");
+    let m = rpc(&e, "hub.key_card_mode", json!({"mode": "log"}));
+    assert_eq!(m["result"]["ok"], true, "{m}");
+    let _ = rx.pass();
+    assert_eq!(count("key-card-mode-changed"), 1);
+    // an outside edit of the card store makes the hub refuse the list
+    std::fs::write(e.runtime_dir().join("key-cards.json"), b"{\"schema\":\"termlink.key-cards/1\",\"cards\":{}}").unwrap();
+    let _ = rx.pass();
+    assert_eq!(count("key-card-list-unreadable"), 1, "{:?}", kinds(&store));
+}
