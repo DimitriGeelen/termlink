@@ -24831,3 +24831,21 @@ scan_id: R-1014246c
 task_id: T-3817
 payload:
   task_file: .tasks/active/T-3817-switch-per-project-tmux-servers-on-again.md
+---
+kind: scan_emitted
+timestamp: '2026-11-18T12:39:12Z'
+scan_id: R-7832aa04
+task_id: T-3821
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-18T12:39:12Z'
+scan_id: R-7832aa04
+task_id: T-3821
+payload:
+  task_file: .tasks/active/T-3821-park-laptop-141-hub-profile-while-141-ru.md
