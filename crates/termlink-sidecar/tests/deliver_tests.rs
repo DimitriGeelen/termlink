@@ -619,3 +619,27 @@ fn b27_handed_over_moves_s3_and_arrival_does_not() {
     assert_eq!(d.finalize(&f.nonce, false).unwrap(), Verdict::HandedOver);
     assert!(s3(&meter).is_u64(), "the hand-over moves S3");
 }
+
+/// T-3823 (T-3703 r3 CC N3): a claim left by a crash right after it was taken (no attempt record, no CLAIMED line)
+/// keeps a message from a revoked key out of the revocation sweep only until restart: start-up recovery closes the
+/// orphan attempt, and the next sweep refuses the message (REFUSED, reason `revoked`), so it leaves the pending set.
+#[test]
+fn t3823_an_orphan_claim_is_closed_at_restart_and_the_revocation_sweep_then_refuses() {
+    let r = rig();
+    put(&r.store, &msg(&r.ka, "rv", "from-revoked", "0", "x"));
+    arm_kill(KillPoint::AfterClaim);
+    let e = r.d.pull("sess-1", "post-tool-use", Some("toolu_R")).expect_err("stopped right after the claim");
+    assert!(e.contains(KILLED), "{e}");
+    disarm_kill();
+    let revoked: std::collections::BTreeSet<String> =
+        [termlink_session::signed_state::key_fingerprint(&r.ka.verifying_key())].into();
+    assert_eq!(termlink_sidecar::revocation::refuse_stored(&r.store, &revoked, None), 0, "the open claim is left to its owner");
+    // restart: recovery closes the orphan
+    let d2 = Deliverer::new(B, r.store.clone(), Box::new(BuiltIn::new(roster_of(&[&r.ka]))), None);
+    assert_eq!(names(&lines(&r.store, "rv", "from-revoked")), ["RECEIVED", "STORED", "ABSENT"]);
+    assert_eq!(termlink_sidecar::revocation::refuse_stored(&r.store, &revoked, None), 1, "closed attempt: refused");
+    let ls = lines(&r.store, "rv", "from-revoked");
+    assert_eq!(ls.last().unwrap().event, "REFUSED");
+    assert_eq!(ls.last().unwrap().reason.as_deref(), Some("revoked"));
+    assert!(d2.pending().is_empty(), "out of the pending set: nothing rings for it");
+}
