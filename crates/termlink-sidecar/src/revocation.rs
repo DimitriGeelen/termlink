@@ -69,14 +69,33 @@ fn held_keys(store: &Store) -> BTreeSet<String> {
     if let Some(s) = SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()) {
         return s.keys.clone();
     }
-    store
+    // T-3823 (T-3703 r3 OC 4): parse the stored list once per (len, mtime), not on every lookup
+    let path = store.dir().join(format!("state.{LIST_STATE}"));
+    let stamp = std::fs::metadata(&path).ok().and_then(|m| {
+        let t = m.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_nanos();
+        Some((m.len(), t))
+    });
+    let Some(stamp) = stamp else { return BTreeSet::new() };
+    let mut cache = FALLBACK.lock().unwrap_or_else(|p| p.into_inner());
+    if let Some((st, keys)) = cache.get(store.dir())
+        && *st == stamp
+    {
+        return keys.clone();
+    }
+    let keys = store
         .read_state(LIST_STATE)
         .ok()
         .flatten()
         .and_then(|t| ss::parse_strict(t.as_bytes()).ok())
         .map(|l| keys_of(&entries_of(&l)))
-        .unwrap_or_default()
+        .unwrap_or_default();
+    cache.insert(store.dir().to_path_buf(), (stamp, keys.clone()));
+    keys
 }
+
+/// The no-snapshot fallback's parsed keys per store dir, keyed by the stored list's (len, mtime ns).
+#[allow(clippy::type_complexity)]
+static FALLBACK: Mutex<BTreeMap<PathBuf, ((u64, u128), BTreeSet<String>)>> = Mutex::new(BTreeMap::new());
 
 /// FCW-99: the full fingerprint `ed25519:<64 hex>` of a signer is on the held list.
 pub fn revoked(store: &Store, fingerprint: &str) -> bool {
@@ -983,5 +1002,20 @@ mod tests {
         assert!(narrowing(&f.store), "no urgent delivery from outside the own project while unreconciled");
         assert!(line(&f.store).starts_with("unverified since"), "{}", line(&f.store));
         println!("E-40 (c) verdict: LIMIT (RR-20)");
+    }
+
+    /// T-3823 (T-3703 r3 OC 4): the no-snapshot fallback is cached per (len, mtime) and follows a new list.
+    #[test]
+    fn t3823_the_fallback_cache_follows_the_stored_list() {
+        let f = fx();
+        let write = |keys: &[String]| {
+            let l = list(&f.k, 1, Z, keys);
+            f.store.write_state(LIST_STATE, &serde_json::to_string(&l.to_serde()).unwrap()).unwrap();
+        };
+        write(&[fp(1)]);
+        assert!(revoked(&f.store, &fp(1)));
+        assert!(revoked(&f.store, &fp(1)), "second lookup from the cache");
+        write(&[fp(2), fp(3)]);
+        assert!(!revoked(&f.store, &fp(1)) && revoked(&f.store, &fp(3)), "a changed list is read again");
     }
 }

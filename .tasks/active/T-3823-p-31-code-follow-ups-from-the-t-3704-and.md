@@ -2,9 +2,10 @@
 id: T-3823
 name: "P-31 code follow-ups from the T-3704 and T-3703 reviews"
 description: >
-  The code criteria P-31 (T-3713) inherited from the T-3704 and T-3703 review dispositions, split from the deployment task
+  The code criteria P-31 (T-3713) inherited from the T-3704 and T-3703 review dispositions,
+  split from the deployment task
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +39,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-18T19:32:22Z
-last_update: 2026-11-18T19:32:22Z
-date_finished: null
+last_update: '2026-11-18T22:31:12Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +51,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-18T22:31:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3823: P-31 code follow-ups from the T-3704 and T-3703 reviews
@@ -71,7 +84,7 @@ closed on its own evidence while these are built and reviewed as code.
 - [ ] (from T-3704 r3) sidecar `key-card-written` entry keyed on (agent, seq, signing key); attention on a `hub.key_card_list` error and on a `key-card-mode` change; last-seen persisted so a fresh sidecar raises nothing for existing cards
 - [ ] (from T-3704 r3) the setting file baselined like the store digest (an outside change while running is refused or raises attention); the card's own key exempt from the 16-signer cap
 - [ ] (from T-3703 r3 CC N3) an attempt whose claim has no attempt record after a sidecar restart is closed by `recover()` and the revocation sweep re-run; crash test through the real deliver path shows a stored message from a revoked key ends REFUSED with its notice
-- [ ] (from T-3703 r3 CC N5 / OC 4) the hub caches the committed-key set by the admin log's stamp during a pending reconcile and keys its list cache on the list digest too; the sidecar's no-snapshot fallback caches by (len, mtime)
+- [x] (from T-3703 r3 CC N5 / OC 4) the hub caches the committed-key set by the admin log's stamp during a pending reconcile and keys its list cache on the list digest too; the sidecar's no-snapshot fallback caches by (len, mtime) (`COMMITTED_CACHE`, `Stamp` = len+mtime+sha256; sidecar `FALLBACK`; tests `t3823_the_post_check_cache_sees_a_same_length_rewrite`, `t3823_the_fallback_cache_follows_the_stored_list`)
 - [ ] Each item has a test, and a mutant per item is killed
 
 ### Human
@@ -373,3 +386,6 @@ closed on its own evidence while these are built and reviewed as code.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3823-p-31-code-follow-ups-from-the-t-3704-and.md
 - **Context:** Initial task creation
+
+### 2026-11-18T22:31:09Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

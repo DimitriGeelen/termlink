@@ -288,13 +288,42 @@ pub fn get(dir: &Path, hub_id: &str, key: &SigningKey) -> Result<J, String> {
 
 /// Verified key sets per directory, keyed by the list file's (len, mtime): the post check does not re-verify an
 /// unchanged list on every post (r2 OC 9 / CC 12).
-type Stamp = (u64, u128);
+/// (len, mtime ns, sha256 of the bytes): the digest closes a same-length rewrite inside one mtime tick (T-3823,
+/// T-3703 r3 CC N5); the bytes are hashed, never parsed or signature-checked, on a cache hit.
+type Stamp = (u64, u128, String);
 static KEY_CACHE: Mutex<BTreeMap<PathBuf, (Stamp, BTreeSet<String>)>> = Mutex::new(BTreeMap::new());
+/// Committed-row keys per admin log, by the log's (len, mtime ns): a pending reconcile no longer re-reads the whole
+/// log on every carded post (T-3823, T-3703 r3 CC N5).
+static COMMITTED_CACHE: Mutex<BTreeMap<PathBuf, ((u64, u128), BTreeSet<String>)>> = Mutex::new(BTreeMap::new());
+
+fn len_mtime(p: &Path) -> Option<(u64, u128)> {
+    let m = std::fs::metadata(p).ok()?;
+    Some((m.len(), m.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_nanos()))
+}
 
 fn file_stamp(dir: &Path) -> Option<Stamp> {
-    let m = std::fs::metadata(list_path(dir)).ok()?;
-    let t = m.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_nanos();
-    Some((m.len(), t))
+    let (len, t) = len_mtime(&list_path(dir))?;
+    let bytes = std::fs::read(list_path(dir)).ok()?;
+    use sha2::{Digest, Sha256};
+    Some((len, t, ss::hex(&Sha256::digest(&bytes))))
+}
+
+fn committed_keys(log: &Path) -> BTreeSet<String> {
+    let stamp = len_mtime(log);
+    if let Some(st) = stamp
+        && let Some((s, k)) = COMMITTED_CACHE.lock().unwrap_or_else(|p| p.into_inner()).get(log)
+        && *s == st
+    {
+        return k.clone();
+    }
+    let keys: BTreeSet<String> = committed_rows(log)
+        .iter()
+        .flat_map(|(_, _, added)| added.iter().filter_map(|e| e.get("key").and_then(|k| k.as_str()).map(str::to_string)))
+        .collect();
+    if let Some(st) = stamp {
+        COMMITTED_CACHE.lock().unwrap_or_else(|p| p.into_inner()).insert(log.to_path_buf(), (st, keys.clone()));
+    }
+    keys
 }
 
 /// The fingerprints the hub's own post check refuses. An unreadable list is an `Err` (the caller fails closed).
@@ -303,8 +332,8 @@ fn file_stamp(dir: &Path) -> Option<Stamp> {
 pub fn revoked_keys(dir: &Path, hub_id: &str, key: &SigningKey) -> Result<BTreeSet<String>, String> {
     let _g = lock();
     let stamp = file_stamp(dir);
-    let cached = stamp.and_then(|st| {
-        KEY_CACHE.lock().unwrap_or_else(|p| p.into_inner()).get(dir).filter(|(s, _)| *s == st).map(|(_, k)| k.clone())
+    let cached = stamp.as_ref().and_then(|st| {
+        KEY_CACHE.lock().unwrap_or_else(|p| p.into_inner()).get(dir).filter(|(s, _)| s == st).map(|(_, k)| k.clone())
     });
     let mut keys = match cached {
         Some(k) => k,
@@ -318,10 +347,7 @@ pub fn revoked_keys(dir: &Path, hub_id: &str, key: &SigningKey) -> Result<BTreeS
         }
     };
     if reconcile_reason(dir).is_some() {
-        let log = dir.join(crate::rpc_audit::ADMIN_FILE_NAME);
-        for (_, _, added) in committed_rows(&log) {
-            keys.extend(added.iter().filter_map(|e| e.get("key").and_then(|k| k.as_str()).map(str::to_string)));
-        }
+        keys.extend(committed_keys(&dir.join(crate::rpc_audit::ADMIN_FILE_NAME)));
     }
     Ok(keys)
 }
@@ -741,5 +767,22 @@ mod tests {
         // a readable row of another event that merely mentions the event name is not torn
         tear(&serde_json::json!({"event": "revocation-reconcile", "detail": format!("1 {COMMITTED_EVENT} row(s) cannot be read")}).to_string());
         assert!(startup_reconcile(d.path(), &log, HUB, &k).is_empty());
+    }
+
+    /// T-3823 (T-3703 r3 CC N5): a same-length rewrite inside one mtime tick is not served from the cache.
+    #[test]
+    fn t3823_the_post_check_cache_sees_a_same_length_rewrite() {
+        let k = hub_key();
+        let (a, b) = (tmp(), tmp());
+        revoke(a.path(), HUB, &k, &op(&fp(1)), 1, |_: &J, _: &[J]| Ok(())).unwrap();
+        revoke(b.path(), HUB, &k, &op(&fp(2)), 1, |_: &J, _: &[J]| Ok(())).unwrap();
+        assert!(revoked_keys(a.path(), HUB, &k).unwrap().contains(&fp(1)));
+        let (la, lb) = (std::fs::read(list_path(a.path())).unwrap(), std::fs::read(list_path(b.path())).unwrap());
+        assert_eq!(la.len(), lb.len(), "same length by construction");
+        let mtime = std::fs::metadata(list_path(a.path())).unwrap().modified().unwrap();
+        std::fs::write(list_path(a.path()), &lb).unwrap();
+        std::fs::File::options().write(true).open(list_path(a.path())).unwrap().set_modified(mtime).unwrap();
+        let keys = revoked_keys(a.path(), HUB, &k).unwrap();
+        assert!(keys.contains(&fp(2)) && !keys.contains(&fp(1)), "{keys:?}");
     }
 }
