@@ -93,6 +93,12 @@ termlink-doctor = { path = "crates/termlink-doctor" }
 termlink-test-utils = { path = "crates/termlink-test-utils" }
 termlink-bus = { path = "crates/termlink-bus" }
 
+# T-3703: ed25519 and SHA-256 at full speed in debug and test builds (the E-42 fuzz verifies 10^5 lists).
+[profile.dev.package.curve25519-dalek]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+
 [profile.release]
 lto = true
 codegen-units = 1

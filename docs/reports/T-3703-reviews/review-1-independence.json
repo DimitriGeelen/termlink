@@ -1,0 +1,18 @@
+[
+  {
+    "backend": "opencode",
+    "rc": 0,
+    "independent": true,
+    "tool_markers": [],
+    "seat_files_written": [],
+    "label": "independent"
+  },
+  {
+    "backend": "claude-code",
+    "rc": 0,
+    "independent": true,
+    "tool_markers": [],
+    "seat_files_written": [],
+    "label": "independent"
+  }
+]

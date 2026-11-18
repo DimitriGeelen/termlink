@@ -1,0 +1,106 @@
+{
+ "generator": "crates/termlink-session/tests/fixtures/gen-signed-state-vectors.py",
+ "seed_rfc8032_test1": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+ "public_key": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+ "vectors": [
+  {
+   "id": "V-REV-1",
+   "object": {
+    "schema": "termlink.revocation/1",
+    "hub_id": "cacc73ea32b121dd",
+    "seq": 7,
+    "issued_at": 1762862400000,
+    "prev_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "entries": [
+     {
+      "scope": "agent_key",
+      "key": "ed25519:3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29",
+      "project": "010-termlink",
+      "agent": "claude-termlink-alt",
+      "reason": "key exposed",
+      "revoked_at": 1762862399000,
+      "by": "operator",
+      "event": "admin-revoke"
+     }
+    ]
+   },
+   "canonical": "{\"entries\":[{\"agent\":\"claude-termlink-alt\",\"by\":\"operator\",\"event\":\"admin-revoke\",\"key\":\"ed25519:3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\",\"project\":\"010-termlink\",\"reason\":\"key exposed\",\"revoked_at\":1762862399000,\"scope\":\"agent_key\"}],\"hub_id\":\"cacc73ea32b121dd\",\"issued_at\":1762862400000,\"prev_digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"schema\":\"termlink.revocation/1\",\"seq\":7}",
+   "canonical_len": 436,
+   "digest": "044cfb1cf8c79cc60832cce9145895ff1bca2338d28c447823e687a3b6fe5767",
+   "signature": "02739ad55f80d54104dc59466efe9671ec5493df329023a71468926f193f76f6173b449790f2836e57af6bfc7ef8699c6f2f28f38a718846b4d4a0c8b2c7830e",
+   "signature_without_domain": "3b0af0c2379828c0e02d6a1ee48ffa95cd39919ee431ed9994eb54c8be721376bd3066ab584438912f10b0d6c37c8984950440565690e9c2abd453ba96b4ec01",
+   "alt_text": "{ \"seq\" : 7, \"schema\":\"termlink.revocation/1\", \"hub_id\":\"cacc73ea32b121dd\",\"issued_at\":1762862400000,\"prev_digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"entries\":[{\"by\":\"operator\",\"event\":\"admin-revoke\",\"key\":\"ed25519:3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\",\"project\":\"010-termlink\",\"agent\":\"claude-termlink-\\u0061lt\",\"reason\":\"key exposed\",\"revoked_at\":1762862399000,\"scope\":\"agent_key\"}] }"
+  },
+  {
+   "id": "V-HEAD-1",
+   "object": {
+    "schema": "termlink.revocation-head/1",
+    "hub_id": "cacc73ea32b121dd",
+    "seq": 7,
+    "digest": "044cfb1cf8c79cc60832cce9145895ff1bca2338d28c447823e687a3b6fe5767"
+   },
+   "canonical": "{\"digest\":\"044cfb1cf8c79cc60832cce9145895ff1bca2338d28c447823e687a3b6fe5767\",\"hub_id\":\"cacc73ea32b121dd\",\"schema\":\"termlink.revocation-head/1\",\"seq\":7}",
+   "canonical_len": 151,
+   "digest": "cc363257e39103a2d922e6ec0000810659449f3c0098e0471ab8c9932f2b24dd",
+   "signature": "ea99514e54465969c9ff89430be6a72c3cde1a4e2bdaaa2a2c53f7db5ac44eedc70257e8c8d06b8336b0376f7f798a27daf215292901a0548fc20d98934c8202",
+   "signature_without_domain": "bf0374da78573919d559e0ae204d7f097973540cbab8a706951a7931e1d9eb78e011fd7e077cd25aaa4d62f5dd20710824ceea1fe38fb5b98cbf547cf3f6930d"
+  },
+  {
+   "id": "V-FWD-1",
+   "object": {
+    "schema": "termlink.forward/1",
+    "project": "010-termlink",
+    "generation": 12,
+    "hop": 1,
+    "via": "claude-termlink-alt.w1-20261013",
+    "inner_topic": "inbox:cacc73ea32b121dd/claude-termlink-alt",
+    "inner_sha256": "98706d80f0d95fd391d5745f265cff0e248b9656937283f9faa0a48f9f55390f",
+    "inner_b64": "PG9yaWdpbmFsIHNpZ25lZCBtZXNzYWdlIGJ5dGVzPg=="
+   },
+   "canonical": "{\"generation\":12,\"hop\":1,\"inner_b64\":\"PG9yaWdpbmFsIHNpZ25lZCBtZXNzYWdlIGJ5dGVzPg==\",\"inner_sha256\":\"98706d80f0d95fd391d5745f265cff0e248b9656937283f9faa0a48f9f55390f\",\"inner_topic\":\"inbox:cacc73ea32b121dd/claude-termlink-alt\",\"project\":\"010-termlink\",\"schema\":\"termlink.forward/1\",\"via\":\"claude-termlink-alt.w1-20261013\"}",
+   "canonical_len": 320,
+   "digest": "7a7e9bf16ae3f54de6f1007b0ec917cac6f613c9dd5ce7eed6e9a38764af421d",
+   "signature": "29495852a7b15ef34240f9471f42f49ae3c3090e76cd37eb0a0277cbbff3d0b0ffc471503e8b9839a5cd2abd9431e5ae31a9add9b6b812014b117ce834dcdc0a",
+   "signature_without_domain": "dd97f63de7b9291a0b8b017af1afaea66bee7677e154bd0db6be56c5767f59c7dc437ad773b9cc75951e5cbbc3306030605d1314541ed8bf3a324839b2b0d404"
+  },
+  {
+   "id": "V-REQ-1",
+   "object": {
+    "schema": "termlink.revocation-request/1",
+    "key": "ed25519:21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9",
+    "public_key": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+    "project": "010-termlink",
+    "agent": "fx-a",
+    "reason": "retired",
+    "at": 1762862400000
+   },
+   "canonical": "{\"agent\":\"fx-a\",\"at\":1762862400000,\"key\":\"ed25519:21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9\",\"project\":\"010-termlink\",\"public_key\":\"d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a\",\"reason\":\"retired\",\"schema\":\"termlink.revocation-request/1\"}",
+   "canonical_len": 281,
+   "digest": "ba8e7fac6842e785f7e534adb63798922d94511efa304e08823536a6a9def3d1",
+   "signature": "020e095647a1df8b0d3a08bc913ed2c8cc4ee76c67b9180c7f0b32d12179df194e09df98b47811479a2d0365dd9a10c0fa2a9dd20f8adb5dbdc7aa513fc6ba0b",
+   "signature_without_domain": "e23dbe33801d134767fc6f819fa6e5a0e653c4d333e75c26e935c81731ed3af3aba6a919350f3566b761b5c5a6011e24c3edbf8df0718152b5f3eeb90f099000"
+  }
+ ],
+ "negative": [
+  {
+   "id": "V-NEG-1a",
+   "text": "{\"entries\":[{\"agent\":\"claude-termlink-alt\",\"by\":\"operator\",\"event\":\"admin-revoke\",\"key\":\"ed25519:3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\",\"project\":\"010-termlink\",\"reason\":\"key exposed\",\"revoked_at\":1762862399000,\"scope\":\"agent_key\"}],\"hub_id\":\"cacc73ea32b121dd\",\"issued_at\":1762862400000,\"prev_digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"schema\":\"termlink.revocation/1\",\"seq\":7.0}",
+   "refusal": "number"
+  },
+  {
+   "id": "V-NEG-1b",
+   "text": "{\"entries\":[{\"agent\":\"claude-termlink-alt\",\"by\":\"operator\",\"event\":\"admin-revoke\",\"key\":\"ed25519:3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\",\"project\":\"010-termlink\",\"reason\":\"key exposed\",\"revoked_at\":1762862399000,\"scope\":\"agent_key\"}],\"hub_id\":\"cacc73ea32b121dd\",\"issued_at\":1762862400000,\"prev_digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"schema\":\"termlink.revocation/1\",\"seq\":7e0}",
+   "refusal": "number"
+  },
+  {
+   "id": "V-NEG-2",
+   "text": "{\"entries\":[{\"agent\":\"claude-termlink-alt\",\"by\":\"operator\",\"event\":\"admin-revoke\",\"key\":\"ed25519:3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\",\"project\":\"010-termlink\",\"reason\":\"key exposed\",\"revoked_at\":1762862399000,\"scope\":\"agent_key\"}],\"hub_id\":\"cacc73ea32b121dd\",\"issued_at\":1762862400000,\"prev_digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"schema\":\"termlink.revocation/1\",\"seq\":7,\"seq\":7}",
+   "refusal": "duplicate"
+  },
+  {
+   "id": "V-NEG-4",
+   "text": "{\"entries\":[{\"agent\":\"claude-termlink-alt\",\"by\":\"operator\",\"event\":\"admin-revoke\",\"key\":\"ed25519:3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\",\"project\":\"010-termlink\",\"reason\":\"key exposed\",\"revoked_at\":1762862399000,\"scope\":\"agent_key\"}],\"hub_id\":\"cacc73ea32b121dd\",\"issued_at\":1762862400000,\"prev_digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"schema\":\"termlink.revocation/1\",\"seq\":9007199254740992}",
+   "refusal": "number"
+  }
+ ]
+}

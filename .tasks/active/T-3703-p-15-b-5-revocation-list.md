@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:39Z
-last_update: 2026-11-18T13:22:08Z
+last_update: 2026-11-18T13:50:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -103,6 +103,11 @@ Unblocks: P-24 (T-3708), P-37 (T-3716, live); part of gate G-2.
 ## Acceptance Criteria
 
 ### Agent
+- [x] Design note's gap settlements reviewed by two isolated seats before code beyond slice A (docs/reports/T-3703-reviews/), WRONG items fixed (round 1: claude-code 3 WRONG on items 3, 8, 12 + 15 WRONG; all fixed in design v2 section 5; r1-dispositions.md)
+- [x] Slice A: AL-20 (`termlink-session::signed_state`; the crate both hub and sidecar already use for ed25519/SHA-256) reproduces V-REV-1, V-REV-2, V-HEAD-1, V-FWD-1 byte-exactly, refuses V-NEG-1..4, and survives ≥ 10^5 mutated lists (E-42: 100000, 43600 accepted all canonically equal, 56400 refused); vectors tracked under `crates/termlink-session/tests/fixtures/`; mutants 6/6 killed (`tests/mutants/run-t3703a.py`)
+- [ ] Operator ruling recorded: whether the same-uid stated limit (2026-11-18 ruling A on card writes) extends to `hub.revoke` (design v2 5.12), before slice B
+- [ ] Slice B (hub: state, admin revoke with intent/committed rows, self-revoke for carded keys, head/get, reconcile + reissue, post check KEY_REVOKED, runme action): E-43 and E-167 pass, mutants killed
+- [ ] Slice C (sidecar: head every pass, pin, states, stale gate, status, receive and hand-over refusal, sender-side waiting): E-39, E-40, E-41 pass, mutants killed
 - [ ] The B-5 specs pass (hub state, admin revoke, self-revoke, tick pull, stale rule DR-8 A)
 - [ ] The unit's fixture suite exits 0 with a PASS line per B-5 E-n and its mutant list is all killed (FP 3.1.b)
 
