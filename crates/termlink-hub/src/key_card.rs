@@ -70,7 +70,54 @@ pub fn read_mode(dir: &Path) -> Result<Mode, String> {
 }
 
 /// The effective mode for a check: an unreadable or invalid setting enforces.
+/// The setting's file content the hub last wrote or read at start, per runtime dir (T-3823, T-3704 r3): an edit
+/// of the file by anything but `hub.key_card_mode` cannot weaken the check (the stricter of the baseline and the
+/// edited value is in force) and is named once in an admin row per distinct outside value.
+static KNOWN_MODE: Mutex<BTreeMap<PathBuf, String>> = Mutex::new(BTreeMap::new());
+
+fn strictness(m: Mode) -> u8 {
+    match m {
+        Mode::Off => 0,
+        Mode::Log => 1,
+        Mode::Enforce => 2,
+    }
+}
+static OUTSIDE_MODE_NOTED: Mutex<Option<HashSet<(PathBuf, String)>>> = Mutex::new(None);
+
+fn mode_raw(dir: &Path) -> String {
+    std::fs::read_to_string(dir.join(MODE_FILE)).unwrap_or_else(|e| format!("<{}>", e.kind()))
+}
+
+fn set_known_mode(dir: &Path) {
+    KNOWN_MODE.lock().unwrap_or_else(|p| p.into_inner()).insert(dir.to_path_buf(), mode_raw(dir));
+}
+
 pub fn effective_mode(dir: &Path) -> Mode {
+    let known = KNOWN_MODE.lock().unwrap_or_else(|p| p.into_inner()).get(dir).cloned();
+    if let Some(k) = known {
+        let now = mode_raw(dir);
+        if now != k {
+            let mut g = OUTSIDE_MODE_NOTED.lock().unwrap_or_else(|p| p.into_inner());
+            if g.get_or_insert_with(HashSet::new).insert((dir.to_path_buf(), now.clone())) {
+                let row = serde_json::json!({"event": "key-card-mode-outside-edit", "attention": true,
+                    "file_now": now.trim(), "in_force": k.trim(),
+                    "detail": "key-card-check changed outside hub.key_card_mode; the hub keeps the setting it last wrote or read at start"});
+                if let Err(e) = crate::rpc_audit::admin_note(row) {
+                    tracing::error!(error = %e, "T-3823: key-card-mode outside-edit row not written");
+                }
+            }
+            let baseline = if k.contains("NotFound") {
+                Mode::Off
+            } else if k.starts_with('<') {
+                Mode::Enforce
+            } else {
+                Mode::parse(&k).unwrap_or(Mode::Enforce)
+            };
+            // an outside edit can never weaken the check, only make it stricter (an invalid value still fails closed)
+            let edited = read_mode(dir).unwrap_or(Mode::Enforce);
+            return if strictness(edited) > strictness(baseline) { edited } else { baseline };
+        }
+    }
     read_mode(dir).unwrap_or(Mode::Enforce)
 }
 
@@ -80,7 +127,9 @@ pub fn write_mode(dir: &Path, mode: Mode) -> std::io::Result<()> {
 }
 
 fn write_mode_unlocked(dir: &Path, mode: Mode) -> std::io::Result<()> {
-    atomic_write(&dir.join(MODE_FILE), format!("{}\n", mode.as_str()).as_bytes(), 0o644)
+    atomic_write(&dir.join(MODE_FILE), format!("{}\n", mode.as_str()).as_bytes(), 0o644)?;
+    set_known_mode(dir);
+    Ok(())
 }
 
 /// Change the setting with its admin row written FIRST (r2 BLOCKER: refused if the row cannot be
@@ -424,6 +473,7 @@ pub fn startup_reconcile(dir: &Path, admin_log: &Path) -> Vec<String> {
     }
     // the setting: deleting or editing the file is not an admin act (r2 MINOR 10)
     let now = read_mode(dir).map(|m| m.as_str().to_string()).unwrap_or_else(|e| format!("invalid ({e})"));
+    set_known_mode(dir);
     match &last_mode {
         Some(m) if *m != now => out.push(format!("key-card check setting is {now} but the admin log's last change set {m}")),
         None if now != "off" => out.push(format!("key-card check setting is {now} with no logged change")),
@@ -468,12 +518,13 @@ struct Count {
 static REFUSALS: Mutex<BTreeMap<String, Count>> = Mutex::new(BTreeMap::new());
 
 /// Count one refusal (`enforced`) or one log-mode would-refuse.
-pub fn note_refusal(agent: &str, signer_fp: &str, enforced: bool, carded: bool) {
+pub fn note_refusal(agent: &str, signer_fp: &str, enforced: bool, carded: bool, own_key: bool) {
     let key = if carded { agent } else { UNCARDED };
     let mut m = REFUSALS.lock().unwrap_or_else(|p| p.into_inner());
     let e = m.entry(key.to_string()).or_default();
     if enforced { e.refused += 1 } else { e.would += 1 }
-    let s = if e.signers.contains_key(signer_fp) || e.signers.len() < MAX_SIGNERS { signer_fp } else { "other" };
+    // the card's own key is always named, never pushed into "other" by the cap (T-3823, T-3704 r3)
+    let s = if own_key || e.signers.contains_key(signer_fp) || e.signers.len() < MAX_SIGNERS { signer_fp } else { "other" };
     *e.signers.entry(s.to_string()).or_insert(0) += 1;
 }
 
@@ -743,9 +794,9 @@ mod tests {
 
     #[test]
     fn r2_refusals_for_uncarded_names_share_one_bucket_and_rows_are_capped() {
-        note_refusal("t-r2-x1", "fpz", true, false);
-        note_refusal("t-r2-x2", "fpz", true, false);
-        note_refusal("t-r2-carded", "fpz", true, true);
+        note_refusal("t-r2-x1", "fpz", true, false, false);
+        note_refusal("t-r2-x2", "fpz", true, false, false);
+        note_refusal("t-r2-carded", "fpz", true, true, false);
         let c = refusal_counts();
         assert!(c.get("t-r2-x1").is_none() && c.get("t-r2-x2").is_none(), "{c}");
         assert!(c[UNCARDED]["refused"].as_u64().unwrap() >= 2);
@@ -782,5 +833,37 @@ mod tests {
         assert!(r.is_err(), "the guard refuses");
         let d = tempfile::tempdir().unwrap();
         super::guard_test_write(d.path()); // a scratch dir is fine
+    }
+
+    /// T-3823 (T-3704 r3): an outside edit of the setting is refused (the baseline stays in force).
+    #[test]
+    fn t3823_an_outside_edit_of_the_setting_is_refused() {
+        let d = tempfile::tempdir().unwrap();
+        set_mode(d.path(), Mode::Log, |_, _| Ok(())).unwrap();
+        assert_eq!(effective_mode(d.path()), Mode::Log);
+        std::fs::write(d.path().join(MODE_FILE), "off\n").unwrap();
+        assert_eq!(effective_mode(d.path()), Mode::Log, "an edit outside hub.key_card_mode does not switch the check off");
+        std::fs::write(d.path().join(MODE_FILE), "enforce\n").unwrap();
+        assert_eq!(effective_mode(d.path()), Mode::Enforce, "an outside edit may make it stricter");
+        set_mode(d.path(), Mode::Enforce, |_, _| Ok(())).unwrap();
+        assert_eq!(effective_mode(d.path()), Mode::Enforce, "the admin path still changes it");
+        // a dir never baselined (no start, no write) reads the file as before
+        let e = tempfile::tempdir().unwrap();
+        std::fs::write(e.path().join(MODE_FILE), "log\n").unwrap();
+        assert_eq!(effective_mode(e.path()), Mode::Log);
+    }
+
+    /// T-3823 (T-3704 r3): the card's own key is never pushed into "other" by the 16-signer cap.
+    #[test]
+    fn t3823_the_cards_own_key_is_exempt_from_the_signer_cap() {
+        for i in 0..MAX_SIGNERS {
+            note_refusal("t-3823-agent", &format!("fp{i}"), true, true, false);
+        }
+        note_refusal("t-3823-agent", "own-key", true, true, true);
+        note_refusal("t-3823-agent", "stranger", true, true, false);
+        let c = refusal_counts();
+        let signers = &c["t-3823-agent"]["signers"];
+        assert_eq!(signers["own-key"], 1, "{c}");
+        assert!(signers.get("stranger").is_none() && signers["other"] == 1, "{c}");
     }
 }

@@ -2933,7 +2933,8 @@ pub(crate) fn key_card_gate(
         }
     };
     let enforced = mode == Mode::Enforce;
-    key_card::note_refusal(&agent, signer_fp, enforced, carded);
+    // only a KEY_REVOKED refusal is signed by the card's own key (a mismatch or no card is another key)
+    key_card::note_refusal(&agent, signer_fp, enforced, carded, code == error_code::KEY_REVOKED);
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
