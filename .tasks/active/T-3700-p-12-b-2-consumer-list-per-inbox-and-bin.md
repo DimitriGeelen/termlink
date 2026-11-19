@@ -399,6 +399,17 @@ Unblocks: P-24 (T-3708); part of gate G-2 (the T1 release).
 - **Left open:** the rule for the operator's diagnostic peeks (CLI/MCP inbox reads) — to be proposed in the design and
   brought back; each bind remains an operator runme action. Design text 06a 2.14.h is corrected under this task.
 
+### 2026-11-19 — Key-less diagnostic reads of an inbox: D, peek through the agent's own sidecar (operator ruling)
+- **Chose:** D. A sidecar `peek` verb reads the inbox with the sidecar's own signed reader and does not advance it.
+  Direct key-less reads (CLI `channel subscribe`, MCP `channel_state`, AEF `fw sidecar inbox --peek` today) are treated
+  like any reader: listed `claimed`, flagged, refused after a bind.
+- **Why:** keeps the operator's ability to look without opening the BP-15 hole (a self-labelled "observer" is the
+  2026-10-06 incident again). Scores D +32, A +6, C −5, B −6.
+- **Rejected:** A (no peek path: alarms on every look, none after a bind); B (self-declared observer: reopens BP-15);
+  C (local root as observer: on .107 everything is root, so it exempts exactly where the incident happened).
+- **Follow-ons:** ask AEF over TermLink to route `fw sidecar inbox --peek` through the sidecar (their code); confirm in
+  the build that AEF's inbox route and the arc-011 agent inbox are different topics (`termlink` vs `claude-termlink`).
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:

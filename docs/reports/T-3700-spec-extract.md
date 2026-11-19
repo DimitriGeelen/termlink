@@ -44,3 +44,5 @@ caller-declared name. How to identify readers is an operator decision (brief in 
    `claimed`; bind holds by key). A rescored down on Reliability (cannot tell a same-name second copy apart, V-12).
    Totals A +28, B +17, C −27, E +39; recommendation revised to E.
 3. Operator ruling: **E**. Recorded in T-3700 `## Decisions`. Open: rule for operator diagnostic peeks.
+4. Brief on key-less diagnostic reads offered A (no exception), B (self-declared observer), C (local root = observer),
+   D (peek through the agent's own sidecar, signed). Recommended D (+32). Operator ruling: **D**.

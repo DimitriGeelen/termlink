@@ -64,11 +64,13 @@ key. Spec sources and F-1 evidence: `T-3700-spec-extract.md`.
    3. Only own entry → `consumers: one (proven)`; a hub without the RPC → `consumers: unknown (hub predates consumer list)`.
 3. Status also shows `bound: <agent>` when the hub reports a binding.
 
-## 5. Open, for the operator (asked separately)
+## 5. Diagnostic peeks (operator ruling D, 2026-11-19)
 
-1. **Diagnostic peeks.** Operator and agent tools (CLI `channel subscribe`, MCP `channel_state`, `fw sidecar inbox --peek`)
-   read inboxes without a key. Under this design they appear as `(unnamed)`/`claimed` and raise the flag, and are refused
-   after a bind. A rule is needed; options to be briefed one at a time.
+1. The sidecar gains a `peek` verb (CLI `termlink sidecar peek` and the local API): it reads the inbox from the hub with
+   its own signed `reader`, returns the messages, and changes no cursor, stage or store state.
+2. Direct key-less reads (CLI `channel subscribe`, MCP `channel_state`, AEF `fw sidecar inbox --peek` today) get no
+   exception: listed `(unnamed)`/`claimed`, flagged, refused after a bind.
+3. AEF is asked over TermLink to route its `--peek` through the sidecar (its code, a request only).
 
 ## 6. Evidence plan
 
