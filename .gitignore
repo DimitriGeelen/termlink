@@ -111,6 +111,11 @@ Thumbs.db
 # Task locks (runtime, per-session)
 .context/locks/
 
+# T-3826: files the operator drops into this project through the fleet cockpit
+# (055 notice, 2026-11-19). They may be sensitive, so a `git add -A` must never
+# commit them.
+.context/inbox/files/
+
 # Review markers (runtime scratch)
 .context/working/.reviewed-*
 .context/working/.tier0-approval*
