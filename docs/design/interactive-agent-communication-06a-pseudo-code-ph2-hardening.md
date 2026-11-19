@@ -567,7 +567,10 @@ table is durable hub state written with the RPC; a crash loses at most the last 
 one topic are written only under the hub's per-topic lock; an ack or claim checks `bound` and updates the table in the
 same locked step, so a bind ordered first refuses a later ack by another identity (FCW-124) and one ordered after it
 finds that ack already recorded (visible in `inbox.consumers`); the 16-entry eviction runs in the same step.
-2.14.g none. 2.14.h the identity is the authenticated caller of the RPC **[B]**. **OBS:** OBS-56 `inbox.consumers`;
+2.14.g none. 2.14.h the identity is the authenticated caller of the RPC (corrected 2026-11-19, T-3700 F-1: this was
+marked **[B]** but reads carry no caller identity and claims a self-declared name; only posts are signed. Operator
+ruling E: every read and claim names its reader, a carded reader signs it, each consumer is `proven` or `claimed`, and a
+bind holds by the bound agent's key; see `docs/reports/T-3700-design.md`). **OBS:** OBS-56 `inbox.consumers`;
 status `consumers`; admin rows `bind`, `evicted`.
 
 ### 2.15 AL-31 — Admin log, sweep and trim refusal, retention ceilings (K-15; ARC4 6.6.3; V-3; B-3)
