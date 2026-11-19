@@ -50,6 +50,13 @@ class ProbeResult:
     # usable secret, or the hub rejected it. Final: a retry runs as whoever
     # next runs the project's watcher, which is not the principal who sent.
     credential_refused: bool = False
+    # T-5141/T-5142: a passing probe can still carry a failure of a weaker rung
+    # (the unauthenticated reachability probe). Detail, never a verdict.
+    note: str = ""
+    # T-5236: the refusal is a missing or broken hubs.toml profile of THIS user —
+    # {kind, hub, profile, fix, command} from profile_notices.gap(). Feeds the one
+    # operator notice per (user, hub); never changes the verdict or the retry.
+    profile_gap: dict | None = None
 
 
 _AUTH_FAILURE = re.compile(
@@ -69,6 +76,9 @@ class DeliveryResult:
     state: str
     delivered: bool
     reason: str = ""
+    # T-5142: detail that does not change the verdict (a delivered post whose
+    # weaker reachability probe failed). Printed beneath the verdict line.
+    note: str = ""
 
 
 def _message_path(client_msg_id: str):
@@ -168,6 +178,7 @@ def deliver(client_msg_id: str, transport, probe=always_ok_probe, *,
 
     verdict = probe(hub)
     if not verdict.ok:
+        _note_profile_gap(verdict, client_msg_id)
         if getattr(verdict, "credential_refused", False):
             return _credential_final(verdict.reason)
         reason = f"hub-refused: {verdict.reason}"
@@ -193,7 +204,33 @@ def deliver(client_msg_id: str, transport, probe=always_ok_probe, *,
     else:
         _record(state)
     _consume_flag(client_msg_id)
-    return DeliveryResult(client_msg_id, state, True)
+    _resolve_profile_notice(hub, client_msg_id)
+    return DeliveryResult(client_msg_id, state, True, note=getattr(verdict, "note", "") or "")
+
+
+def _note_profile_gap(verdict, client_msg_id: str) -> None:
+    """T-5236: a missing/broken profile reaches the operator once per (user, hub).
+    Best effort: the notice ledger can never change a delivery outcome."""
+    g = getattr(verdict, "profile_gap", None)
+    if not g:
+        return
+    try:
+        from . import profile_notices
+        profile_notices.record(g, client_msg_id,
+                               final=bool(getattr(verdict, "credential_refused", False)))
+    except Exception:
+        pass
+
+
+def _resolve_profile_notice(hub, client_msg_id: str) -> None:
+    """T-5236: a delivered send to `hub` resolves its notice."""
+    if not hub:
+        return
+    try:
+        from . import profile_notices
+        profile_notices.resolve(hub, client_msg_id)
+    except Exception:
+        pass
 
 
 def _consume_flag(client_msg_id: str) -> None:

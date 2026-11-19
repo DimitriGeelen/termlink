@@ -673,6 +673,7 @@ When giving the human a command to run (Tier 0 approvals, inception decisions, v
 When the active task has `workflow_type: inception`:
 1. **State the phase** — Say "This is an inception/exploration task" before doing any work
 2. **Present the filled template** for review before executing any spikes or prototypes
+   - **The recommendation reads `EXPLORING` while you explore.** File with a rationale and no verdict (`fw inception start "<question>" --rationale "…"`); agent filings default to `EXPLORING`, meaning *not ready for decision*. While it reads EXPLORING, `fw task review`, `fw task review-batch` and `fw inception decide` refuse the inception, and the Watchtower page shows no decision buttons. When every IW question is disposed, audit and the handover report it as *ready for a recommendation*: replace `EXPLORING` with GO, NO-GO or DEFER plus a rationale, and only then hand it off.
 3. **Do not write build artifacts** (production code, full apps) before `fw inception decide T-XXX go`
 4. **The commit-msg hook enforces this** — after 2 exploration commits, further commits are blocked until a decision is recorded
 5. After a GO decision, **create separate build tasks** for implementation — do not continue building under the inception task ID
@@ -807,6 +808,14 @@ After fixing any problem discovered by the human (not found during development):
 
 If you need to explore before planning, use the Explore agent or `/explore` skill.
 If you need to plan implementation, create a task first, then use `/plan`.
+
+## Cross-Session Messaging Ban — TermLink Only (T-5225)
+
+**Agent-to-agent messages go over TermLink. Never use Claude Code's own cross-session messaging tools: `SendMessage`, `SendToProject`, `SendToProjectContext`.** Operator rule, 2026-11-17 ("You should always use Termlink. It's forbidden."), confirmed 2026-11-18. Those tools deliver to another session or project outside TermLink's observability, delivery receipts, untrusted-data framing and idle-aware delivery.
+
+- **Send:** `fw sidecar send --to <peer> --body "..."` (add `--conversation <id>` to reply on a thread). **Read:** `fw sidecar inbox`.
+- **Structural enforcement:** PreToolUse hook `block-cross-session-messages` (matcher `SendMessage|SendToProject|SendToProjectContext`) refuses each with exit 2 and names the TermLink route. It fails closed on an unreadable payload and allows every other tool. `fw init` writes it and `fw upgrade` delivers it.
+- Sibling bans: the built-in task tools (`block-task-tools`) and the harness Agent tool (`FW_DISPATCH_LIMIT=0`, `fw termlink dispatch`).
 
 ## Session Start Protocol
 

@@ -5012,6 +5012,30 @@ check_sidecar_ledger() {
 }
 check_sidecar_ledger
 
+# T-5236: a (user, hub) pair whose sends have had no usable hubs.toml profile for
+# 7+ days is reported daily. The sends keep retrying; this is the "nothing is
+# forgotten" leg of the operator ruling. Silent while no notice is that old.
+check_hub_profile_notices() {
+    local _ledger="$PROJECT_ROOT/.context/sidecar/hub-profile-notices.jsonl"
+    [ -f "$_ledger" ] || return 0
+    local _out _rc
+    _out=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/sidecar/profile_notices.py" stale --days 7 2>&1); _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+        warn "Sidecar: hub-profile notice check could not run" \
+             "profile_notices.py stale exit $_rc: $(printf '%s' "$_out" | tail -1)" \
+             "Run: python3 lib/sidecar/profile_notices.py stale --days 7"
+        return 0
+    fi
+    local _line
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        warn "Hub profile unfixed for 7+ days: $_line" \
+             "$_ledger" \
+             "Apply the fix named in the notice (bin/fw operator pending); the waiting sends then go out and the notice resolves itself"
+    done <<<"$_out"
+}
+check_hub_profile_notices
+
 # T-3685 (arc-011 S-LIVE, R7/R14/R15). The always-on sidecar watcher: FAIL
 # while it is enabled and NOT live (seq stalled for 2 ticks, or its loopback
 # self-probe failed) — the same verdict fw doctor reads
@@ -6900,7 +6924,7 @@ while IFS= read -r task_id; do
     [ -z "$task_id" ] && continue
     warn "C-006: Inception $task_id has template-only Recommendation block" \
          "T-679 rule decay (T-1715 family); agent filed without recommendation" \
-         "Retrofit: fill in **Recommendation:** GO|NO-GO|DEFER + rationale + evidence; OR re-file via 'fw inception start --recommendation X --rationale ...' (T-1716 gate)"
+         "Retrofit: write **Recommendation:** EXPLORING (still exploring, T-5226) or GO|NO-GO|DEFER + rationale + evidence; OR re-file via 'fw inception start --rationale ...' (T-1716 gate)"
     c006_missing=$((c006_missing + 1))
 done < <(find_inceptions_without_recommendation "$PROJECT_ROOT/.tasks/active" 2>/dev/null)
 
@@ -6911,6 +6935,33 @@ if [ "$c006_missing" -eq 0 ]; then
          "" "No active task declares workflow_type: inception — the Recommendation rail covered nothing this run"
     unset _c006_pop
 fi
+
+# C-006b (T-5226): an inception still at EXPLORING after every IW question is
+# disposed is ready for a recommendation — the agent owes GO, NO-GO or DEFER.
+# Same predicate as the review handoff and decide (inception_handoff_blockers).
+source "$FRAMEWORK_ROOT/lib/inception-readiness.sh" 2>/dev/null || true
+c006b_ready=0
+c006b_exploring=0
+if command -v inception_handoff_blockers >/dev/null 2>&1; then
+    while IFS= read -r _c6b_f; do
+        [ -n "$_c6b_f" ] || continue
+        _c6b_kind=$(inception_handoff_blockers "$_c6b_f" | awk -F'\t' '$1 == "exploring" || $1 == "ready-for-recommendation" {print $1; exit}')
+        _c6b_id=$(basename "$_c6b_f" | grep -oE '^T-[0-9]+')
+        if [ "$_c6b_kind" = "ready-for-recommendation" ]; then
+            warn "C-006b: Inception $_c6b_id is ready for a recommendation" \
+                 "Every IW question is disposed but ## Recommendation still reads EXPLORING (T-5226)" \
+                 "Replace EXPLORING with GO, NO-GO or DEFER plus a rationale in $_c6b_f"
+            c006b_ready=$((c006b_ready + 1))
+        elif [ "$_c6b_kind" = "exploring" ]; then
+            c006b_exploring=$((c006b_exploring + 1))
+        fi
+    done < <(grep -lE '^workflow_type:[[:space:]]*inception' "$PROJECT_ROOT/.tasks/active"/T-*.md 2>/dev/null \
+             | xargs -r grep -lE '\*\*Recommendation:\*\*[[:space:]]*\**EXPLORING' 2>/dev/null)
+    if [ "$c006b_ready" -eq 0 ]; then
+        pass "C-006b: No EXPLORING inception is waiting on a recommendation ($c006b_exploring still exploring)"
+    fi
+fi
+unset _c6b_f _c6b_kind _c6b_id
 
 echo ""
 fi # end oe-research

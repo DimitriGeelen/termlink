@@ -42,7 +42,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from . import circuit
+from . import circuit, profile_notices
 from .delivery import ProbeResult, TransportError, is_auth_failure
 
 #: Minimum TermLink version this sidecar will send through. The cross-hub
@@ -194,17 +194,49 @@ def probe_hub(hub: str | None, *, runner=subprocess.run,
     try:
         proc = runner([binary, "hub", "probe", address, "--json"],
                       capture_output=True, text=True, timeout=10)
+        probe_failure = (None if proc.returncode == 0 else
+                         f"termlink hub probe {address} exit {proc.returncode}: "
+                         f"{_one_line(proc.stderr or proc.stdout)}")
     except (OSError, subprocess.SubprocessError) as exc:
-        return ProbeResult(False, f"hub {hub} unreachable: {exc}")
-    if proc.returncode != 0:
-        return ProbeResult(False, f"hub {hub} unreachable: TLS handshake failed")
+        probe_failure = f"termlink hub probe {address}: {_one_line(str(exc))}"
 
-    # Reachable. That is a strictly weaker claim than capable (T-2415): the
-    # version needs an AUTHENTICATED read. T-3806: use the credential termlink
-    # already holds for this hub (its hubs.toml profile) rather than refusing
-    # every remote hub with advice no code path could follow.
-    return _authenticated_floor(hub, runner=runner, binary=binary,
-                                floor=floor, hubs_file=hubs_file)
+    if probe_failure and not named:
+        # T-5141: the 010/1409 case. With no profile the bare hub name went to
+        # `hub probe` as if it were an address; the failure is the missing
+        # profile, not TLS. Non-final, as this path always was.
+        g = profile_notices.gap(profile_notices.MISSING, hub)
+        return ProbeResult(False, f"hub {hub} unreachable: {no_profile_reason(hub)}; "
+                                  f"{probe_failure}; {profile_notices.fix_detail(g)}",
+                           profile_gap=g)
+
+    # Reachable, or a profile exists. Reachable is a strictly weaker claim than
+    # capable (T-2415): the version needs an AUTHENTICATED read. T-3806: use the
+    # credential termlink already holds for this hub (its hubs.toml profile).
+    verdict = _authenticated_floor(hub, runner=runner, binary=binary,
+                                   floor=floor, hubs_file=hubs_file)
+    if not probe_failure:
+        return verdict
+    # T-5141/T-5142: the unauthenticated probe failed, but it is the weaker rung.
+    # Its own stderr travels with the verdict; when the authenticated read
+    # cleared the floor the hub is a valid target and the failure is a note.
+    if verdict.ok:
+        return ProbeResult(True, verdict.reason,
+                           note=f"reachability probe failed ({probe_failure}); "
+                                "the authenticated version read succeeded")
+    return ProbeResult(False, f"hub {hub} unreachable: {probe_failure}; {verdict.reason}",
+                       credential_refused=verdict.credential_refused,
+                       profile_gap=verdict.profile_gap)
+
+
+def _one_line(text: str | None) -> str:
+    """Last non-empty line of a command's output, trimmed — termlink's own words."""
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    return lines[-1][:200] if lines else "no output"
+
+
+def no_profile_reason(hub: str) -> str:
+    """T-5141: the reason a sender with no hubs.toml profile for `hub` cannot reach it."""
+    return f"no hubs.toml profile for {hub}: no address or credential for this user"
 
 
 def hubs_toml_path() -> Path:
@@ -233,14 +265,17 @@ def hub_profiles(hub: str, hubs_file: Path | None = None) -> tuple[list[dict], s
     return out, None
 
 
-def _credential_gap(hub: str, profiles: list[dict], err: str | None, path: Path) -> str | None:
-    """Exactly which credential is missing, and where it is configured — or None."""
+def _credential_gap(hub: str, profiles: list[dict], err: str | None,
+                    path: Path) -> tuple[str, dict] | None:
+    """Exactly which credential is missing, where it is configured, and the T-5236
+    fix (as text and as a profile_notices gap) — or None."""
     head = f"hub {hub} is reachable but its version floor is unestablished: "
     remedy = f"add one with `termlink remote profile add <name> {hub} --secret-file <path>`"
-    if err:
-        return f"{head}{err}; {remedy}"
-    if not profiles:
-        return f"{head}no profile in {path} has name or address {hub}; {remedy}"
+    if err or not profiles:
+        g = profile_notices.gap(profile_notices.MISSING, hub)
+        where = err or f"no profile in {path} has name or address {hub}"
+        return (f"{head}{no_profile_reason(hub)} ({where}); {remedy}; "
+                f"{profile_notices.fix_detail(g)}", g)
     gaps = []
     for prof in profiles:
         if prof.get("secret"):
@@ -253,7 +288,8 @@ def _credential_gap(hub: str, profiles: list[dict], err: str | None, path: Path)
                         "which is missing or unreadable")
         else:
             return None
-    return head + "; ".join(gaps)
+    g = profile_notices.gap(profile_notices.BROKEN, hub, profile=profiles[0]["name"])
+    return head + "; ".join(gaps) + f"; {profile_notices.fix_detail(g)}", g
 
 
 def _authenticated_floor(hub: str, *, runner, binary: str, floor, hubs_file) -> ProbeResult:
@@ -262,7 +298,7 @@ def _authenticated_floor(hub: str, *, runner, binary: str, floor, hubs_file) -> 
     gap = _credential_gap(hub, profiles, err, path)
     if gap:
         # T-3905 (G-109): no usable credential is about the SENDER — final.
-        return ProbeResult(False, gap, credential_refused=True)
+        return ProbeResult(False, gap[0], credential_refused=True, profile_gap=gap[1])
 
     # The one authenticated, per-profile version read the termlink CLI offers:
     # `fleet doctor` calls `hub.version` on every hubs.toml profile with that
@@ -301,6 +337,10 @@ def _authenticated_floor(hub: str, *, runner, binary: str, floor, hubs_file) -> 
         return ProbeResult(True, f"hub {hub} (profile {row['hub']}), authenticated, "
                                  f"termlink {vs} meets floor")
     # T-3905 (G-109): every profile was REJECTED on its credential — final.
+    rejected = bool(failures) and auth_failures == len(failures)
+    g = (profile_notices.gap(profile_notices.BROKEN, hub, profile=names[0])
+         if rejected else None)
     return ProbeResult(False, f"hub {hub} is reachable but the authenticated version read "
-                              "failed: " + "; ".join(failures),
-                       credential_refused=bool(failures) and auth_failures == len(failures))
+                              "failed: " + "; ".join(failures)
+                              + (f"; {profile_notices.fix_detail(g)}" if g else ""),
+                       credential_refused=rejected, profile_gap=g)

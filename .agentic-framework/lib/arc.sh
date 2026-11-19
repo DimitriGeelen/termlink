@@ -66,6 +66,9 @@ set -u
 PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
 ARCS_DIR="${PROJECT_ROOT}/.context/arcs"
 ARC_FOCUS_FILE="${PROJECT_ROOT}/.context/working/arc-focus.yaml"
+# T-5221: where arc_instantiate finds lib/arc_instantiate.py and create-batch.sh.
+_ARC_LIB_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+_ARC_FW_ROOT="$(dirname "$_ARC_LIB_DIR")"
 
 # T-1852 (T-NEW-5a): Lifecycle state machine.
 # Four allowed states. arc_create defaults to `draft` going forward;
@@ -194,6 +197,14 @@ _arc_next_numeric_id() {
                 max="$cur"
             fi
         done
+    fi
+    # T-5221 review 11: ids of arcs removed again (instantiate rollback) are never reissued.
+    if [ -f "${ARCS_DIR}/.retired-ids" ]; then
+        while read -r cur _; do
+            [[ "$cur" =~ ^arc-0*([0-9]+)$ ]] || continue
+            cur=$((10#${BASH_REMATCH[1]}))
+            [ "$cur" -gt "$max" ] && max="$cur"
+        done < "${ARCS_DIR}/.retired-ids"
     fi
     printf 'arc-%03d\n' $((max + 1))
 }
@@ -1146,6 +1157,10 @@ Verbs:
                             substrate-only phrasing is refused.
                             T-1852: new arcs are born status: draft. Use 'fw arc start'
                             to transition to in-progress when ready.
+  instantiate <template> --param k=v [...] [--dry-run]
+                            T-5221: create an arc plus its tasks from a template arc
+                            (.context/arcs/templates/<name>.yaml) in one call; tasks go
+                            through fw task create-batch (one id reservation).
   start <id>                T-1852: transition draft → in-progress. Refused on any
                             other source state.
   focus <id> | --clear      Set/clear the focused arc (one at a time)
@@ -1458,6 +1473,7 @@ arc_dispatch() {
     shift || true
     case "$verb" in
         create)  arc_create  "$@";;
+        instantiate) arc_instantiate "$@";;            # T-5221 (T-5212 slice 2)
         start)   arc_start   "$@";;
         focus)   arc_focus   "$@";;
         list|ls) arc_list    "$@";;
@@ -2598,4 +2614,146 @@ open(fn, "w").write(new)
 PY
         echo "  Arc status: draft → in-progress (driver decision recorded)."
     fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-5221 (slice 2 of inception T-5212): fw arc instantiate — an arc plus its tasks from a
+# template arc and parameters, in one call. The template format is documented in
+# lib/arc_instantiate.py (which expands it); the arc is written by arc_create and the tasks
+# by `fw task create-batch`, so there is still one writer of each.
+#
+# Order: expand + validate everything (template, parameters, arc id free, headline mechanic,
+# every task entry via create-batch --dry-run) → create the arc → create-batch the tasks
+# (one id reservation, purpose "arc:<slug>") → set anchor_task. --dry-run stops after the
+# validation and writes nothing.
+
+_arc_template_path() {
+    local t="$1"
+    if [ -f "$t" ]; then
+        printf '%s\n' "$t"
+    elif [ -f "${ARCS_DIR}/templates/$t.yaml" ]; then
+        printf '%s\n' "${ARCS_DIR}/templates/$t.yaml"
+    else
+        return 1
+    fi
+}
+
+arc_instantiate() {
+    local template="" dry_run=0
+    local -a params=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --param) [ $# -ge 2 ] || { echo "Error: --param needs k=v" >&2; return 2; }
+                     params+=(--param "$2"); shift 2;;
+            --param=*) params+=(--param "${1#--param=}"); shift;;
+            --dry-run) dry_run=1; shift;;
+            -h|--help) _arc_instantiate_help; return 0;;
+            -*) echo "Unknown flag: $1" >&2; return 2;;
+            *) [ -z "$template" ] && template="$1" || { echo "Unexpected arg: $1" >&2; return 2; }; shift;;
+        esac
+    done
+    [ -n "$template" ] || { _arc_instantiate_help >&2; return 2; }
+    local tpath
+    tpath="$(_arc_template_path "$template")" || {
+        echo "Error: template '$template' not found (a path, or ${ARCS_DIR}/templates/<name>.yaml)" >&2
+        return 2
+    }
+
+    local tmp
+    tmp="$(mktemp -d "${TMPDIR:-/tmp}/fw-arc-instantiate.XXXXXX")" || return 1
+    # shellcheck disable=SC2064
+    trap "rm -rf '$tmp'" RETURN
+    python3 "$_ARC_LIB_DIR/arc_instantiate.py" --template "$tpath" "${params[@]}" \
+        --out-dir "$tmp" > "$tmp/arc.fields" || return 2
+    local -a f=()
+    local x
+    while IFS= read -r -d '' x; do f+=("$x"); done < "$tmp/arc.fields"
+    local slug="${f[0]}" name="${f[1]}" desc="${f[2]}" hm="${f[3]}" start="${f[4]}" anchor="${f[5]}" count="${f[6]}"
+
+    _arc_validate_id "$slug" || return 2
+    if _arc_exists "$slug"; then
+        echo "Error: arc '$slug' already exists at $(_arc_path "$slug") — nothing created" >&2
+        return 1
+    fi
+    _arc_validate_headline_mechanic "$hm" || return 2
+
+    local batch="$_ARC_FW_ROOT/agents/task-create/create-batch.sh"
+    local purpose="arc:$slug"
+    if [ "$dry_run" = "1" ]; then
+        echo "arc instantiate: dry run — template $tpath"
+        echo "  arc:   $slug  \"$name\"  (status $([ "$start" = 1 ] && echo in-progress || echo draft))"
+        echo "  headline_mechanic: $hm"
+        [ -n "$anchor" ] && echo "  anchor: task $anchor"
+        bash "$batch" --spec "$tmp/spec.jsonl" --purpose "$purpose" --new-arc "$slug" --dry-run || return $?
+        echo "  nothing written"
+        return 0
+    fi
+
+    # Validate every task before the arc exists, so a bad entry leaves nothing behind.
+    bash "$batch" --spec "$tmp/spec.jsonl" --purpose "$purpose" --new-arc "$slug" --dry-run > /dev/null || return $?
+
+    local -a cargs=("$slug" --name "$name" --headline-mechanic "$hm")
+    [ -n "$desc" ] && cargs+=(--description "$desc")
+    [ "$start" = "1" ] && cargs+=(--start)
+    arc_create "${cargs[@]}" || return $?
+
+    local out rc=0
+    out="$(bash "$batch" --spec "$tmp/spec.jsonl" --purpose "$purpose")" || rc=$?
+    printf '%s\n' "$out"
+    if [ "$rc" -ne 0 ]; then
+        if ! grep -lq "^arc_id: $slug\$" "${TASKS_DIR:-$PROJECT_ROOT/.tasks}"/active/T-*.md 2>/dev/null; then
+            # D-Immutability: an arc-NNN is never reused. Record it before the file goes,
+            # so _arc_next_numeric_id still counts it (T-5221 review 11).
+            local gone_id
+            gone_id="$(awk '/^id:[[:space:]]*arc-[0-9]/ {print $2; exit}' "$(_arc_path "$slug")" 2>/dev/null)"
+            [ -n "$gone_id" ] && printf '%s %s %s instantiate-rollback\n' "$gone_id" "$slug" \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${ARCS_DIR}/.retired-ids"
+            rm -f "$(_arc_path "$slug")"
+            echo "Error: no task was created; arc '$slug' removed again (${gone_id:-its id} stays retired)" >&2
+        else
+            echo "Error: some tasks of arc '$slug' were not created; see fw task id reconcile" >&2
+        fi
+        return "$rc"
+    fi
+
+    if [ -n "$anchor" ]; then
+        local anchor_id
+        anchor_id="$(printf '%s\n' "$out" | grep -oE '^  T-[0-9]+' | sed -n "${anchor}p" | tr -d ' ')"
+        if [ -n "$anchor_id" ]; then
+            # Portable rewrite (GNU-only `sed -i` failed silently on BSD/macOS), checked: the
+            # anchor is reported only when the arc file holds it (T-5221 review 4).
+            if python3 - "$(_arc_path "$slug")" "$anchor_id" <<'PY'
+import os, re, sys
+fn, tid = sys.argv[1], sys.argv[2]
+text = open(fn).read()
+new, n = re.subn(r'(?m)^anchor_task:.*$', lambda m: 'anchor_task: ' + tid, text, count=1)
+if not n:
+    sys.exit(1)
+tmp = fn + '.anchor.tmp'
+with open(tmp, 'w') as fh:
+    fh.write(new)
+os.replace(tmp, fn)
+PY
+            then
+                echo "  anchor_task: ${anchor_id}"
+            else
+                echo "Warning: could not set anchor_task: ${anchor_id} in $(_arc_path "$slug") (no anchor_task: line?) — set it with fw arc" >&2
+            fi
+        fi
+    fi
+    echo "arc instantiate: arc '$slug' with $count task(s) from $(basename "$tpath")"
+    return 0
+}
+
+_arc_instantiate_help() {
+    cat <<'EOF'
+Usage: fw arc instantiate <template> --param k=v [--param k=v ...] [--dry-run]
+
+Create an arc and its tasks from a template arc plus parameters, in one call (T-5221).
+<template> is a path, or a name under .context/arcs/templates/<name>.yaml. The format
+(params, arc, tasks; {param} placeholders) is documented in lib/arc_instantiate.py.
+The arc is created through `fw arc create`, the tasks through `fw task create-batch`
+with one id reservation; every task carries arc_id: <the new arc>.
+--dry-run validates everything and prints what would be created; it writes nothing.
+EOF
 }
