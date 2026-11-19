@@ -96,7 +96,7 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
             crate::channel::handle_channel_post(id, &req.params, peer_addr).await
         }
         control::method::CHANNEL_SUBSCRIBE => {
-            crate::channel::handle_channel_subscribe(id, &req.params).await
+            crate::channel::handle_channel_subscribe(id, &req.params, peer_addr).await
         }
         control::method::CHANNEL_LIST => {
             crate::channel::handle_channel_list(id, &req.params).await
@@ -111,7 +111,7 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
             crate::channel::handle_channel_receipts(id, &req.params).await
         }
         control::method::CHANNEL_CLAIM => {
-            crate::channel::handle_channel_claim(id, &req.params).await
+            crate::channel::handle_channel_claim(id, &req.params, peer_addr).await
         }
         control::method::DISPATCH_ALLOCATE => {
             crate::dispatch_contract::handle_dispatch_allocate(id, &req.params).await
@@ -177,6 +177,9 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         "hub.revoke" => handle_revoke(id, &req.params, peer_addr),
         "hub.revocation_request" => handle_revocation_request(id, &req.params),
         "hub.revocation_reissue" => handle_revocation_reissue(id, peer_addr),
+        "inbox.consumers" => handle_inbox_consumers(id, &req.params),
+        "hub.inbox_bind" => handle_inbox_bind(id, &req.params, peer_addr),
+        "hub.inbox_unbind" => handle_inbox_unbind(id, &req.params, peer_addr),
         "hub.legacy_usage" => handle_hub_legacy_usage(id, &req.params),
         "hub.bus_state" => handle_hub_bus_state(id),
         "hub.governor_status" => handle_hub_governor_status(id),
@@ -1039,6 +1042,58 @@ fn handle_revoke(id: serde_json::Value, params: &serde_json::Value, peer_addr: O
     match crate::revocation::revoke(&dir, &ident.hub_id, ident.signing_key(), &r, now_ms(), revocation_commit_log("hub.revoke")) {
         Ok(i) => Response::success(id, serde_json::json!({"ok": true, "seq": i.seq, "digest": i.digest, "already": i.already})).into(),
         Err(e) => revocation_error(id, &e),
+    }
+}
+
+/// T-3700 (AL-30, OBS-56): the readers of one inbox within a window, and its binding. An error means the
+/// list cannot be trusted (FCW-125); the caller shows `consumers: unknown`, never "one".
+fn handle_inbox_consumers(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let Some(topic) = params.get("topic").and_then(|v| v.as_str()).filter(|t| crate::inbox_consumers::applies(t)) else {
+        return ErrorResponse::new(id, -32602, "Missing 'topic' (an inbox:* topic)").into();
+    };
+    let window = params
+        .get("window_s")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(crate::inbox_consumers::DEFAULT_WINDOW_S)
+        .clamp(1, 30 * 86_400);
+    let dir = termlink_session::discovery::runtime_dir();
+    match crate::inbox_consumers::consumers(&dir, topic, window, now_ms()) {
+        Ok(v) => Response::success(id, v).into(),
+        Err(e) => ErrorResponse::new(id, control::error_code::INBOX_BOUND, &format!("consumer list unreadable (FCW-125): {e}")).into(),
+    }
+}
+
+/// T-3700 (AL-30): bind an inbox to one agent's current card key. Operator only (local socket, Execute,
+/// admin row first); reached through runme.
+fn handle_inbox_bind(id: serde_json::Value, params: &serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {
+    if let Some(r) = key_card_local_only(&id, "hub.inbox_bind", peer_addr) {
+        return r;
+    }
+    let field = |n: &str| params.get(n).and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let (topic, agent) = (field("topic"), field("agent"));
+    let dir = termlink_session::discovery::runtime_dir();
+    let key = match crate::key_card::get(&dir, &agent) {
+        Ok(c) => c.and_then(|c| crate::key_card::parse_signing_key(&c.signing_key)),
+        Err(e) => return ErrorResponse::new(id, control::error_code::INBOX_BOUND, &format!("bind refused: key cards unreadable: {e}")).into(),
+    };
+    let mut log = |row: serde_json::Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
+    match crate::inbox_consumers::bind(&dir, &topic, &agent, key, now_ms(), &mut log) {
+        Ok(b) => Response::success(id, serde_json::json!({"ok": true, "topic": topic, "agent": b.agent, "key_fp": b.key_fp})).into(),
+        Err(e) => ErrorResponse::new(id, control::error_code::INBOX_BOUND, &format!("bind refused: {e}")).into(),
+    }
+}
+
+/// T-3700: remove an inbox binding (operator only, admin row first).
+fn handle_inbox_unbind(id: serde_json::Value, params: &serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {
+    if let Some(r) = key_card_local_only(&id, "hub.inbox_unbind", peer_addr) {
+        return r;
+    }
+    let topic = params.get("topic").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let dir = termlink_session::discovery::runtime_dir();
+    let mut log = |row: serde_json::Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
+    match crate::inbox_consumers::unbind(&dir, &topic, &mut log) {
+        Ok(was) => Response::success(id, serde_json::json!({"ok": true, "topic": topic, "was_bound": was})).into(),
+        Err(e) => ErrorResponse::new(id, control::error_code::INBOX_BOUND, &format!("unbind refused: {e}")).into(),
     }
 }
 

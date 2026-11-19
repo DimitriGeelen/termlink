@@ -798,11 +798,14 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | "hub.key_card_get"
         | "hub.key_card_list"
         | "hub.revocation_head"
-        | "hub.revocation_get" => PermissionScope::Observe,
+        | "hub.revocation_get"
+        | "inbox.consumers" => PermissionScope::Observe,
 
         // T-3704 (B-6): card writes and the check setting; also local-socket only (router).
         // T-3703 (B-5): operator revocation and reissue, same rule (operator ruling A 2026-11-18).
         "hub.key_card_put" | "hub.key_card_mode" | "hub.revoke" | "hub.revocation_reissue" => PermissionScope::Execute,
+        // T-3700 (AL-30): inbox bind/unbind, operator only, local socket (router).
+        "hub.inbox_bind" | "hub.inbox_unbind" => PermissionScope::Execute,
         // T-3703: a self-revocation is authenticated by its own signature and a key card.
         "hub.revocation_request" => PermissionScope::Interact,
 

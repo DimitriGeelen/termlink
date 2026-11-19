@@ -279,7 +279,7 @@ pub(crate) fn guard_test_write(dir: &Path) {
     }
 }
 
-fn atomic_write(path: &Path, bytes: &[u8], mode: u32) -> std::io::Result<()> {
+pub(crate) fn atomic_write(path: &Path, bytes: &[u8], mode: u32) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let dir = path.parent().unwrap_or_else(|| Path::new("."));

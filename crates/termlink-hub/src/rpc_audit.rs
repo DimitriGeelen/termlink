@@ -624,6 +624,9 @@ pub const ADMIN_METHODS: &[&str] = &[
     "hub.revoke",
     "hub.revocation_request",
     "hub.revocation_reissue",
+    // T-3700 (AL-30): an inbox bind changes who may read it.
+    "hub.inbox_bind",
+    "hub.inbox_unbind",
 ];
 
 pub fn is_admin_method(method: &str) -> bool {

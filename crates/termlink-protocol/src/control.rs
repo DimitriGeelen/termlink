@@ -583,6 +583,9 @@ pub mod error_code {
     /// revocation (a restore); the head is not served until `hub.revocation_reissue`. A sidecar
     /// counts this as a failed pull, never as an empty list.
     pub const REVOCATION_RECONCILE: i64 = -32048;
+    /// T-3700 (AL-30, FCW-124): the inbox is bound to one agent and this read, claim or ack was not
+    /// proven by that agent's bound key; or the bindings could not be read (fail closed).
+    pub const INBOX_BOUND: i64 = -32049;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

@@ -9,6 +9,7 @@ pub mod dispatch_contract;
 pub mod governor;
 pub mod hub_identity;
 pub mod inbox;
+pub mod inbox_consumers;
 pub mod key_card;
 pub mod revocation;
 pub mod mail_guard;

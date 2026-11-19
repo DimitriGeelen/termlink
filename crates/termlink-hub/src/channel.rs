@@ -983,6 +983,29 @@ pub(crate) async fn handle_channel_post_with_peer(
         return resp;
     }
 
+    // T-3700 (AL-30, FCW-209): an ack (receipt) on an inbox records its poster as a consumer and is
+    // refused on a bound inbox unless it is the bound agent's bound key.
+    if msg_type == "receipt" && crate::inbox_consumers::applies(&topic) {
+        use crate::inbox_consumers as ic;
+        let dir = termlink_session::discovery::runtime_dir();
+        let reader = {
+            let (ident, card_key, revoked) = consumer_lookups(&dir);
+            let l = ic::Lookups { hub_id: ident.as_ref().map(|i| i.hub_id.as_str()), card_key: &card_key, revoked: &revoked };
+            let d = dir.clone();
+            let cards = move || -> Result<Vec<(String, [u8; 32])>, String> {
+                Ok(crate::key_card::list(&d)?
+                    .into_iter()
+                    .filter_map(|c| crate::key_card::parse_signing_key(&c.signing_key).map(|k| (c.agent, k)))
+                    .collect())
+            };
+            ic::assess_ack(&verifying_key, &cards, &l)
+        };
+        let mut log = |row: Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
+        if let Err(f) = ic::record(&dir, &topic, &reader, ic::Action::Ack, now_unix_ms().max(0) as u64, &mut log) {
+            return consumer_refusal(&id, f);
+        }
+    }
+
     // T-1287: optional metadata routing-hint map. NOT included in canonical
     // signed bytes — trusted-mesh threat model treats it as routing only.
     // Well-known keys: conversation_id, event_type (per T-1288 catalog).
@@ -1480,12 +1503,86 @@ fn activity_json(act: &termlink_bus::TopicActivity, now_ms: i64, days: u64) -> (
     )
 }
 
-pub async fn handle_channel_subscribe(id: Value, params: &Value) -> RpcResponse {
+pub async fn handle_channel_subscribe(id: Value, params: &Value, peer_addr: Option<&str>) -> RpcResponse {
+    // T-3700 (AL-30): an inbox read records its reader and is refused on a bound inbox unless proven
+    if let Some(r) = consumer_gate(&id, params, "channel.subscribe", "cursor", crate::inbox_consumers::Action::Read, peer_addr) {
+        return r;
+    }
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,
         Err(r) => return r,
     };
     handle_channel_subscribe_with(bus, id, params).await
+}
+
+/// T-3700 (06a AL-30, operator rulings E and D 2026-11-19): record the reader of an inbox read or claim
+/// and enforce a bind. `None` lets the call proceed. Non-inbox topics are untouched.
+pub(crate) fn consumer_gate(
+    id: &Value,
+    params: &Value,
+    method: &str,
+    position_key: &str,
+    action: crate::inbox_consumers::Action,
+    peer_addr: Option<&str>,
+) -> Option<RpcResponse> {
+    use crate::inbox_consumers as ic;
+    let topic = param_str(params, "topic")?;
+    if !ic::applies(topic) {
+        return None;
+    }
+    let position = params.get(position_key).and_then(|v| v.as_u64()).unwrap_or(0);
+    let proof = match ic::parse_reader(params) {
+        Ok(p) => p,
+        Err(e) => return Some(ErrorResponse::new(id.clone(), -32602, &format!("reader: {e}")).into()),
+    };
+    let transport = match peer_addr {
+        Some(a) => format!("tcp:{}", a.rsplit_once(':').map(|(h, _)| h).unwrap_or(a)),
+        None => "local".to_string(),
+    };
+    let dir = termlink_session::discovery::runtime_dir();
+    let now = now_unix_ms();
+    let reader = {
+        let (ident, card_key, revoked) = consumer_lookups(&dir);
+        let l = ic::Lookups { hub_id: ident.as_ref().map(|i| i.hub_id.as_str()), card_key: &card_key, revoked: &revoked };
+        ic::assess(topic, method, position, proof.as_ref(), &transport, now, &l)
+    };
+    let reader = match reader {
+        Ok(r) => r,
+        Err(f) => return Some(consumer_refusal(id, f)),
+    };
+    let mut log = |row: Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
+    match ic::record(&dir, topic, &reader, action, now.max(0) as u64, &mut log) {
+        Ok(()) => None,
+        Err(f) => Some(consumer_refusal(id, f)),
+    }
+}
+
+type CardKeyFn = Box<dyn Fn(&str) -> Result<Option<[u8; 32]>, String>>;
+type RevokedFn = Box<dyn Fn() -> Result<std::collections::BTreeSet<String>, String>>;
+
+/// The live hub's lookups for [`crate::inbox_consumers::assess`]: identity, card keys, revocation list.
+fn consumer_lookups(dir: &std::path::Path) -> (Option<crate::hub_identity::HubIdentity>, CardKeyFn, RevokedFn) {
+    let ident = crate::hub_identity::current();
+    let d1 = dir.to_path_buf();
+    let card_key: CardKeyFn = Box::new(move |a: &str| {
+        crate::key_card::get(&d1, a).map(|o| o.and_then(|c| crate::key_card::parse_signing_key(&c.signing_key)))
+    });
+    let d2 = dir.to_path_buf();
+    let id2 = ident.clone();
+    let revoked: RevokedFn = Box::new(move || match &id2 {
+        Some(i) => crate::revocation::revoked_keys(&d2, &i.hub_id, i.signing_key()),
+        None => Err("the hub identity is not loaded".to_string()),
+    });
+    (ident, card_key, revoked)
+}
+
+fn consumer_refusal(id: &Value, f: crate::inbox_consumers::Refusal) -> RpcResponse {
+    ErrorResponse::with_data(id.clone(), f.code, &format!("refused ({}): {}", f.fcw, f.reason), serde_json::json!({"fcw": f.fcw}))
+        .into()
+}
+
+fn now_unix_ms() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
 pub(crate) async fn handle_channel_subscribe_with(
@@ -2155,7 +2252,11 @@ pub(crate) async fn handle_channel_list_with(
 /// Issues an exclusive lease over `(topic, offset)` for `claimer`. Default TTL is 30s; the
 /// client must call `channel.release` (or the future `channel.renew`, Slice 2) before
 /// `claimed_until` to retain the claim.
-pub async fn handle_channel_claim(id: Value, params: &Value) -> RpcResponse {
+pub async fn handle_channel_claim(id: Value, params: &Value, peer_addr: Option<&str>) -> RpcResponse {
+    // T-3700 (AL-30): a claim on an inbox is a consumer action like a read
+    if let Some(r) = consumer_gate(&id, params, "channel.claim", "offset", crate::inbox_consumers::Action::Claim, peer_addr) {
+        return r;
+    }
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,
         Err(r) => return r,
