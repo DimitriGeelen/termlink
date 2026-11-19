@@ -89,6 +89,11 @@ def main():
             rows.append((mid, what, verdict))
     finally:
         pass
+    # T-3700 finding: a mutant killed after `cargo build -p termlink` leaves its mutated binary on disk; rebuild clean.
+    env = dict(os.environ)
+    env.pop("PROJECT_ROOT", None)
+    if subprocess.run(["cargo", "build", "-p", "termlink"], env=env, capture_output=True).returncode != 0:
+        print("WARNING: the clean termlink binary could not be rebuilt; run cargo build -p termlink")
     print("| mutant | what | verdict |\n|---|---|---|")
     for r in rows:
         print("| %s | %s | %s |" % r)

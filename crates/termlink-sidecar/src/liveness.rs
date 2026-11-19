@@ -492,6 +492,22 @@ mod tests {
         }
     }
 
+    /// T-3700 (AL-30): with `channel.first_at` the main's inbox is never read for content, so this
+    /// check is not a consumer of it; the subscribe path is only the fallback for older hubs.
+    #[test]
+    fn read_uses_first_at_and_never_reads_the_inbox_content() {
+        let n = note(NOW, 2);
+        let mut f = fake(&n, Ok(json!({"messages": [envelope(2, "sidecar.msg.v1", b"x", 999)]})));
+        f.replies.insert(("channel.first_at".into(), "I".into()), Ok(json!({"offset": 2, "ts": 1234})));
+        assert_eq!(read(&f, "L", "I"), Read::Note { note: Ok(n.clone()), signer: "fp-main".into(), oldest_waiting_ms: Some(1234) });
+        assert!(!f.calls.borrow().iter().any(|c| c == "channel.subscribe I"), "{:?}", f.calls.borrow());
+        // nothing waiting at or after the offset
+        let mut f = fake(&n, Ok(json!({"messages": []})));
+        f.replies.insert(("channel.first_at".into(), "I".into()), Ok(json!({"offset": null, "ts": null})));
+        assert_eq!(read(&f, "L", "I"), Read::Note { note: Ok(n), signer: "fp-main".into(), oldest_waiting_ms: None });
+        assert!(!f.calls.borrow().iter().any(|c| c == "channel.subscribe I"));
+    }
+
     /// A fake hub: canned replies per (method, topic).
     struct Fake {
         replies: BTreeMap<(String, String), HubResult>,

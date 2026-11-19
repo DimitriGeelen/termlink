@@ -136,6 +136,7 @@ fn e66_second_consumer_flagged_then_refused_after_bind() {
     assert_eq!(attention_count(&a.store), 1);
     a.rx.check_consumers_now();
     assert_eq!(attention_count(&a.store), 1, "coalesced per (inbox, reader, day)");
+    println!("E-133 PASS (the per-tick check fired on the injected second consumer)");
 
     // the operator binds fx-a's inbox to fx-a (runme, local socket)
     let b = rpc(&e, "hub.inbox_bind", json!({"topic": topic, "agent": "fx-a"}));
@@ -169,6 +170,7 @@ fn e66_second_consumer_flagged_then_refused_after_bind() {
     let u = rpc(&e, "hub.inbox_unbind", json!({"topic": topic}));
     assert_eq!(u["result"]["was_bound"], true, "{u}");
     assert!(raw_read(&e, &topic, None).get("result").is_some());
+    println!("E-66 PASS (flagged naming both, read-only consumer counted, refused after bind with reason and row)");
 }
 
 #[test]
@@ -200,6 +202,7 @@ fn e66_ack_is_a_consumer_and_17_readers_evict_the_oldest() {
     assert_eq!(c.len(), 16, "{c:?}");
     assert!(!c.iter().any(|x| x["agent"] == "fx-b"), "the oldest is gone");
     assert!(admin_rows(&e, "inbox-consumer-evicted") >= 2);
+    println!("E-66 PASS (ack recorded; 17 readers keep 16, eviction logged)");
 }
 
 #[test]
@@ -215,6 +218,7 @@ fn v12_second_copy_seen_within_one_check() {
     a1.rx.check_consumers_now();
     let l = line(&a1.store);
     assert!(l.starts_with("inbox consumed by two identities: fx-a (proven), fx-a (proven) [second copy, instance inst-a2]"), "{l}");
+    println!("E-66 PASS (V-12 second copy seen within one check)");
 }
 
 #[test]
@@ -230,6 +234,7 @@ fn e169_unreadable_consumer_list_is_unknown_never_one() {
     a.rx.check_consumers_now();
     let l = line(&a.store);
     assert!(l.starts_with("unknown ("), "{l}");
+    println!("E-169 PASS (unreadable consumer list shown unknown, never one)");
 }
 
 #[test]

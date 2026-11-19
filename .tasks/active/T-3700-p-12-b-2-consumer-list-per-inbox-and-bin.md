@@ -158,7 +158,10 @@ Unblocks: P-24 (T-3708); part of gate G-2 (the T1 release).
 ## Verification
 
 # Plan P-12 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-2 E-n, mutant list all killed
-# (FP 3.1.b). Replace with the suite's command before closing (redirect-then-grep form, L-387).
+# (FP 3.1.b). Scratch runtime dir so no test touches the live hub (T-3822).
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=$(mktemp -d) cargo test -p termlink-hub --lib inbox_consumers > .context/working/.t3700-hub.out 2>&1 && grep -q "test result: ok" .context/working/.t3700-hub.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=$(mktemp -d) cargo test -p termlink-sidecar --test t3700_consumers -- --nocapture > .context/working/.t3700-l4.out 2>&1 && grep -q "E-66 PASS" .context/working/.t3700-l4.out && grep -q "E-133 PASS" .context/working/.t3700-l4.out && grep -q "E-169 PASS" .context/working/.t3700-l4.out
+grep -q "15/15 killed" docs/reports/T-3700-mutants.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -407,7 +410,9 @@ Unblocks: P-24 (T-3708); part of gate G-2 (the T1 release).
   2026-10-06 incident again). Scores D +32, A +6, C −5, B −6.
 - **Rejected:** A (no peek path: alarms on every look, none after a bind); B (self-declared observer: reopens BP-15);
   C (local root as observer: on .107 everything is root, so it exempts exactly where the incident happened).
-- **Follow-ons:** ask AEF over TermLink to route `fw sidecar inbox --peek` through the sidecar (their code); confirm in
+- **Follow-ons:** ask AEF over TermLink to route `fw sidecar inbox --peek` through the sidecar (their code) — asked
+  2026-11-19 (conv t3700-peek-route); AEF said yes, tracked as their T-5281, waiting on us to post the version with
+  `termlink sidecar peek` once live; confirm in
   the build that AEF's inbox route and the arc-011 agent inbox are different topics (`termlink` vs `claude-termlink`).
 
 <!-- Record decisions ONLY when choosing between alternatives.
