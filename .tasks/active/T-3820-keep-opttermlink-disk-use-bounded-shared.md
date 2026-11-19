@@ -1,10 +1,21 @@
 ---
 id: T-3820
-name: "Keep /opt/termlink disk use bounded: shared CARGO_TARGET_DIR for scratch builds + weekly clean of stale build dirs"
+name: "Keep /opt/termlink disk use bounded: shared CARGO_TARGET_DIR for scratch builds
+  + weekly clean of stale build dirs"
 description: >
-  2026-11-18: /opt at 97% (host agent dimitri-mint-dev, msg a7d9d26a); /opt/termlink was 170 GB: .context/working held 90 GB of cargo target dirs inside scratch workspace copies of finished tasks (t3753 46 GB, t3749 18 GB, ...), target/debug/incremental 17 GB, target/arc011-mutants 7 GB. Cleaned 2026-11-18 (project now ~56 GB, /opt free 83 -> 137 GB). Prevention to build: (1) scratch copies build with one shared CARGO_TARGET_DIR (e.g. target/scratch), never a target per copy (agent practice + the scripts that copy the workspace); (2) a weekly job, installed by a runme action (operator), removing cargo build dirs (verified by CACHEDIR.TAG) under .context/working older than 3 days and target/debug/incremental, logging what it freed; (3) a size line in the session-start alerts when /opt/termlink exceeds a threshold. Operator approval needed for the cron (runme).
+  2026-11-18: /opt at 97% (host agent dimitri-mint-dev, msg a7d9d26a); /opt/termlink
+  was 170 GB: .context/working held 90 GB of cargo target dirs inside scratch workspace
+  copies of finished tasks (t3753 46 GB, t3749 18 GB, ...), target/debug/incremental
+  17 GB, target/arc011-mutants 7 GB. Cleaned 2026-11-18 (project now ~56 GB, /opt
+  free 83 -> 137 GB). Prevention to build: (1) scratch copies build with one shared
+  CARGO_TARGET_DIR (e.g. target/scratch), never a target per copy (agent practice
+  + the scripts that copy the workspace); (2) a weekly job, installed by a runme action
+  (operator), removing cargo build dirs (verified by CACHEDIR.TAG) under .context/working
+  older than 3 days and target/debug/incremental, logging what it freed; (3) a size
+  line in the session-start alerts when /opt/termlink exceeds a threshold. Operator
+  approval needed for the cron (runme).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +49,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-18T09:00:24Z
-last_update: 2026-11-18T09:00:24Z
-date_finished: null
+last_update: '2026-11-19T15:34:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +61,40 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-19T15:34:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3820: Keep /opt/termlink disk use bounded: shared CARGO_TARGET_DIR for scratch builds + weekly clean of stale build dirs
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** 2026-11-18 the host agent (dimitri-mint-dev) reported /opt at 97%; about 90 GB were cargo
+build dirs left by scratch/worker builds under `.context/working/` (plus 17 GB target/debug/incremental and 7 GB
+target/arc011-mutants). Cleaned by hand; /opt now 85% (276 GB free), `.context/working` 8 GB.
+**Problem / hypothesis:** the weekly trim (T-3799, `scripts/target-cache-trim.sh`, Sun 04:30) only cleans target/debug
+and target/arc011-mutants; nothing bounds build dirs under `.context/working/`, so they can regrow unnoticed.
+**Goal:** operator ruling A (2026-11-19): extend the same weekly trim to `.context/working/`.
+**Expected outcome:** every Sunday, cargo build dirs under `.context/working/` untouched for 3+ days are removed (never
+during a build, verified on disk); no change to how workers build.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/target-cache-trim.sh` also removes cargo build dirs under `.context/working/` (a dir named `target` holding a `CACHEDIR.TAG` or a `debug`/`release` subdir, or a `target-*` dir) whose newest file is older than 3 days; skipped entirely while a build runs (same busy check); each removal verified on disk (gone, else FAILED, exit 1) (`scratch_trim`, runs before and independent of the target/debug threshold; a failure turns the exit to 1 via the EXIT trap)
+- [x] Never touches anything else: a dir without cargo markers, a dir newer than 3 days, anything outside `.context/working/`, or a path through a symlink (find -P -xdev, realpath prefix check, symlinked dirs skipped)
+- [x] Fixtures cover remove / keep-new / keep-non-cargo / busy-skip / dry-run / symlink, and the existing fixtures still pass (tests/target-cache-trim-fixtures.sh 12/0: 1-6 unchanged, 7-12 new)
+- [x] The installed weekly cron runs this script from the repo, so no runme run is needed (checked: `/etc/cron.d/termlink-target-cache-trim` runs `cd /opt/termlink && bash scripts/target-cache-trim.sh --quiet` Sun 04:30; real-repo dry run 2026-11-19: no scratch dir to remove now, target/debug 48 GiB would be trimmed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +145,10 @@ date_finished: null
 -->
 
 ## Verification
+
+bash tests/target-cache-trim-fixtures.sh > .context/working/.t3820-v1 2>&1 && grep -q '12 passed, 0 failed' .context/working/.t3820-v1
+bash -n scripts/target-cache-trim.sh
+grep -q 'scripts/target-cache-trim.sh' /etc/cron.d/termlink-target-cache-trim
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -348,6 +383,12 @@ date_finished: null
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-19 — How to keep scratch build dirs from filling /opt again (operator ruling)
+- **Operator words:** "A" (after a plain-language brief: context, background, options).
+- **Chose:** A — extend the existing weekly trim (T-3799, Sun 04:30) to remove cargo build dirs under `.context/working/` untouched for 3+ days; never during a build; verified on disk.
+- **Why:** closes exactly the gap behind the 2026-11-18 97% event with the smallest change; one job, already tested and installed; no change to how workers build.
+- **Rejected:** B, one shared CARGO_TARGET_DIR for all workers (least disk, but parallel workers serialize on cargo's build lock, so builds slow down); C, do nothing and watch (the last regrowth went unnoticed until 97%).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -364,3 +405,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3820-keep-opttermlink-disk-use-bounded-shared.md
 - **Context:** Initial task creation
+
+### 2026-11-19T15:34:37Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

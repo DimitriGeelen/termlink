@@ -12,6 +12,7 @@
 # build lock (target/debug/.cargo-lock) is held.
 # Verified on disk: after the clean, target/debug must be gone or under 1 GiB, else FAILED.
 #
+# T-3820 (ruling A): also removes cargo build dirs under .context/working/ untouched for 3+ days (TRIM_SCRATCH_DAYS).
 # Usage: target-cache-trim.sh [--dry-run] [--quiet]
 #   --quiet  print nothing when there is nothing to do (below the threshold)
 # Exit: 0 trimmed / nothing to do / skipped busy · 1 the clean ran but space was not freed ·
@@ -41,6 +42,52 @@ gib() {  # <dir> -> whole GiB used (0 when absent)
     if [ -n "${TRIM_SIZE_CMD:-}" ]; then $TRIM_SIZE_CMD "$1"; return; fi
     du -s --block-size=1G "$1" 2>/dev/null | cut -f1
 }
+
+# ---------------------------------------------------------------------------------------------------------------
+# T-3820 (operator ruling A, 2026-11-19): cargo build dirs left under .context/working/ by scratch and worker builds
+# (90 GB of them filled /opt to 97% on 2026-11-18). Removed when their newest file is older than SCRATCH_DAYS; only
+# dirs cargo made (a `target` / `target-*` dir holding CACHEDIR.TAG or a debug/ or release/ subdir), never through a
+# symlink, never outside .context/working/, never while a build runs. Each removal is verified on disk.
+SCRATCH_DAYS="${TRIM_SCRATCH_DAYS:-3}"
+SCRATCH_FAILED=0
+finish() { local rc=$?; if [ "$SCRATCH_FAILED" = 1 ] && [ "$rc" = 0 ]; then exit 1; fi; exit "$rc"; }
+trap finish EXIT
+
+is_cargo_dir() { [ -e "$1/CACHEDIR.TAG" ] || [ -d "$1/debug" ] || [ -d "$1/release" ]; }
+
+scratch_trim() {
+    local work="$ROOT/.context/working" real_work d real n=0 freed=0 g
+    [ -d "$work" ] || return 0
+    real_work="$(readlink -f "$work")"
+    if [ -n "$(pgrep -af "$BUSY_PATTERN" 2>/dev/null | head -1)" ]; then
+        say "skip    scratch build dirs under .context/working: a build is running; next week"
+        return 0
+    fi
+    while IFS= read -r -d '' d; do
+        real="$(readlink -f "$d")"
+        case "$real" in "$real_work"/*) ;; *) continue ;; esac
+        [ -L "$d" ] && continue   # find -P never descends a symlinked dir; a symlinked target itself is skipped
+        is_cargo_dir "$d" || continue
+        # newest file younger than SCRATCH_DAYS: in use, keep
+        [ -n "$(find "$d" -newermt "-${SCRATCH_DAYS} days" -print -quit 2>/dev/null)" ] && continue
+        g="$(gib "$d")"
+        if [ "$DRY" = 1 ]; then
+            say "[DRY]   would remove scratch build dir ${d#"$ROOT"/} (${g} GiB, untouched ${SCRATCH_DAYS}+ days)"; n=$((n+1)); continue
+        fi
+        rm -rf -- "$d"
+        if [ -e "$d" ]; then
+            say "FAILED  could not remove scratch build dir ${d#"$ROOT"/}"; SCRATCH_FAILED=1
+        else
+            n=$((n+1)); freed=$((freed+${g:-0}))
+        fi
+    done < <(find "$work" -xdev -type d \( -name target -o -name 'target-*' \) -prune -print0 2>/dev/null)
+    if [ "$DRY" != 1 ] && [ "$n" -gt 0 ]; then
+        say "OK      removed $n scratch build dir(s) under .context/working, about ${freed} GiB"
+    elif [ "$n" = 0 ] && [ "$QUIET" != 1 ]; then
+        say "nothing to do: no scratch build dir under .context/working untouched for ${SCRATCH_DAYS}+ days"
+    fi
+}
+scratch_trim
 
 DEBUG="$ROOT/target/debug" MUT="$ROOT/target/arc011-mutants"
 [ -d "$ROOT/target" ] || { [ "$QUIET" = 1 ] || say "nothing to do: no $ROOT/target"; exit 0; }

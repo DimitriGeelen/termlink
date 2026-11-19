@@ -50,6 +50,30 @@ check "5 clean ran but freed nothing: FAILED, exit 1" '[ $rc = 1 ] && grep -q "F
 setup 45; out=$(CARGO_BIN="$T/no-cargo" run); rc=$?
 check "6 cargo missing: tooling, exit 2, nothing removed" '[ $rc = 2 ] && [ -d "$T/repo/target/debug" ]'
 
+# ---- T-3820 (ruling A): cargo build dirs under .context/working/ ------------------------------------------------
+W="$T/repo/.context/working"
+cargo_dir() {  # <path> <age: old|new> [marker: tag|debug|none]
+    mkdir -p "$1"
+    case "${3:-tag}" in tag) echo "Signature: 8a477f597d28d172789f06886806bc55" > "$1/CACHEDIR.TAG" ;; debug) mkdir -p "$1/debug" ;; none) : ;; esac
+    echo 4 > "$1/.fake-gib"; mkdir -p "$1/x"; echo data > "$1/x/f"
+    [ "$2" = old ] && find "$1" -exec touch -h -d '10 days ago' {} +
+    return 0
+}
+setup 12; cargo_dir "$W/t3700/target" old; cargo_dir "$W/t3701/target-w1" old debug; out=$(run --quiet); rc=$?
+check "7 old scratch cargo dirs removed even with target/debug below the threshold; OK line; rc 0" \
+    '[ $rc = 0 ] && [ ! -e "$W/t3700/target" ] && [ ! -e "$W/t3701/target-w1" ] && grep -q "OK      removed 2 scratch build dir(s) under .context/working, about 8 GiB" <<< "$out" && [ -d "$T/repo/target/debug" ]'
+setup 12; cargo_dir "$W/t3702/target" new; out=$(run --quiet); rc=$?
+check "8 a scratch cargo dir used in the last 3 days is kept" '[ $rc = 0 ] && [ -e "$W/t3702/target/CACHEDIR.TAG" ]'
+setup 12; cargo_dir "$W/notes/target" old none; out=$(run --quiet); rc=$?
+check "9 an old dir named target without cargo markers is kept" '[ $rc = 0 ] && [ -e "$W/notes/target/x/f" ]'
+setup 12; cargo_dir "$W/t3703/target" old; sleep 39.3820 & SP=$!; out=$(BUSY='^sleep 39\.3820' run); rc=$?; kill "$SP" 2>/dev/null; wait "$SP" 2>/dev/null; SP=""
+check "10 a running build: scratch dirs untouched, skip line" '[ $rc = 0 ] && [ -e "$W/t3703/target/CACHEDIR.TAG" ] && grep -q "skip    scratch build dirs under .context/working: a build is running" <<< "$out"'
+setup 12; cargo_dir "$W/t3704/target" old; out=$(run --dry-run); rc=$?
+check "11 dry-run lists the scratch dir and removes nothing" '[ $rc = 0 ] && [ -e "$W/t3704/target/CACHEDIR.TAG" ] && grep -q "\[DRY\]   would remove scratch build dir .context/working/t3704/target (4 GiB" <<< "$out"'
+setup 12; rm -rf "$T/outside"; cargo_dir "$T/outside/target" old; mkdir -p "$W"; ln -s "$T/outside" "$W/link"; ln -s "$T/outside/target" "$W/target-ln"; out=$(run --quiet); rc=$?
+check "12 never through a symlink: a cargo dir outside .context/working is untouched" '[ $rc = 0 ] && [ -e "$T/outside/target/CACHEDIR.TAG" ] && [ -L "$W/target-ln" ]'
+rm -rf "$T/outside"
+
 echo "---"
 echo "target-cache-trim fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]
