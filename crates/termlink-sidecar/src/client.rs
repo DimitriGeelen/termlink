@@ -41,6 +41,7 @@ fn usage() -> i32 {
     eprintln!("usage: termlink-sidecar send --to <agent|main> [--to-instance <instance>] [--conv <conv>] --body <text> [--priority <n>]");
     eprintln!("       termlink-sidecar reply --conv <conv> --in-reply-to <msg_id> --body <text>");
     eprintln!("       termlink-sidecar status [--msg-id <id>] [--conv <conv>] [--json]");
+    eprintln!("       termlink-sidecar peek [--from <offset>] [--limit <n>] [--json]   (own inbox, signed read, changes nothing)");
     eprintln!("       termlink-sidecar admin held [--body] | allow|deny --key <fingerprint> --why <text> | drain|undrain --why <text> | attention [--since N] | delivery off|on --why <text> [--all [--list FILE]]  [--socket <admin socket>]");
     2
 }
@@ -272,6 +273,16 @@ pub fn main_client(verb: &str, args: &[&str]) -> i32 {
             }
             if let Some(c) = get("conv") {
                 r["conv"] = json!(c);
+            }
+            (status_socket(), r)
+        }
+        "peek" => {
+            let mut r = json!({"op": "peek"});
+            for k in ["from", "limit"] {
+                if let Some(v) = get(k) {
+                    let Ok(n) = v.parse::<u64>() else { return usage() };
+                    r[k] = json!(n);
+                }
             }
             (status_socket(), r)
         }

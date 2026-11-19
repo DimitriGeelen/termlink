@@ -110,6 +110,7 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         control::method::CHANNEL_RECEIPTS => {
             crate::channel::handle_channel_receipts(id, &req.params).await
         }
+        control::method::CHANNEL_FIRST_AT => crate::channel::handle_channel_first_at(id, &req.params),
         control::method::CHANNEL_CLAIM => {
             crate::channel::handle_channel_claim(id, &req.params, peer_addr).await
         }

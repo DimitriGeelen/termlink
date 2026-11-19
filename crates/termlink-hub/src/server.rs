@@ -818,6 +818,7 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         // with no side effects and must require only Observe.
         control::method::CHANNEL_LIST
         | control::method::CHANNEL_SUBSCRIBE
+        | control::method::CHANNEL_FIRST_AT
         | control::method::CHANNEL_RECEIPTS
         | control::method::CHANNEL_CLAIMS
         | control::method::CHANNEL_CLAIMS_SUMMARY
@@ -2471,6 +2472,7 @@ mod tests {
             // Observe — pure reads, no side effects
             (m::CHANNEL_LIST, Observe),
             (m::CHANNEL_SUBSCRIBE, Observe),
+            (m::CHANNEL_FIRST_AT, Observe),
             (m::CHANNEL_RECEIPTS, Observe),
             (m::CHANNEL_CLAIMS, Observe),
             (m::CHANNEL_CLAIMS_SUMMARY, Observe),

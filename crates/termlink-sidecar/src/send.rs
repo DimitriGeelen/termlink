@@ -301,6 +301,21 @@ impl Sender {
         self.inner.post_stage(to_agent, st)
     }
 
+    /// T-3700 (AL-30, ruling E): the signed `reader` object for one read or claim of `topic` at
+    /// `position`, so the hub lists this sidecar as a proven consumer of its own inbox.
+    pub fn read_proof(&self, topic: &str, method: &str, position: u64) -> Value {
+        let c = &self.inner.cfg;
+        let ts = crate::store::now_ms() as i64;
+        let bytes = termlink_session::inbox_read::read_sign_bytes(&c.declared_hub_id, topic, method, position, ts, &c.agent, &c.instance);
+        json!({
+            "agent": c.agent,
+            "instance": c.instance,
+            "ts_ms": ts,
+            "signer_pk": c.identity.public_key_hex(),
+            "sig": c.identity.sign_hex(&bytes),
+        })
+    }
+
     /// The agent's own fingerprint.
     pub fn fingerprint(&self) -> &str {
         self.inner.cfg.identity.fingerprint()
@@ -360,6 +375,24 @@ impl Sender {
     /// declared one, like every other post.
     pub fn post_note(&self, topic: &str, msg_type: &str, payload: &[u8], retention: Value) -> Result<(), String> {
         self.inner.post_note(topic, msg_type, payload, retention)
+    }
+
+    /// T-3700 (operator ruling D, 2026-11-19): read this agent's own inbox from `from` without changing
+    /// anything — no cursor, stage or store write. The read is signed, so the hub lists it as this
+    /// sidecar (never a second consumer) and lets it through a bind. Refused on a hub that is not the
+    /// declared one, like every other call.
+    pub fn peek_inbox(&self, from: u64, limit: u64) -> Result<Value, String> {
+        self.inner.check_pin().map_err(|e| format!("{e:?}"))?;
+        let topic = inbox_topic(&self.inner.cfg.declared_hub_id, &self.inner.cfg.agent);
+        let params = json!({"topic": topic, "cursor": from, "limit": limit.clamp(1, 100),
+                            "reader": self.read_proof(&topic, termlink_protocol::control::method::CHANNEL_SUBSCRIBE, from)});
+        match self.inner.rpc(termlink_protocol::control::method::CHANNEL_SUBSCRIBE, params)? {
+            RpcResponse::Success(s) => Ok(json!({"topic": topic, "from": from, "result": s.result})),
+            RpcResponse::Error(e) if e.error.code == termlink_protocol::control::error_code::CHANNEL_TOPIC_UNKNOWN => {
+                Ok(json!({"topic": topic, "from": from, "result": {"messages": [], "next_cursor": from}}))
+            }
+            RpcResponse::Error(e) => Err(format!("channel.subscribe: {} ({})", e.error.message, e.error.code)),
+        }
     }
 }
 

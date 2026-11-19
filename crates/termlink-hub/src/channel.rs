@@ -1515,6 +1515,31 @@ pub async fn handle_channel_subscribe(id: Value, params: &Value, peer_addr: Opti
     handle_channel_subscribe_with(bus, id, params).await
 }
 
+/// T-3700: `channel.first_at` — offset and timestamp of the first record at or after `from_offset`, no
+/// content. Liveness checks of another agent's inbox use it, so they are not consumers of that inbox.
+pub fn handle_channel_first_at(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let from = params.get("from_offset").and_then(|v| v.as_u64()).unwrap_or(0);
+    match bus.subscribe(topic, from) {
+        Ok(mut it) => match it.next() {
+            Some(Ok((offset, env))) => Response::success(id, json!({"offset": offset, "ts": env.ts_unix_ms})).into(),
+            None => Response::success(id, json!({"offset": null, "ts": null})).into(),
+            Some(Err(e)) => ErrorResponse::new(id, -32603, &format!("channel.first_at: {e}")).into(),
+        },
+        Err(termlink_bus::BusError::UnknownTopic(t)) => {
+            ErrorResponse::new(id, error_code::CHANNEL_TOPIC_UNKNOWN, &format!("channel.first_at: unknown topic '{t}'")).into()
+        }
+        Err(e) => ErrorResponse::new(id, -32603, &format!("channel.first_at: {e}")).into(),
+    }
+}
+
 /// T-3700 (06a AL-30, operator rulings E and D 2026-11-19): record the reader of an inbox read or claim
 /// and enforce a bind. `None` lets the call proceed. Non-inbox topics are untouched.
 pub(crate) fn consumer_gate(

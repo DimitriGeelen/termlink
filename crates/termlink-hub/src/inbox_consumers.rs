@@ -29,17 +29,12 @@ pub const DEFAULT_WINDOW_S: u64 = 86_400;
 pub const ACK_INSTANCE: &str = "-";
 /// The agent recorded for a caller that names no reader.
 pub const UNNAMED: &str = "(unnamed)";
-/// Domain prefix of the read-proof bytes; distinct from every post signature.
-pub const READ_DOMAIN: &str = "termlink-inbox-read/v1";
+/// Domain prefix of the read-proof bytes (shared with the sidecar through `termlink-session`).
+pub use termlink_session::inbox_read::{READ_DOMAIN, read_sign_bytes};
 
 /// Topics this module applies to.
 pub fn applies(topic: &str) -> bool {
     topic.starts_with("inbox:")
-}
-
-/// The bytes a reader signs (design 2.1.2).
-pub fn read_sign_bytes(hub_id: &str, topic: &str, method: &str, position: u64, ts_ms: i64, agent: &str, instance: &str) -> Vec<u8> {
-    format!("{READ_DOMAIN}\n{hub_id}\n{topic}\n{method}\n{position}\n{ts_ms}\n{agent}\n{instance}").into_bytes()
 }
 
 /// The `reader` object of a read or claim.

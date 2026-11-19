@@ -136,6 +136,11 @@ pub mod method {
     /// Params: `{ topic, cursor?, limit? }` → `{ messages: [...], next_cursor }`.
     pub const CHANNEL_SUBSCRIBE: &str = "channel.subscribe";
 
+    /// T-3700 — the offset and timestamp of the first record at or after `from_offset`, without its
+    /// content. Not an inbox read: it does not record a consumer (liveness checks of another agent's inbox).
+    /// Params: `{ topic, from_offset? }` → `{ offset: n|null, ts: ms|null }`.
+    pub const CHANNEL_FIRST_AT: &str = "channel.first_at";
+
     /// Tier-A — list existing topics (optional prefix filter).
     /// Params: `{ prefix? }` → `{ topics: [{name, last_offset, retention}] }`.
     pub const CHANNEL_LIST: &str = "channel.list";

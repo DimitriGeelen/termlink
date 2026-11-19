@@ -32,6 +32,7 @@ pub mod hub_capabilities;
 pub mod audit_append;
 pub mod event_log;
 pub mod inbox_channel;
+pub mod inbox_read;
 pub mod input_meter;
 pub mod procinfo;
 pub mod invocation_audit;

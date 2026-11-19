@@ -161,7 +161,7 @@ pub fn run(prefix: &[&str], args: &[String]) -> i32 {
         ["hook", event] => hook::main_hook(event),
         ["hook", event, "--tool", t] => hook::main_hook_with(event, Some(t)),
         ["finalize", "--nonce", n] => hook::main_finalize(n),
-        [verb @ ("send" | "reply" | "status" | "admin"), rest @ ..] => client::main_client(verb, rest),
+        [verb @ ("send" | "reply" | "status" | "peek" | "admin"), rest @ ..] => client::main_client(verb, rest),
         _ => usage(&cmd),
     }
 }

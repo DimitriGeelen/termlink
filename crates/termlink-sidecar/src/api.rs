@@ -95,6 +95,8 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         // P-26 (AL-39, K-20): the PreToolUse hook reports one vendor-channel use.
         "vendor-use" => (Scope::Send, &["session", "tool", "boot_id", "mono_ns"]),
         "status" => (Scope::Status, &["msg_id", "conv"]),
+        // T-3700 (ruling D): read the own inbox from `from` (default: the receive cursor), changing nothing
+        "peek" => (Scope::Status, &["from", "limit"]),
         "delivery" => (Scope::Admin, &["state", "why"]),
         "held" => (Scope::Admin, &["body"]),
         "allow" => (Scope::Admin, &["key", "why"]),
@@ -481,6 +483,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
             }
             v
         }
+        "peek" => peek(obj, sender, store),
         "send" => bound_send(metered_send(send(obj, sender, book, agent), obj, ctx.meter), obj, ctx.deliverer, store),
         "delivery" => delivery(obj, store, who),
         "held" => held(obj, store),
@@ -514,6 +517,25 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
             &format!("op {op:?} is not served yet"),
             "arrives with the reply path (B11)",
         ),
+    }
+}
+
+/// T-3700 (ruling D): a diagnostic look at the own inbox through this sidecar's signed reader.
+fn peek(obj: &serde_json::Map<String, Value>, sender: Option<&Sender>, store: &Store) -> Value {
+    let Some(sender) = sender else {
+        return err("not-configured", "this sidecar has no hub path configured", "start it with a hub address and a hub id");
+    };
+    let cursor = || -> u64 {
+        store.read_state(crate::pull::CURSOR_STATE).ok().flatten().and_then(|s| s.trim().parse().ok()).unwrap_or(0)
+    };
+    let from = obj.get("from").and_then(Value::as_u64).unwrap_or_else(cursor);
+    let limit = obj.get("limit").and_then(Value::as_u64).unwrap_or(20);
+    match sender.peek_inbox(from, limit) {
+        Ok(mut v) => {
+            v["ok"] = Value::Bool(true);
+            v
+        }
+        Err(e) => err("hub", &format!("peek: {e}"), "check `status` (hub, revocation, consumers)"),
     }
 }
 
@@ -1255,6 +1277,8 @@ fn status_at(
         "hub_signing_key": crate::hub_key_pin::status(store, hub_id),
         // T-3703 (OBS-41, design 5.5): `revocation` and the `refused_revoked` count
         "revocation": crate::revocation::status(store),
+        // T-3700 (AL-30, OBS-56): who consumes this inbox; `unknown`, never "one", when unreadable
+        "consumers": crate::consumers::status(store),
         "stages": STAGES,
         "rows": rows,
         "messages": msgs,

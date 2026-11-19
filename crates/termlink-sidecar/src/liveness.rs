@@ -211,17 +211,31 @@ pub fn read(hub: &dyn Hub, topic: &str, inbox: &str) -> Read {
     };
     let oldest_waiting_ms = match &note {
         Err(_) => None,
-        Ok(n) => match hub.call(method::CHANNEL_SUBSCRIBE, json!({"topic": inbox, "cursor": n.drained_up_to, "limit": 1})) {
-            Ok(v) => v
-                .get("messages")
-                .and_then(Value::as_array)
-                .and_then(|m| m.iter().find(|e| e.get("offset").and_then(Value::as_u64).is_some_and(|o| o >= n.drained_up_to)))
-                .map(|e| e.get("ts").and_then(Value::as_u64).unwrap_or(0)),
+        // T-3700: the timestamp only, so this check is not a consumer of the main's inbox (AL-30)
+        Ok(n) => match hub.call(method::CHANNEL_FIRST_AT, json!({"topic": inbox, "from_offset": n.drained_up_to})) {
+            Ok(v) => v.get("ts").and_then(Value::as_u64).filter(|_| v.get("offset").and_then(Value::as_u64).is_some()),
             Err((Some(code), _)) if code == error_code::CHANNEL_TOPIC_UNKNOWN => None,
-            Err((_, e)) => return Read::Unreadable(format!("channel.subscribe {inbox}: {e}")),
+            // a hub that predates channel.first_at: the one-message read (recorded as a consumer there)
+            Err(_) => match oldest_by_subscribe(hub, inbox, n.drained_up_to) {
+                Ok(t) => t,
+                Err(e) => return Read::Unreadable(e),
+            },
         },
     };
     Read::Note { note, signer, oldest_waiting_ms }
+}
+
+/// The pre-T-3700 way to find the oldest waiting message: read one message at `from`.
+fn oldest_by_subscribe(hub: &dyn Hub, inbox: &str, from: u64) -> Result<Option<u64>, String> {
+    Ok(match hub.call(method::CHANNEL_SUBSCRIBE, json!({"topic": inbox, "cursor": from, "limit": 1})) {
+        Ok(v) => v
+            .get("messages")
+            .and_then(Value::as_array)
+            .and_then(|m| m.iter().find(|e| e.get("offset").and_then(Value::as_u64).is_some_and(|o| o >= from)))
+            .map(|e| e.get("ts").and_then(Value::as_u64).unwrap_or(0)),
+        Err((Some(code), _)) if code == error_code::CHANNEL_TOPIC_UNKNOWN => None,
+        Err((_, e)) => return Err(format!("channel.subscribe {inbox}: {e}")),
+    })
 }
 
 /// Move the alarm latch for a verdict; returns the needs-attention entry written, if any.

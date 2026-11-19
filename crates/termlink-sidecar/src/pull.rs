@@ -113,6 +113,8 @@ struct Inner {
 
 #[derive(Default)]
 struct PassMemory {
+    /// T-3700: when the consumer list was last checked (ms).
+    consumers_checked_ms: u64,
     held: Option<String>,
     /// The last per-message failure written to attention, so a stuck message
     /// is reported once rather than every pass.
@@ -386,6 +388,23 @@ impl Inner {
         t.tick(&self.store, version, &rpc, std::time::Instant::now(), Some(&self.sender));
     }
 
+    /// T-3700 (AL-30, E-66): ask the hub who consumed this inbox within the V-11 window and record it.
+    fn check_consumers(&self, mem: &mut PassMemory) {
+        let now = crate::store::now_ms();
+        if mem.consumers_checked_ms != 0 && now < mem.consumers_checked_ms + crate::consumers::CHECK_EVERY_MS {
+            return;
+        }
+        mem.consumers_checked_ms = now;
+        let topic = inbox_topic(&self.cfg.declared_hub_id, &self.cfg.agent);
+        let answer = self.rpc("inbox.consumers", json!({"topic": topic, "window_s": crate::consumers::WINDOW_S}));
+        let v = match &answer {
+            Ok(RpcResponse::Success(s)) => crate::consumers::verdict(&self.cfg.agent, &self.cfg.instance, Ok(&s.result)),
+            Ok(RpcResponse::Error(e)) => crate::consumers::verdict(&self.cfg.agent, &self.cfg.instance, Err((e.error.code, &e.error.message))),
+            Err(e) => crate::consumers::verdict(&self.cfg.agent, &self.cfg.instance, Err((0, &format!("hub unreachable: {e}")))),
+        };
+        crate::consumers::record(&self.store, &topic, &v, now);
+    }
+
     fn cursor(&self) -> u64 {
         self.store
             .read_state(CURSOR_STATE)
@@ -445,13 +464,17 @@ impl Inner {
         };
         // T-3703 (design 5.4): the revocation head is compared before any message is handled.
         self.pull_revocations(&version);
+        // T-3700 (AL-30): who else consumes this inbox (at most every CHECK_EVERY_MS)
+        self.check_consumers(mem);
         let topic = inbox_topic(&self.cfg.declared_hub_id, &self.cfg.agent);
         let mut handled = 0;
         loop {
             let cursor = self.cursor();
             let resp = match self.rpc(
                 method::CHANNEL_SUBSCRIBE,
-                json!({"topic": topic, "cursor": cursor, "limit": self.cfg.page}),
+                // T-3700 (AL-30, ruling E): a named, signed read of our own inbox (proven consumer)
+                json!({"topic": topic, "cursor": cursor, "limit": self.cfg.page,
+                       "reader": self.sender.read_proof(&topic, method::CHANNEL_SUBSCRIBE, cursor)}),
             ) {
                 Ok(r) => r,
                 Err(_) => return PassResult::Waiting,
