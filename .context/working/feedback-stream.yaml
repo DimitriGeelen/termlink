@@ -24903,3 +24903,21 @@ scan_id: R-badf310b
 task_id: T-3824
 payload:
   task_file: .tasks/active/T-3824-re-vendor-aef-be57---be59-t-5225-cross-s.md
+---
+kind: scan_emitted
+timestamp: '2026-11-19T08:26:55Z'
+scan_id: R-7713bf18
+task_id: T-3823
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-19T08:26:55Z'
+scan_id: R-7713bf18
+task_id: T-3823
+payload:
+  task_file: .tasks/active/T-3823-p-31-code-follow-ups-from-the-t-3704-and.md

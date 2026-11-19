@@ -5,12 +5,12 @@ description: >
   The code criteria P-31 (T-3713) inherited from the T-3704 and T-3703 review dispositions,
   split from the deployment task
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/channel.rs, crates/termlink-sidecar/src/pull.rs, crates/termlink-sidecar/tests/deliver_tests.rs, scripts/arc011-w1-provision.sh, tests/arc011-w1-provision-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -39,8 +39,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-18T19:32:22Z
-last_update: '2026-11-18T22:31:12Z'
-date_finished:
+last_update: 2026-11-19T08:26:05Z
+date_finished: 2026-11-19T08:26:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -396,3 +396,21 @@ grep -q 'claude-termlink-alt=' /etc/termlink-sidecar/claude-termlink.json
 
 ### 2026-11-18T22:31:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-19T08:26:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7713bf18
+- **Timestamp:** 2026-11-19T08:26:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — (from T-3704 r3 dispositions) receiver half live: with named rosters on the W1 pair, a forged post claiming a bound name is refused at the receiver with the hub check off (W1 provision writes `agent=h
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=examples/t3823_forge.rs in: (from T-3704 r3 dispositions) receiver half live: with named rosters on the W1 pair, a forged post claiming a bound name is refused at the receiver wi`

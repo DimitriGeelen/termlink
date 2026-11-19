@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3823: P-31 code follow-ups from the T-3704 and T-3703 reviews
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-19T08:27:03Z
+# ============================================================================
+
+task_id: T-3823
+task_name: "P-31 code follow-ups from the T-3704 and T-3703 reviews"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-18T19:32:22Z
+completed: 2026-11-19T08:26:05Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-18T23:33:31+01:00
+last_commit: 2026-11-19T09:26:04+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  revocation caches — hub list cache keyed on the file digest too, committed keys cached by the admin log's stamp; sidecar no-snapshot fallback cached by (len, mtime). sidecar card attention keyed on (agent, seq, signing key) with a persisted baseline; entries on a setting change and on an unreadable card list. key-card setting baselined (an outside edit can never weaken the check, admin row per value); the card's own key exempt from the 16-signer cap. crash test — an orphan claim from a kill right after the claim is closed at restart and the revocation sweep then refuses the message. W1 rosters bind each partner key to its agent name; a changed sidecar config restarts that sidecar (stop, start) so it is loaded. one-off live forge example (a real rostered key claiming another name) and the T-3823 mutant runner. receiver half live — a forged post on the W1 pair refused by the named roster (hub check in log). mutants 6/6 killed; verification block
+
+# Key outcomes
+outcomes:
+  - '(from T-3704 r3 dispositions) receiver half live: with named rosters on the W1 pair, a forged post claiming a bound name is refused at the receiver with the hub check off (W1 provision writes `agent=hex` rosters and restarts a sidecar whose config changed; deployed by runme-20261119T075948Z rc=0. Live 2026-11-19 08:23Z, hub check in `log` (refuses nothing): `examples/t3823_forge.rs` sent one message signed with claude-termlink-alt''s real key claiming `fx-forged` to claude-termlink; its chain `t3823-forge` holds only REFUSED (msg 1017e248…, nothing STORED), attention "the claimed from_agent and the signer key are bound to different agents in the roster")'
+  - '(from T-3704 r3) sidecar `key-card-written` entry keyed on (agent, seq, signing key); attention on a `hub.key_card_list` error and on a `key-card-mode` change; last-seen persisted so a fresh sidecar raises nothing for existing cards (`pull.rs` states `key-cards-seen`, `key-card-mode-seen`; a hub predating cards stays silent; real-hub test `t3823_card_attention_baseline_new_card_mode_change_and_unreadable_list`)'
+  - '(from T-3704 r3) the setting file baselined like the store digest (an outside change while running is refused or raises attention); the card''s own key exempt from the 16-signer cap (`KNOWN_MODE` set at start and on every admin write; an outside edit can never weaken the check, the stricter of baseline and edit is in force, one `key-card-mode-outside-edit` admin row per value; `note_refusal(.., own_key)` for KEY_REVOKED refusals; tests `t3823_an_outside_edit_of_the_setting_is_refused`, `t3823_the_cards_own_key_is_exempt_from_the_signer_cap`; hub suite 643/0)'
+  - '(from T-3703 r3 CC N3) an attempt whose claim has no attempt record after a sidecar restart is closed by `recover()` and the revocation sweep re-run; crash test through the real deliver path shows a stored message from a revoked key ends REFUSED with its notice (`recover()` already closed such orphans with `ABSENT attempt=N orphan`, the form the sweep reads as closed; the sweep runs on every verified pull. Test `t3823_an_orphan_claim_is_closed_at_restart_and_the_revocation_sweep_then_refuses` uses the real kill point `AfterClaim`; the signed notice is the sweep''s same path as E-39, proven on a real hub in `t3703_revocation_sidecar`)'
+  - '(from T-3703 r3 CC N5 / OC 4) the hub caches the committed-key set by the admin log''s stamp during a pending reconcile and keys its list cache on the list digest too; the sidecar''s no-snapshot fallback caches by (len, mtime) (`COMMITTED_CACHE`, `Stamp` = len+mtime+sha256; sidecar `FALLBACK`; tests `t3823_the_post_check_cache_sees_a_same_length_rewrite`, `t3823_the_fallback_cache_follows_the_stored_list`)'
+  - 'Each item has a test, and a mutant per item is killed (docs/reports/T-3823-mutants.md: d1..d6 6/6 killed; orphan claims by T-3703 c18 + the crash test; roster deployment by the w1-provision fixtures 2e/7c and the live forge)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3823-p-31-code-follow-ups-from-the-t-3704-and.md'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/key_card.rs'
+  - 'crates/termlink-hub/src/revocation.rs'
+  - 'crates/termlink-session/tests/mutants/run-t3823.py'
+  - 'crates/termlink-sidecar/examples/t3823_forge.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/revocation.rs'
+  - 'crates/termlink-sidecar/tests/deliver_tests.rs'
+  - 'crates/termlink-sidecar/tests/t3704_impersonation.rs'
+  - 'docs/reports/T-3823-mutants.md'
+  - 'scripts/arc011-w1-provision.sh'
+  - 'tests/arc011-w1-provision-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-18T23:33:31'
+    action: 'T-3823: revocation caches — hub list cache keyed on the file digest too, committed keys cached by the admin log''s stamp; sidecar no-snapshot fallback cached by (len, mtime)'
+  - time: '2026-11-18T23:36:34'
+    action: 'T-3823: sidecar card attention keyed on (agent, seq, signing key) with a persisted baseline; entries on a setting change and on an unreadable card list'
+  - time: '2026-11-18T23:42:00'
+    action: 'T-3823: key-card setting baselined (an outside edit can never weaken the check, admin row per value); the card''s own key exempt from the 16-signer cap'
+  - time: '2026-11-18T23:43:28'
+    action: 'T-3823: crash test — an orphan claim from a kill right after the claim is closed at restart and the revocation sweep then refuses the message'
+  - time: '2026-11-18T23:45:58'
+    action: 'T-3823: W1 rosters bind each partner key to its agent name; a changed sidecar config restarts that sidecar (stop, start) so it is loaded'
+  - time: '2026-11-18T23:47:47'
+    action: 'T-3823: one-off live forge example (a real rostered key claiming another name) and the T-3823 mutant runner'
+  - time: '2026-11-19T09:23:40'
+    action: 'T-3823: receiver half live — a forged post on the W1 pair refused by the named roster (hub check in log)'
+  - time: '2026-11-19T09:26:04'
+    action: 'T-3823: mutants 6/6 killed; verification block'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 773 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 773
+  commits: 9
+  files_changed: 16
+  lines_added: 696
+  lines_removed: 41
+  footprint_refreshed_at: '2026-11-19T08:27:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3823-p-31-code-follow-ups-from-the-t-3704-and.md
+generated_by: context-agent-hybrid
