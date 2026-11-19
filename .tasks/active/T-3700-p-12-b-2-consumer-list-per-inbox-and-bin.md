@@ -384,6 +384,21 @@ Unblocks: P-24 (T-3708); part of gate G-2 (the T1 release).
 
 ## Decisions
 
+### 2026-11-19 — How the hub identifies an inbox reader (F-1): E, named + signed reads (operator ruling)
+- **Chose:** E (A+B). Every inbox read and claim carries the reader's agent name; a reader with a key card also signs
+  the read (inbox, cursor, timestamp, hub id; the key it signs posts with) and the hub checks it against the card.
+  Each consumer is listed `proven` or `claimed`. Before a bind unsigned readers are allowed, listed `claimed`, flagged.
+  After a bind only reads signed with the bound agent's key pass; a matching name alone is refused.
+- **Why:** reads carry no caller identity today (spec extract F-1), so the design's "[B] authenticated caller" does not
+  hold. A alone cannot tell two copies of one agent name apart (V-12); E can, and a bind holds by key, not name. Root
+  on .107 can still read key files; E closes that when PH-4 accounts arrive, without rework. Operator, on the first
+  brief: "A still doesn't solve a problem that everybody can be" — the brief had omitted A+B; added as E and rescored
+  (A +28, B +17, C −27, E +39).
+- **Rejected:** A (names only: spoofable, misses a same-name second copy); B (signed only: every key-less tool refused
+  outright, no `claimed` visibility); C (postpone to PH-4: BP-15 stays invisible, blocks P-24/P-36/G-2).
+- **Left open:** the rule for the operator's diagnostic peeks (CLI/MCP inbox reads) — to be proposed in the design and
+  brought back; each bind remains an operator runme action. Design text 06a 2.14.h is corrected under this task.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:

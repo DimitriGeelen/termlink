@@ -35,3 +35,12 @@ Prepared 2026-11-19. Paths relative to `docs/design/` unless stated.
 
 So AL-30 can key acks on an authenticated identity, but reads (the BP-15 shape that CR-6.33 added) and claims only on a
 caller-declared name. How to identify readers is an operator decision (brief in the T-3700 `## Decisions` once ruled).
+
+## Dialogue Log
+
+1. 2026-11-19 — Brief on F-1 offered A (named reads), B (signed reads), C (postpone), recommending A.
+2. Operator: "A still doesn't solve a problem that everybody can be, so I don't see the A plus B here as an option."
+   Correction: the brief had left out A+B. Added as E (name every read; sign where a key card exists; `proven` /
+   `claimed`; bind holds by key). A rescored down on Reliability (cannot tell a same-name second copy apart, V-12).
+   Totals A +28, B +17, C −27, E +39; recommendation revised to E.
+3. Operator ruling: **E**. Recorded in T-3700 `## Decisions`. Open: rule for operator diagnostic peeks.
