@@ -24939,3 +24939,21 @@ scan_id: R-9722d67d
 task_id: T-3712
 payload:
   task_file: .tasks/active/T-3712-p-28-b-18-deny-half-sendmessage-deny-run.md
+---
+kind: scan_emitted
+timestamp: '2026-11-19T15:37:37Z'
+scan_id: R-c3ced7c6
+task_id: T-3820
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-19T15:37:37Z'
+scan_id: R-c3ced7c6
+task_id: T-3820
+payload:
+  task_file: .tasks/active/T-3820-keep-opttermlink-disk-use-bounded-shared.md

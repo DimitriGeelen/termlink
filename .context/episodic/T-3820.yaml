@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3820: Keep /opt/termlink disk use bounded: shared CARGO_TARGET_DIR for scratch builds + weekly clean of stale build dirs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-19T15:37:46Z
+# ============================================================================
+
+task_id: T-3820
+task_name: "Keep /opt/termlink disk use bounded: shared CARGO_TARGET_DIR for scratch builds + weekly clean of stale build dirs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-18T09:00:24Z
+completed: 2026-11-19T15:37:31Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-19T16:37:28+01:00
+last_commit: 2026-11-19T16:37:28+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  weekly trim also removes cargo build dirs under .context/working untouched 3+ days (operator ruling A); fixtures 12/0
+
+# Key outcomes
+outcomes:
+  - '`scripts/target-cache-trim.sh` also removes cargo build dirs under `.context/working/` (a dir named `target` holding a `CACHEDIR.TAG` or a `debug`/`release` subdir, or a `target-*` dir) whose newest file is older than 3 days; skipped entirely while a build runs (same busy check); each removal verified on disk (gone, else FAILED, exit 1) (`scratch_trim`, runs before and independent of the target/debug threshold; a failure turns the exit to 1 via the EXIT trap)'
+  - 'Never touches anything else: a dir without cargo markers, a dir newer than 3 days, anything outside `.context/working/`, or a path through a symlink (find -P -xdev, realpath prefix check, symlinked dirs skipped)'
+  - 'Fixtures cover remove / keep-new / keep-non-cargo / busy-skip / dry-run / symlink, and the existing fixtures still pass (tests/target-cache-trim-fixtures.sh 12/0: 1-6 unchanged, 7-12 new)'
+  - 'The installed weekly cron runs this script from the repo, so no runme run is needed (checked: `/etc/cron.d/termlink-target-cache-trim` runs `cd /opt/termlink && bash scripts/target-cache-trim.sh --quiet` Sun 04:30; real-repo dry run 2026-11-19: no scratch dir to remove now, target/debug 48 GiB would be trimmed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'weekly trim also removes cargo build dirs under .context/working untouched 3+ days (operator ruling A); fixtures 12/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-19 — How to keep scratch build dirs from filling /opt again (operator ruling)'
+    chose: 'A — extend the existing weekly trim (T-3799, Sun 04:30) to remove cargo build dirs under `.context/working/` untouched for 3+ days; never during a build; verified on disk.'
+    rationale: 'closes exactly the gap behind the 2026-11-18 97% event with the smallest change; one job, already tested and installed; no change to how workers build.'
+    alternatives_rejected: ['B, one shared CARGO_TARGET_DIR for all workers (least disk, but parallel workers serialize on cargo''s build lock, so builds slow down); C, do nothing and watch (the last regrowth went unnoticed until 97%).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3820-keep-opttermlink-disk-use-bounded-shared.md'
+  - 'scripts/target-cache-trim.sh'
+  - 'tests/target-cache-trim-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-19T16:37:28'
+    action: 'T-3820: weekly trim also removes cargo build dirs under .context/working untouched 3+ days (operator ruling A); fixtures 12/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1837 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1837
+  commits: 2
+  files_changed: 6
+  lines_added: 245
+  lines_removed: 14
+  footprint_refreshed_at: '2026-11-19T15:37:54Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3820-keep-opttermlink-disk-use-bounded-shared.md
+generated_by: context-agent-hybrid
