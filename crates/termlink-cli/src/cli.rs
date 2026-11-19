@@ -1531,9 +1531,44 @@ pub(crate) enum RevocationAction {
     },
 }
 
+/// `termlink hub inbox` actions (T-3700, arc-011 B-2).
+#[derive(Subcommand)]
+pub(crate) enum HubInboxAction {
+    /// Who read, claimed or acked an inbox within the window (proven = signed by the agent's card key)
+    Consumers {
+        /// The inbox topic, e.g. inbox:<hub-id>/<agent>
+        topic: String,
+        /// Window in seconds (default 86400, the V-11 window)
+        #[arg(long)]
+        window: Option<u64>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Bind an inbox to one agent's current card key; every other reader is refused (operator; local socket only)
+    Bind {
+        topic: String,
+        #[arg(long)]
+        agent: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Remove an inbox binding (operator; local socket only)
+    Unbind {
+        topic: String,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 /// Hub server actions
 #[derive(Subcommand)]
 pub(crate) enum HubAction {
+    /// Inbox consumers and bindings (T-3700, arc-011 B-2): list who reads an inbox, bind it to one agent's
+    /// key, unbind it. Bind and unbind go over the local unix socket only and are admin-logged.
+    Inbox {
+        #[command(subcommand)]
+        action: HubInboxAction,
+    },
     /// The hub's signed revocation list (T-3703, arc-011 B-5): revoke an agent key, show the list or its
     /// head, reissue after a restore. Writes go over the local unix socket only and are admin-logged.
     Revocation {

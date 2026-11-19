@@ -1079,6 +1079,60 @@ pub(crate) async fn cmd_hub_revocation(action: crate::cli::RevocationAction) -> 
     Ok(())
 }
 
+/// T-3700: `termlink hub inbox consumers|bind|unbind` over the local hub socket.
+pub(crate) async fn cmd_hub_inbox(action: crate::cli::HubInboxAction) -> Result<()> {
+    use crate::cli::HubInboxAction as A;
+    use termlink_session::client;
+    let socket_path = termlink_hub::server::hub_socket_path();
+    let (method, params, json_out) = match action {
+        A::Consumers { topic, window, json } => {
+            let mut p = json!({"topic": topic});
+            if let Some(w) = window {
+                p["window_s"] = json!(w);
+            }
+            ("inbox.consumers", p, json)
+        }
+        A::Bind { topic, agent, json } => ("hub.inbox_bind", json!({"topic": topic, "agent": agent}), json),
+        A::Unbind { topic, json } => ("hub.inbox_unbind", json!({"topic": topic}), json),
+    };
+    let resp = tokio::time::timeout(std::time::Duration::from_secs(10), client::rpc_call(&socket_path, method, params))
+        .await
+        .map_err(|_| anyhow::anyhow!("{method}: the local hub did not answer within 10s"))??;
+    let result = client::unwrap_result(resp).map_err(|e| anyhow::anyhow!("{method}: {e}"))?;
+    if json_out {
+        println!("{result}");
+        return Ok(());
+    }
+    if method != "inbox.consumers" {
+        println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+        return Ok(());
+    }
+    match result.get("bound").and_then(|b| b.get("agent")).and_then(|a| a.as_str()) {
+        Some(a) => println!("bound: {a}"),
+        None => println!("bound: no"),
+    }
+    let list = result.get("consumers").and_then(|c| c.as_array()).cloned().unwrap_or_default();
+    if list.is_empty() {
+        println!("no reader in the window");
+    }
+    for e in list {
+        let s = |k: &str| e.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let why = s("why");
+        let acts: Vec<String> =
+            e.get("actions").and_then(|a| a.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect()).unwrap_or_default();
+        println!(
+            "{} [{}] {}{}  {}  last {}",
+            s("agent"),
+            s("instance"),
+            s("strength"),
+            if why.is_empty() { String::new() } else { format!(" ({why})") },
+            acts.join(","),
+            e.get("last_ms").and_then(|v| v.as_u64()).unwrap_or(0)
+        );
+    }
+    Ok(())
+}
+
 pub(crate) fn cmd_hub_adopt_id(dry_run: bool, expect: Option<&str>, json_output: bool) -> Result<()> {
     let dir = termlink_session::discovery::runtime_dir();
     let a = termlink_hub::hub_identity::adopt_legacy(&dir, dry_run, expect)
