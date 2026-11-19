@@ -24885,3 +24885,21 @@ scan_id: R-b094f124
 task_id: T-3822
 payload:
   task_file: .tasks/active/T-3822-hub-tests-wrote-a-fixture-key-card-into-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-19T08:21:56Z'
+scan_id: R-badf310b
+task_id: T-3824
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-19T08:21:56Z'
+scan_id: R-badf310b
+task_id: T-3824
+payload:
+  task_file: .tasks/active/T-3824-re-vendor-aef-be57---be59-t-5225-cross-s.md

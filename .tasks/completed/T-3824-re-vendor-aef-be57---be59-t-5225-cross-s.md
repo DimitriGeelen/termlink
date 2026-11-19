@@ -1,15 +1,17 @@
 ---
 id: T-3824
-name: "Re-vendor AEF be.57 -> be.59 (T-5225 cross-session messaging deny, T-5236, T-5141/5142) via runme 11a"
+name: "Re-vendor AEF be.57 -> be.59 (T-5225 cross-session messaging deny, T-5236,
+  T-5141/5142) via runme 11a"
 description: >
-  Vendor AEF v1.8.16-be.59: the TermLink-only hook T-3712 waits for (T-5225), T-5236 and the be.58 fixes; merge set for the two preserved files that changed
+  Vendor AEF v1.8.16-be.59: the TermLink-only hook T-3712 waits for (T-5225), T-5236
+  and the be.58 fixes; merge set for the two preserved files that changed
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [.claude/commands/resume.md, runme.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-18T21:09:37Z
-last_update: 2026-11-18T21:09:37Z
-date_finished: null
+last_update: 2026-11-19T08:21:54Z
+date_finished: 2026-11-19T08:21:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-19T08:21:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=1 (body:episodic-only)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3824: Re-vendor AEF be.57 -> be.59 (T-5225 cross-session messaging deny, T-5236, T-5141/5142) via runme 11a
@@ -74,8 +88,8 @@ prover's verify-record still passes.
 - [x] be.59 tag commit and ancestry confirmed before anything is built on it (tag v1.8.16-be.59 -> ea167a69d; be.57 efdf6aa3c is an ancestor, 170 commits; `agents/context/block-cross-session-messages.sh` present with `BLOCKED_TOOLS="SendMessage SendToProject SendToProjectContext"` and the FW-DENY line; T-5236 commits present; checked in `.context/working/aef-mirror`)
 - [x] Merge set stored with a manifest whose "ours" hashes equal the CURRENT vendored files (`.context/vendor-merges/T-3824`: handover.sh and sidecar_cli.py, 3-way merges base be.57, both clean; the other preserved files are unchanged be.57 -> be.59)
 - [x] runme 11a targets be.59 (tag, marker file `agents/context/block-cross-session-messages.sh`, marker `T-5225`, task T-3824, merges T-3824); dry-run shows 11a would install the 2 merged files; fixtures pass (dry-run 2026-11-18: "would upgrade 1.8.15+1761.gefdf6aa3c -> v1.8.16-be.59 (ea167a69d, 170 commits) ... install 2 merged preserved files"; fixtures pin every AEFU seam to their own be.49 scenario, last full run 437/0)
-- [ ] After the operator's run: VERSION at be.59, runme log rc=0, the vendored hook present and registered as a PreToolUse entry in `.claude/settings.json`
-- [ ] Field check (T-3712): in a fresh session a SendMessage attempt is refused with `FW-DENY: cross-session-messaging (T-5225)`; Agent dispatch still works; the session-message prover `verify-record` passes
+- [x] After the operator's run: VERSION at be.59, runme log rc=0, the vendored hook present and registered as a PreToolUse entry in `.claude/settings.json` (runme-20261119T075948Z rc=0: 11a "upgraded to 1.8.15+1931.gea167a69d; ... 12 preserved files byte-identical; 2 merged files installed", committed 851f1e419 and pushed, fw doctor no new FAIL; `.agentic-framework/VERSION` = 1.8.15+1931.gea167a69d; settings.json PreToolUse matcher `SendMessage|SendToProject|SendToProjectContext` -> `fw hook block-cross-session-messages`)
+- [x] Field check (T-3712): in a fresh session a SendMessage attempt is refused with `FW-DENY: cross-session-messaging (T-5225)`; Agent dispatch still works; the session-message prover `verify-record` passes (2026-11-19 08:2xZ, in this session after the upgrade: SendMessage to a nonexistent probe target refused by the hook with exactly "FW-DENY: cross-session-messaging (T-5225)", nothing sent; Agent's only PreToolUse hook remains check-agent-dispatch (untouched); `session-message-selftest.sh verify-record` VERIFY=PASS)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +140,11 @@ prover's verify-record still passes.
 -->
 
 ## Verification
+
+grep -q 'gea167a69d' .agentic-framework/VERSION
+grep -q 'FW-DENY: cross-session-messaging (T-5225)' .agentic-framework/agents/context/block-cross-session-messages.sh
+grep -q 'fw hook block-cross-session-messages' .claude/settings.json
+bash scripts/session-message-selftest.sh verify-record > .context/working/.t3824-v 2>&1 && grep -q 'VERIFY=PASS' .context/working/.t3824-v
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -376,3 +395,19 @@ prover's verify-record still passes.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3824-re-vendor-aef-be57---be59-t-5225-cross-s.md
 - **Context:** Initial task creation
+
+### 2026-11-19T08:21:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-19T08:21:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-badf310b
+- **Timestamp:** 2026-11-19T08:21:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

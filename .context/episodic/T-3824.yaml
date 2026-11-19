@@ -1,0 +1,151 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3824: Re-vendor AEF be.57 -> be.59 (T-5225 cross-session messaging deny, T-5236, T-5141/5142) via runme 11a
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-19T08:22:04Z
+# ============================================================================
+
+task_id: T-3824
+task_name: "Re-vendor AEF be.57 -> be.59 (T-5225 cross-session messaging deny, T-5236, T-5141/5142) via runme 11a"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-18T21:09:37Z
+completed: 2026-11-19T08:21:54Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-18T23:25:00+01:00
+last_commit: 2026-11-19T09:18:39+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 11a targets AEF be.59 (T-5225 cross-session messaging deny for T-3712, T-5236, T-5141/5142); merge set for handover.sh and sidecar_cli.py (3-way clean, ours = current tree). fw upgrade -> v1.8.16-be.59 (ea167a69d, 170 commits; T-5225; runme 11a)
+
+# Key outcomes
+outcomes:
+  - 'be.59 tag commit and ancestry confirmed before anything is built on it (tag v1.8.16-be.59 -> ea167a69d; be.57 efdf6aa3c is an ancestor, 170 commits; `agents/context/block-cross-session-messages.sh` present with `BLOCKED_TOOLS="SendMessage SendToProject SendToProjectContext"` and the FW-DENY line; T-5236 commits present; checked in `.context/working/aef-mirror`)'
+  - 'Merge set stored with a manifest whose "ours" hashes equal the CURRENT vendored files (`.context/vendor-merges/T-3824`: handover.sh and sidecar_cli.py, 3-way merges base be.57, both clean; the other preserved files are unchanged be.57 -> be.59)'
+  - 'runme 11a targets be.59 (tag, marker file `agents/context/block-cross-session-messages.sh`, marker `T-5225`, task T-3824, merges T-3824); dry-run shows 11a would install the 2 merged files; fixtures pass (dry-run 2026-11-18: "would upgrade 1.8.15+1761.gefdf6aa3c -> v1.8.16-be.59 (ea167a69d, 170 commits) ... install 2 merged preserved files"; fixtures pin every AEFU seam to their own be.49 scenario, last full run 437/0)'
+  - 'After the operator''s run: VERSION at be.59, runme log rc=0, the vendored hook present and registered as a PreToolUse entry in `.claude/settings.json` (runme-20261119T075948Z rc=0: 11a "upgraded to 1.8.15+1931.gea167a69d; ... 12 preserved files byte-identical; 2 merged files installed", committed 851f1e419 and pushed, fw doctor no new FAIL; `.agentic-framework/VERSION` = 1.8.15+1931.gea167a69d; settings.json PreToolUse matcher `SendMessage|SendToProject|SendToProjectContext` -> `fw hook block-cross-session-messages`)'
+  - 'Field check (T-3712): in a fresh session a SendMessage attempt is refused with `FW-DENY: cross-session-messaging (T-5225)`; Agent dispatch still works; the session-message prover `verify-record` passes (2026-11-19 08:2xZ, in this session after the upgrade: SendMessage to a nonexistent probe target refused by the hook with exactly "FW-DENY: cross-session-messaging (T-5225)", nothing sent; Agent''s only PreToolUse hook remains check-agent-dispatch (untouched); `session-message-selftest.sh verify-record` VERIFY=PASS)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/.tasks/templates/inception.md'
+  - '.agentic-framework/FRAMEWORK.md'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/block-cross-session-messages.sh'
+  - '.agentic-framework/agents/context/check-human-ac-tick.py'
+  - '.agentic-framework/agents/context/check-inception-recommendation.py'
+  - '.agentic-framework/agents/handover/handover.sh'
+  - '.agentic-framework/agents/task-create/create-batch.sh'
+  - '.agentic-framework/agents/task-create/create-task.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/lib-idalloc.md'
+  - '.agentic-framework/docs/generated/components/lib-idalloc_reconcile.md'
+  - '.agentic-framework/docs/generated/components/lib-quota_limits.md'
+  - '.agentic-framework/docs/generated/components/lib-quota_status.md'
+  - '.agentic-framework/docs/reports/T-5211-decision-notice-to-agent.md'
+  - '.agentic-framework/docs/reports/T-5212-batch-task-creation.md'
+  - '.agentic-framework/docs/reports/T-5221-independent-review.md'
+  - '.agentic-framework/docs/reports/T-5224-arc-orchestrator.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/designer-0.43-mapping.md'
+  - '.agentic-framework/lib/agent_notice.py'
+  - '.agentic-framework/lib/arc.sh'
+  - '.agentic-framework/lib/arc_instantiate.py'
+  - '.agentic-framework/lib/delegation_cli.py'
+  - '.agentic-framework/lib/delegation_widening.py'
+  - '.agentic-framework/lib/idalloc.sh'
+  - '.agentic-framework/lib/idalloc_reconcile.py'
+  - '.agentic-framework/lib/inception-readiness.sh'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/inception_recommendation.sh'
+  - '.agentic-framework/lib/init.sh'
+  - '.agentic-framework/lib/objectives-seed.sh'
+  - '.agentic-framework/lib/operator_pending.py'
+  - '.agentic-framework/lib/recorded_ruling.py'
+  - '.agentic-framework/lib/render_task.py'
+  - '.agentic-framework/lib/review.sh'
+  - '.agentic-framework/lib/review_cost.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/restatement_cli.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/sidecar/delivery.py'
+  - '.agentic-framework/lib/sidecar/profile_notices.py'
+  - '.agentic-framework/lib/sidecar/termlink_transport.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/task-create-rules.sh'
+  - '.agentic-framework/lib/templates/claude-project.md'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_template_shipped.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/inception.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/decide_runner.py'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/templates/_approvals_content.html'
+  - '.agentic-framework/web/templates/inception.html'
+  - '.agentic-framework/web/templates/inception_detail.html'
+  - '.claude/commands/resume.md'
+  - '.claude/settings.json'
+  - '.context/vendor-merges/T-3824/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3824/agents/handover/handover.sh.merged'
+  - '.context/vendor-merges/T-3824/lib/sidecar_cli.py.merged'
+  - '.framework.yaml'
+  - '.tasks/active/T-3712-p-28-b-18-deny-half-sendmessage-deny-run.md'
+  - '.tasks/active/T-3824-re-vendor-aef-be57---be59-t-5225-cross-s.md'
+  - 'CLAUDE.md'
+  - 'runme.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-18T23:25:00'
+    action: 'T-3824: runme 11a targets AEF be.59 (T-5225 cross-session messaging deny for T-3712, T-5236, T-5141/5142); merge set for handover.sh and sidecar_cli.py (3-way clean, ours = current tree)'
+  - time: '2026-11-19T09:18:39'
+    action: 'T-3824: fw upgrade -> v1.8.16-be.59 (ea167a69d, 170 commits; T-5225; runme 11a)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 672 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 672
+  commits: 3
+  files_changed: 73
+  lines_added: 8779
+  lines_removed: 662
+  footprint_refreshed_at: '2026-11-19T08:22:11Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3824-re-vendor-aef-be57---be59-t-5225-cross-s.md
+generated_by: context-agent-hybrid
