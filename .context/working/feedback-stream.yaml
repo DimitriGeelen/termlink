@@ -24921,3 +24921,21 @@ scan_id: R-7713bf18
 task_id: T-3823
 payload:
   task_file: .tasks/active/T-3823-p-31-code-follow-ups-from-the-t-3704-and.md
+---
+kind: scan_emitted
+timestamp: '2026-11-19T11:32:31Z'
+scan_id: R-9722d67d
+task_id: T-3712
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-19T11:32:31Z'
+scan_id: R-9722d67d
+task_id: T-3712
+payload:
+  task_file: .tasks/active/T-3712-p-28-b-18-deny-half-sendmessage-deny-run.md

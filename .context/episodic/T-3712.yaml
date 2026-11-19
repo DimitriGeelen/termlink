@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3712: P-28: B-18 deny half: SendMessage deny runme action
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-19T11:33:19Z
+# ============================================================================
+
+task_id: T-3712
+task_name: "P-28: B-18 deny half: SendMessage deny runme action"
+workflow_type: decommission
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:50Z
+completed: 2026-11-19T11:32:27Z
+duration_days: 7
+updates_count: 3
+first_commit: 2026-11-17T22:16:22+01:00
+last_commit: 2026-11-19T12:32:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator rule recorded verbatim — Claude Code cross-session messages forbidden, always TermLink; AEF told. reuse AEF T-5225 SendMessage deny hook instead of our own; wait for be-tag. AEF T-5225 contract — BLOCKED_TOOLS list, Agent untouched, stable marker FW-DENY: cross-session-messaging (T-5225). operator ruling A — AEF's T-5225 hook is the B-18 SendMessage deny; criteria restated to the delivered mechanism
+
+# Key outcomes
+outcomes:
+  - 'The deny is live and refuses (E-73): a SendMessage attempt in this project is refused by the harness with `FW-DENY: cross-session-messaging (T-5225)`, nothing sent; the refused attempt still reaches the K-20 log (`logged: yes`, a vendor-channel-use row); control: before be.59 the same call went through in this project (2026-11-17, project 100''s attempt). (was: "The specs tagged B-18 deny half and B-18 pass")'
+  - 'The deny came after the TermLink prover had passed (the gate E-72 asks for): `session-message-selftest.sh verify-record` VERIFY=PASS since 2026-11-12 (run-20261112T185138Z-3417203), re-checked 2026-11-19 after the deny. (was: "The action refuses to run without P-27 evidence")'
+  - 'Delivered by an operator runme act with a hermetic fixture: runme action 11a (framework upgrade to be.59), whose fixtures pin every seam (suite 437/0); no separate deny action exists to fixture. (was: "The action has a hermetic case in tests/runme-fixtures.sh")'
+  - 'After the operator''s run the latest runme log shows rc=0 and the deny is present in settings: runme-20261119T075948Z rc=0, 11a OK (commit 851f1e419); `.claude/settings.json` PreToolUse matcher `SendMessage|SendToProject|SendToProjectContext` -> `fw hook block-cross-session-messages`. (was: "... the deny entry is present in settings")'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-17 — Operator rule: Claude Code cross-session messages are forbidden; always TermLink'
+  - decision: '2026-11-18 — AEF builds the deny as T-5225; we reuse it (agent, pending be-tag)'
+    chose: 'reuse T-5225 instead of building our own deny (one mechanism, delivered fleet-wide by upgrade, which also settles the scope question for every AEF project). This unit becomes: vendor that tag via runme 11a, then prove it here (a refused SendMessage in this project, the prover''s `verify-record` still passing).'
+    alternatives_rejected: ['a separate settings-deny runme action here: a second mechanism that would drift from AEF''s and cover only this project. - **Asked AEF to cover:** the tool name set as it changes (SendToProject*, any future cross-session tool), sub-agent dispatch (Agent) staying allowed, and a stable refusal text our prover can match. - **AEF answer (msg ac7dceeb):** all three hold. (1) One list, `BLOCKED_TOOLS` in `agents/context/block-cross-session-messages.sh`, plus the settings matcher. (2) Agent untouched. (3) Every refusal prints the fixed stderr line `FW-DENY: cross-session-messaging (T-5225)`, a stable contract asserted by their tests (T-5231). Our check matches that marker, not the prose. Be-tag to follow. - **2026-11-18, AEF notice (msg 16dbd4b2):** the hook ships in **v1.8.16-be.59** (also carries T-5210/T-5141/T-5142 and T-5236). Next: re-vendor be.59 via runme 11a (fresh merge set against the current tree, skipping be.58), then prove here: a SendMessage attempt is refused with `FW-DENY: cross-session-messaging (T-5225)` and the session-message prover''s `verify-record` still passes.']
+  - decision: '2026-11-19 — Does AEF''s hook count as the B-18 SendMessage deny? (operator ruling)'
+    chose: 'A — AEF''s T-5225 PreToolUse hook (vendored with be.59, T-3824) is the B-18 deny for this project; this task''s criteria are restated to the delivered mechanism and the task closes.'
+    rationale: 'the operator''s rule is enforced and tested here (SendMessage refused with the fixed FW-DENY line, nothing sent), by one mechanism AEF maintains for every project.'
+    alternatives_rejected: ['B, a second `permissions.deny` entry as well (two mechanisms that can drift; AEF: no separate deny needed); C, build a removal action before closing (a way back from a rule the operator holds firm; cheap to add later if ever wanted). - **Plan departure recorded:** P-28 / E-72 named a `permissions.deny` entry written by our own runme action, with its own rollback action. Delivered instead: AEF''s hook through runme 11a; no rollback action. Change request to 08-plan P-28 and 05 E-72 noted here.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3712-p-28-b-18-deny-half-sendmessage-deny-run.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-17T22:16:22'
+    action: 'T-3712: operator rule recorded verbatim — Claude Code cross-session messages forbidden, always TermLink; AEF told'
+  - time: '2026-11-18T13:24:34'
+    action: 'T-3712: reuse AEF T-5225 SendMessage deny hook instead of our own; wait for be-tag'
+  - time: '2026-11-18T13:40:34'
+    action: 'T-3712: AEF T-5225 contract — BLOCKED_TOOLS list, Agent untouched, stable marker FW-DENY: cross-session-messaging (T-5225)'
+  - time: '2026-11-19T12:32:22'
+    action: 'T-3712: operator ruling A — AEF''s T-5225 hook is the B-18 SendMessage deny; criteria restated to the delivered mechanism'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 9755 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9755
+  commits: 5
+  files_changed: 4
+  lines_added: 195
+  lines_removed: 15
+  footprint_refreshed_at: '2026-11-19T11:33:47Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3712-p-28-b-18-deny-half-sendmessage-deny-run.md
+generated_by: context-agent-hybrid

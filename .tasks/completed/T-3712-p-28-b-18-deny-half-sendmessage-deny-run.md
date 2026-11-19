@@ -7,10 +7,10 @@ description: >
   action in `/opt/termlink/runme.sh`, refusing to run before P-27 has passed (O-4
   A)
 
-status: started-work
+status: work-completed
 workflow_type: decommission
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357, T-3711, T-3710, T-2876, T-3353]
@@ -45,8 +45,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:50Z
-last_update: 2026-11-18T12:24:34Z
-date_finished:
+last_update: 2026-11-19T11:32:27Z
+date_finished: 2026-11-19T11:32:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -446,3 +446,21 @@ bash scripts/session-message-selftest.sh verify-record > .context/working/.t3712
 ### 2026-11-17T21:16:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-19T11:32:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9722d67d
+- **Timestamp:** 2026-11-19T11:32:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Delivered by an operator runme act with a hermetic fixture: runme action 11a (framework upgrade to be.59), whose fixtures pin every seam (suite 437/0); no separate deny action exists to fixture. (was:
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: Delivered by an operator runme act with a hermetic fixture: runme action 11a (framework upgrade to be.59), whose fixtures pin every seam (suite 437/0)`
