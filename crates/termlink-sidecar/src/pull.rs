@@ -243,6 +243,13 @@ impl Receiver {
     pub fn revocation_state(&self) -> crate::revocation::State {
         self.inner.revocation.lock().unwrap_or_else(|p| p.into_inner()).state().clone()
     }
+
+    /// T-3700: run the consumer check now, whatever the throttle (tests, and an operator's `status` refresh).
+    pub fn check_consumers_now(&self) {
+        let mut mem = self.inner.pass.lock().unwrap_or_else(|p| p.into_inner());
+        mem.consumers_checked_ms = 0;
+        self.inner.check_consumers(&mut mem);
+    }
 }
 
 impl Drop for Receiver {

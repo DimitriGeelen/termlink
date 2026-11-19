@@ -63,6 +63,12 @@ key. Spec sources and F-1 evidence: `T-3700-spec-extract.md`.
       entry is the V-12 second copy and is named as such.
    3. Only own entry → `consumers: one (proven)`; a hub without the RPC → `consumers: unknown (hub predates consumer list)`.
 3. Status also shows `bound: <agent>` when the hub reports a binding.
+4. **Liveness is not a consumer (agent choice, 2026-11-19, found while building).** Every sidecar with an address book
+   read one message of the *main's* inbox to judge "stuck" (`liveness.rs`, T-3646). As a content read by another
+   agent it would flag the main's inbox and be refused after a bind. It now calls `channel.first_at {topic,
+   from_offset}` (new, Observe), which returns only the offset and timestamp of the first record at or after
+   `from_offset`, no content, and records no consumer. On a hub without it, the old one-message read is the fallback.
+   No content is exposed, so this opens no BP-15 route. Reported to the operator; overrulable.
 
 ## 5. Diagnostic peeks (operator ruling D, 2026-11-19)
 
