@@ -85,7 +85,7 @@ closed on its own evidence while these are built and reviewed as code.
 - [x] (from T-3704 r3) the setting file baselined like the store digest (an outside change while running is refused or raises attention); the card's own key exempt from the 16-signer cap (`KNOWN_MODE` set at start and on every admin write; an outside edit can never weaken the check, the stricter of baseline and edit is in force, one `key-card-mode-outside-edit` admin row per value; `note_refusal(.., own_key)` for KEY_REVOKED refusals; tests `t3823_an_outside_edit_of_the_setting_is_refused`, `t3823_the_cards_own_key_is_exempt_from_the_signer_cap`; hub suite 643/0)
 - [x] (from T-3703 r3 CC N3) an attempt whose claim has no attempt record after a sidecar restart is closed by `recover()` and the revocation sweep re-run; crash test through the real deliver path shows a stored message from a revoked key ends REFUSED with its notice (`recover()` already closed such orphans with `ABSENT attempt=N orphan`, the form the sweep reads as closed; the sweep runs on every verified pull. Test `t3823_an_orphan_claim_is_closed_at_restart_and_the_revocation_sweep_then_refuses` uses the real kill point `AfterClaim`; the signed notice is the sweep's same path as E-39, proven on a real hub in `t3703_revocation_sidecar`)
 - [x] (from T-3703 r3 CC N5 / OC 4) the hub caches the committed-key set by the admin log's stamp during a pending reconcile and keys its list cache on the list digest too; the sidecar's no-snapshot fallback caches by (len, mtime) (`COMMITTED_CACHE`, `Stamp` = len+mtime+sha256; sidecar `FALLBACK`; tests `t3823_the_post_check_cache_sees_a_same_length_rewrite`, `t3823_the_fallback_cache_follows_the_stored_list`)
-- [ ] Each item has a test, and a mutant per item is killed
+- [x] Each item has a test, and a mutant per item is killed (docs/reports/T-3823-mutants.md: d1..d6 6/6 killed; orphan claims by T-3703 c18 + the crash test; roster deployment by the w1-provision fixtures 2e/7c and the live forge)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -136,6 +136,13 @@ closed on its own evidence while these are built and reviewed as code.
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT cargo test -p termlink-hub --lib t3823 > .context/working/.t3823-v1 2>&1 && grep -q 'test result: ok. 3 passed' .context/working/.t3823-v1
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --lib t3823 > .context/working/.t3823-v2 2>&1 && grep -q 'test result: ok. 1 passed' .context/working/.t3823-v2
+env -u PROJECT_ROOT cargo build -p termlink > .context/working/.t3823-v3b 2>&1 && env -u PROJECT_ROOT cargo test -p termlink-sidecar --test t3704_impersonation --test deliver_tests t3823 > .context/working/.t3823-v3 2>&1 && [ "$(grep -c 'test result: ok. 1 passed' .context/working/.t3823-v3)" = 2 ]
+bash tests/arc011-w1-provision-fixtures.sh > .context/working/.t3823-v4 2>&1 && grep -q '24 passed, 0 failed' .context/working/.t3823-v4
+grep -q '6/6 killed' docs/reports/T-3823-mutants.md
+grep -q 'claude-termlink-alt=' /etc/termlink-sidecar/claude-termlink.json
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
