@@ -24957,3 +24957,21 @@ scan_id: R-c3ced7c6
 task_id: T-3820
 payload:
   task_file: .tasks/active/T-3820-keep-opttermlink-disk-use-bounded-shared.md
+---
+kind: scan_emitted
+timestamp: '2026-11-19T16:40:45Z'
+scan_id: R-65927dc0
+task_id: T-3826
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-19T16:40:45Z'
+scan_id: R-65927dc0
+task_id: T-3826
+payload:
+  task_file: .tasks/active/T-3826-ignore-contextinboxfiles-cockpit-operato.md
