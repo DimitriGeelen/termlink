@@ -109,10 +109,13 @@ Unblocks: P-40 (T-3719, deny in place).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The specs tagged "B-18 deny half" and "B-18" pass
-- [ ] The action refuses to run without P-27 evidence (and without the recorded approval, NID)
-- [ ] The action has a hermetic case in `tests/runme-fixtures.sh` through the `RUNME_*` seams
-- [ ] After the operator's run the latest runme log shows the action OK and `finished rc=0`, and the deny entry is present in settings
+Restated 2026-11-19 by operator ruling A (see Decisions): the deny is AEF's T-5225 PreToolUse hook, delivered by the
+vendored framework (T-3824), not a `permissions.deny` entry written by our own runme action. Original wording kept below
+each line.
+- [x] The deny is live and refuses (E-73): a SendMessage attempt in this project is refused by the harness with `FW-DENY: cross-session-messaging (T-5225)`, nothing sent; the refused attempt still reaches the K-20 log (`logged: yes`, a vendor-channel-use row); control: before be.59 the same call went through in this project (2026-11-17, project 100's attempt). (was: "The specs tagged B-18 deny half and B-18 pass")
+- [x] The deny came after the TermLink prover had passed (the gate E-72 asks for): `session-message-selftest.sh verify-record` VERIFY=PASS since 2026-11-12 (run-20261112T185138Z-3417203), re-checked 2026-11-19 after the deny. (was: "The action refuses to run without P-27 evidence")
+- [x] Delivered by an operator runme act with a hermetic fixture: runme action 11a (framework upgrade to be.59), whose fixtures pin every seam (suite 437/0); no separate deny action exists to fixture. (was: "The action has a hermetic case in tests/runme-fixtures.sh")
+- [x] After the operator's run the latest runme log shows rc=0 and the deny is present in settings: runme-20261119T075948Z rc=0, 11a OK (commit 851f1e419); `.claude/settings.json` PreToolUse matcher `SendMessage|SendToProject|SendToProjectContext` -> `fw hook block-cross-session-messages`. (was: "... the deny entry is present in settings")
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -165,7 +168,10 @@ Unblocks: P-40 (T-3719, deny in place).
 ## Verification
 
 # Plan P-28 check (08-plan section 4): `.context/working/runme-logs/latest.log` shows the action OK and `finished rc=0`;
-# the deny entry present in settings; hermetic runme fixture passes. Add the fixture and settings checks here.
+# the deny entry present in settings; hermetic runme fixture passes. Restated by operator ruling A (2026-11-19):
+grep -q 'fw hook block-cross-session-messages' .claude/settings.json
+grep -q 'FW-DENY: cross-session-messaging (T-5225)' .agentic-framework/agents/context/block-cross-session-messages.sh
+bash scripts/session-message-selftest.sh verify-record > .context/working/.t3712-v 2>&1 && grep -q 'VERIFY=PASS' .context/working/.t3712-v
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -412,6 +418,13 @@ Unblocks: P-40 (T-3719, deny in place).
 - **Asked AEF to cover:** the tool name set as it changes (SendToProject*, any future cross-session tool), sub-agent dispatch (Agent) staying allowed, and a stable refusal text our prover can match.
 - **AEF answer (msg ac7dceeb):** all three hold. (1) One list, `BLOCKED_TOOLS` in `agents/context/block-cross-session-messages.sh`, plus the settings matcher. (2) Agent untouched. (3) Every refusal prints the fixed stderr line `FW-DENY: cross-session-messaging (T-5225)`, a stable contract asserted by their tests (T-5231). Our check matches that marker, not the prose. Be-tag to follow.
 - **2026-11-18, AEF notice (msg 16dbd4b2):** the hook ships in **v1.8.16-be.59** (also carries T-5210/T-5141/T-5142 and T-5236). Next: re-vendor be.59 via runme 11a (fresh merge set against the current tree, skipping be.58), then prove here: a SendMessage attempt is refused with `FW-DENY: cross-session-messaging (T-5225)` and the session-message prover's `verify-record` still passes.
+
+### 2026-11-19 — Does AEF's hook count as the B-18 SendMessage deny? (operator ruling)
+- **Operator words:** "A" (after a plain-language restatement: "Do you accept AEF's lock as the job done?").
+- **Chose:** A — AEF's T-5225 PreToolUse hook (vendored with be.59, T-3824) is the B-18 deny for this project; this task's criteria are restated to the delivered mechanism and the task closes.
+- **Why:** the operator's rule is enforced and tested here (SendMessage refused with the fixed FW-DENY line, nothing sent), by one mechanism AEF maintains for every project.
+- **Rejected:** B, a second `permissions.deny` entry as well (two mechanisms that can drift; AEF: no separate deny needed); C, build a removal action before closing (a way back from a rule the operator holds firm; cheap to add later if ever wanted).
+- **Plan departure recorded:** P-28 / E-72 named a `permissions.deny` entry written by our own runme action, with its own rollback action. Delivered instead: AEF's hook through runme 11a; no rollback action. Change request to 08-plan P-28 and 05 E-72 noted here.
 
 ## Decision
 
