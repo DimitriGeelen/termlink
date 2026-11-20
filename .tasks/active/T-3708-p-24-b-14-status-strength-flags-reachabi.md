@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T11:23:34Z
+last_update: 2026-11-20T11:25:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -416,7 +416,12 @@ Scope is slice (a) per D-1 (card + GP-4 lines moved to T-3832). Design: `docs/re
   targeted by (a)'s reviews and mutant 5); D defer.
 - **Left open:** D-2 (quota field before P-17), next in the queue.
 
-### 2026-11-20 — D-2: the `quota` field before P-17 exists (operator ruling: "A")
+### 2026-11-20 — D-2: the `quota` field before P-17 exists — UNCONFIRMED, NOT an operator ruling
+- **Correction (2026-11-20 ~11:25Z):** the "[A" recorded as the ruling arrived at 10:56:47Z and was an accidental
+  keystroke injection (up-arrow escape tail + Enter) from a 055 cockpit test (`termlink pty stream` forwarding stdin;
+  055 notice e3640be4). It is not the operator's answer. The build carries option A provisionally (one constant in
+  `fields.rs`, easy to change); D-2 is open again and waits for the operator.
+- *Original record, kept for the trail:*
 - **Chose:** A. `quota` reads a fresh value `absent: receiver quotas not built (P-17)`; it is neither bad nor
   unknown, so CLEAR does not wait on it. When P-17 (T-3705) lands, the field becomes measured with the normal rules.
 - **Why:** with no quotas nothing can refuse receipts, so "bad" is impossible rather than unmeasured; naming the
