@@ -368,7 +368,7 @@ Unblocks: P-19 (T-3358); part of gate G-2.
      - **Rejected:** [alternatives and why not]
 -->
 
-### 2026-11-20 — carried from T-3708 D-2 (UNCONFIRMED: the "A" was a stray keystroke injection, see T-3708): the status `quota` field
+### 2026-11-20 — carried from T-3708 D-2 (operator ruling "A", confirmed 2026-11-20): the status `quota` field
 - Until this unit is built, P-24's status shows `quota: absent: receiver quotas not built (P-17)`, not counted by
   CLEAR. When receiver quotas land here, switch that field to a measured, stamped value ("quota refusing receipts" is
   then a bad field per AL-29) and remove the not-built value and its CLEAR exemption in the same change.

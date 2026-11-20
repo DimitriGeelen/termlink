@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T13:19:47Z
+last_update: 2026-11-20T13:32:39Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -416,7 +416,13 @@ Scope is slice (a) per D-1 (card + GP-4 lines moved to T-3832). Design: `docs/re
   targeted by (a)'s reviews and mutant 5); D defer.
 - **Left open:** D-2 (quota field before P-17), next in the queue.
 
-### 2026-11-20 — D-2: the `quota` field before P-17 exists — UNCONFIRMED, NOT an operator ruling
+### 2026-11-20 — D-2: the `quota` field before P-17 exists — CONFIRMED by the operator: "A"
+- **Confirmation (2026-11-20, later the same day):** the brief was re-presented in full; the operator answered "A",
+  adding "I'm pretty sure I already recorded this answer with you". His earlier "[A" may well have been his own
+  (his messages often start with "["); it was marked unconfirmed only because 055 reported injecting that input at
+  that moment. Either way the ruling now stands: **A**, wording `absent: receiver quotas not built (P-17)` (he may
+  change the wording). Built and tested (`d2_quota_not_built_does_not_hold_clear`).
+- *Earlier record, kept for the trail:* UNCONFIRMED, NOT an operator ruling
 - **Correction (2026-11-20 ~11:25Z):** the "[A" recorded as the ruling arrived at 10:56:47Z and was an accidental
   keystroke injection (up-arrow escape tail + Enter) from a 055 cockpit test (`termlink pty stream` forwarding stdin;
   055 notice e3640be4). It is not the operator's answer. The build carries option A provisionally (one constant in
