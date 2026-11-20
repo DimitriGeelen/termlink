@@ -2,12 +2,14 @@
 id: T-3708
 name: "P-24: B-14 status strength flags, reachability, CLEAR, skew"
 description: >
-  arc-011 plan unit P-24 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): B-14: status strength flags, reachability card, CLEAR, skew, GP-4 lines
+  arc-011 plan unit P-24 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): B-14: status strength flags, reachability card, CLEAR,
+  skew, GP-4 lines
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357, T-3700, T-3703, T-3364]
@@ -42,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-12T16:56:45Z
-date_finished: null
+last_update: 2026-11-20T10:07:04Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +56,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-20T09:38:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 3
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 3
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=3 (L3:keyword=needs-attention);
+      AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=2 (body:learning-ref); D2=0
+      (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=3 (L3:keyword=allow-list);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3708: P-24: B-14 status strength flags, reachability, CLEAR, skew
@@ -394,3 +416,7 @@ Unblocks: P-25 (T-3709), P-33 (T-3714), P-38 (T-3717); part of gate G-2.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3708-p-24-b-14-status-strength-flags-reachabi.md
 - **Context:** Initial task creation
+
+### 2026-11-20T09:38:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
