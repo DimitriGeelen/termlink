@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T16:10:03Z
-last_update: 2026-11-20T16:45:39Z
+last_update: 2026-11-20T17:05:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -360,6 +360,15 @@ date_finished: null
   ring20 needs it this week. Brief scores: A +26, B +16, D -5, C -17.
 - **Rejected:** B (wait for items 1 and 2: delays a self-contained change), C (no withdrawal), D (defer).
 - **Left open:** v0.3.4 items 1 and 2 are separate decisions, not yet read.
+
+### 2026-11-20 — Adopt v0.3.4 item 1 (refusal before rule 1)? (operator ruling: "A")
+- **Chose:** A — adopt. Rule 1 (hand-back missing/malformed -> handback-malformed) applies only to a worker that ran;
+  a run.sh or supervisor refusal yields refused via rule 2 even with no hand-back; rule numbers unchanged.
+- **Why:** it states what our backend already does (`worker_contract.rs` derive_outcome: the refused flag outranks the
+  hand-back check) and our tests pin (CC-16, CC-21, CC-25, `worker_contract/tests.rs:344`); no build needed.
+  Brief scores: A +22, B +10, D 0, C -15.
+- **Rejected:** B (tie to item 2), C (spec stays ambiguous), D (defer).
+- **Left open:** item 2 (optional dispatch closure), next.
 
 ## Decision
 
