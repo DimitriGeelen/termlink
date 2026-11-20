@@ -31,8 +31,9 @@ key. Spec sources and F-1 evidence: `T-3700-spec-extract.md`.
 
 1. **Proof.** A reader is `proven` when all hold: signature verifies; `ts_ms` in window; the agent's key card exists
    and its signing key equals `signer_pk`; the key is not on the revocation list (P-15). Otherwise `claimed`.
-   A `sig` that is present but fails to verify, or a revoked key, **refuses the call** (code CHANNEL_KEY_CARD_MISMATCH /
-   KEY_REVOKED, refusal counted like a post refusal) — a broken proof is never downgraded to a claim.
+   A `sig` that is present but fails to verify (CHANNEL_SIGNATURE_INVALID), one by a key that is not on the named
+   agent's card (CHANNEL_KEY_CARD_MISMATCH), or a revoked key (KEY_REVOKED) **refuses the call** — a broken proof is
+   never downgraded to a claim (codes corrected after review round 1, CC 14).
    A valid signature with `ts_ms` outside the window is **not** refused (a skewed clock must not cut a sidecar off its
    inbox; P-23 reports the skew): the reader is listed `claimed (clock skew)`, and after a bind it is refused like any
    unproven reader.
@@ -55,7 +56,9 @@ key. Spec sources and F-1 evidence: `T-3700-spec-extract.md`.
 
 ## 4. Sidecar
 
-1. Every inbox `channel.subscribe` / `channel.claim` it makes carries a signed `reader` (pull.rs, liveness.rs, deliver.rs).
+1. Every inbox `channel.subscribe` it makes carries a signed `reader` (`pull.rs`, and `peek`). The sidecar makes no
+   hub `channel.claim` (its "claim" in `deliver.rs` is a local `O_EXCL` file); liveness reads use `channel.first_at`
+   (4.4). Corrected after review round 1 (CC 10, OC 7).
 2. Each tick: `inbox.consumers(MY_INBOX, 24 h)`.
    1. Err → status `consumers: unknown (<why>)` (never "one", FCW-125).
    2. Entries other than (MY_AGENT, MY_INSTANCE) → status `consumers: inbox consumed by two identities: A (proven),
@@ -91,3 +94,19 @@ key. Spec sources and F-1 evidence: `T-3700-spec-extract.md`.
    a signature replayed on another topic or hub does not verify.
 5. Mutant list (all must be killed): skip-signature-check, ignore-ts-window, bind-by-name, default-unreadable-to-empty,
    record-subscribers-only, record-acks-only, no-eviction-log, instance-ignored (V-12).
+
+## 7. Changes after review round 1 (dispositions: `T-3700-reviews/r1-dispositions.md`)
+
+1. Entries are keyed by (agent, instance, strength, key): a claimed reader never merges into a proven entry. A reader
+   object needs an instance, and `-` (the ack sentinel) cannot be claimed. The sidecar counts as itself only an entry
+   proven by its own key; anything else under its name is "claims this agent" (or "second copy" when proven by
+   another key).
+2. Only topics that exist on the bus are recorded; topics over 256 bytes are not recorded or bound; eviction and
+   refusal rows are capped at 10 a minute per kind with a `suppressed` count; a full table never evicts an inbox read
+   inside the 24 h window (the new topic goes unrecorded, with a capped `inbox-consumer-table-full` row).
+3. A corrupt or unknown-schema table is moved to `inbox-consumers.json.corrupt-<ms>` (admin row) and the list is an
+   error ("history incomplete since …") until the window has passed the reset.
+4. The sidecar's `consumers` line carries `checked_ms`; older than 60 s it reads `unknown (no check since …)`; it is
+   cleared at start.
+5. A long-poll re-checks the binding when it returns. An ack proves only when the post's `ts` is within ±120 s.
+   `bind` refuses a revoked card key. Liveness falls back to the content read only for an old hub (-32001).
