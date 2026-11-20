@@ -447,6 +447,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
     }
     match op {
         "status" => {
+            let started = std::time::Instant::now();
             let mut v = status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), &crate::deadline::Deadlines::R44E);
             // SI-27 (P9): the running binary against the release checksum record.
             // Added here, on the live socket path, not in the pure view.
@@ -484,6 +485,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 if crate::fields::enabled() {
                     let ready = ctx.deliverer.and_then(|d| d.ready_since(crate::store::now_ms()));
                     p24_fields(&mut v, crate::fields::global(), ready, crate::store::now_ms());
+                    // E-55 / E-134 (design 3.9): one latency line per call, bounded; a failing log is shown
+                    v["latency_log"] = json!(latency_log(store.dir(), started.elapsed().as_millis() as u64, &v));
                 }
             }
             v
@@ -1332,6 +1335,39 @@ pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, ready_sin
     v["clear"] = f::clear(&m, &rows, now_wall);
     v["fields"] = Value::Object(m);
     v["strength_host"] = strength;
+}
+
+/// The status latency log (E-55, E-134): one JSON line per status call in the store.
+pub const LATENCY_LOG: &str = "status-latency.jsonl";
+/// Rotate the latency log at this size, keeping one older file (`.1`).
+pub const LATENCY_LOG_MAX: u64 = 1 << 20;
+
+/// Append one latency line; returns `ok` or `failing (N appends failed)`. Never blocks status.
+pub(crate) fn latency_log(dir: &Path, ms: u64, v: &Value) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static FAILED: AtomicU64 = AtomicU64::new(0);
+    let path = dir.join(LATENCY_LOG);
+    let line = json!({
+        "ts_ms": crate::store::now_ms(),
+        "ms": ms,
+        "clear": v["clear"]["state"],
+        "unknown": v["clear"]["unknown"],
+        "bad": v["clear"]["bad"],
+    });
+    let r = (|| -> std::io::Result<()> {
+        if std::fs::metadata(&path).map(|m| m.len() >= LATENCY_LOG_MAX).unwrap_or(false) {
+            std::fs::rename(&path, dir.join(format!("{LATENCY_LOG}.1")))?;
+        }
+        use std::io::Write as _;
+        use std::os::unix::fs::OpenOptionsExt as _;
+        let mut f = std::fs::OpenOptions::new().create(true).append(true).mode(0o600).open(&path)?;
+        writeln!(f, "{line}")
+    })();
+    match r {
+        Ok(()) if FAILED.load(Ordering::SeqCst) == 0 => "ok".into(),
+        Ok(()) => format!("ok now ({} appends failed earlier)", FAILED.load(Ordering::SeqCst)),
+        Err(e) => format!("failing ({} appends failed: {e})", FAILED.fetch_add(1, Ordering::SeqCst) + 1),
+    }
 }
 
 /// Own strength flags: (name, present, text shown when absent).
