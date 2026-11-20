@@ -146,3 +146,85 @@ fn t3708_e58_strength_flags_match_the_host() {
     assert_eq!(v["confirmation_provider"], "no");
     assert_eq!(v["policy_records"], "none (fixed defaults)");
 }
+
+/// r1 MAJOR 9 (design mutant 10): a hub that accepts and never answers. Status must not wait on it.
+#[test]
+fn t3708_status_never_waits_on_a_hub_that_accepts_and_never_replies() {
+    let e = Estate::create_without_hub().unwrap();
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = l.local_addr().unwrap();
+    // hold every connection open without a byte back
+    std::thread::spawn(move || {
+        let mut held = vec![];
+        for c in l.incoming().flatten() {
+            held.push(c);
+        }
+    });
+    let agent = "fx-b".to_string();
+    let store = Arc::new(Store::open(&e.store_root(), &agent).unwrap());
+    let sender = Arc::new(
+        Sender::new(
+            SendConfig {
+                agent: agent.clone(),
+                instance: "b1".into(),
+                identity: e.identity("b").unwrap(),
+                hub: termlink_protocol::TransportAddr::Tcp { host: addr.ip().to_string(), port: addr.port() },
+                declared_hub_id: "0123456789abcdef".into(),
+                queue_path: e.root().join("outbox-b1.sqlite"),
+                timeout: Duration::from_secs(30),
+                pump_interval: None,
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
+    let mut cfg = ApiConfig::new(&agent, &e.runtime_dir());
+    cfg.hub_id = Some("0123456789abcdef".into());
+    cfg.sender = Some(sender);
+    let api = Api::start(cfg, store.clone()).unwrap();
+    let r = Rig { store, rx: dummy_rx(&e), api };
+    let mut d = vec![];
+    for _ in 0..20 {
+        d.push(status(&r).1);
+    }
+    let p = p95(d);
+    println!("status p95 against a silent hub: {p:?}");
+    assert!(p < Duration::from_millis(1500), "status waited on a hub that never answers: p95 {p:?}");
+}
+
+fn dummy_rx(e: &Estate) -> Receiver {
+    std::fs::create_dir_all(e.store_root().join("rx")).unwrap();
+    let store = Arc::new(Store::open(&e.store_root().join("rx"), "fx-z").unwrap());
+    let sender = Arc::new(
+        Sender::new(
+            SendConfig {
+                agent: "fx-z".into(),
+                instance: "z1".into(),
+                identity: e.identity("z").unwrap(),
+                hub: termlink_protocol::TransportAddr::Tcp { host: "127.0.0.1".into(), port: 9 },
+                declared_hub_id: "0123456789abcdef".into(),
+                queue_path: e.root().join("outbox-z1.sqlite"),
+                timeout: Duration::from_secs(1),
+                pump_interval: None,
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
+    Receiver::new(
+        ReceiveConfig {
+            agent: "fx-z".into(),
+            instance: "z1".into(),
+            hub: termlink_protocol::TransportAddr::Tcp { host: "127.0.0.1".into(), port: 9 },
+            declared_hub_id: "0123456789abcdef".into(),
+            roster: Roster::new(),
+            timeout: Duration::from_secs(1),
+            page: 50,
+            poll_interval: None,
+        },
+        store,
+        sender,
+        Box::new(BuiltIn::new(Roster::new())),
+    )
+    .unwrap()
+}

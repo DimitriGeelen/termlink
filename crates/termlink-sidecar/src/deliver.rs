@@ -519,7 +519,8 @@ impl Deliverer {
                 .and_then(|l| l.ts_ms)
                 .unwrap_or(now_ms);
             let start = stored_at.max(ready_at);
-            if now_ms.saturating_sub(start) > d.handover(c.assessment.urgent) {
+            // T-3708 (E-59): the age is corrected for wall jumps this process saw
+            if crate::fields::age_ms(start, now_ms) > d.handover(c.assessment.urgent) {
                 notify(&c.conv, &c.msg, &c.digest, OVERDUE_HANDOVER, c.assessment.urgent);
             }
         }
@@ -538,7 +539,7 @@ impl Deliverer {
                 let Ok(msg) = wire::parse_payload(&payload) else { continue };
                 let urgent = self.policy.assess(&msg).urgent;
                 let handed_at = h.ts_ms.unwrap_or(now_ms);
-                if now_ms.saturating_sub(handed_at) > d.answer(urgent) {
+                if crate::fields::age_ms(handed_at, now_ms) > d.answer(urgent) {
                     notify(&conv, &msg, &st.digest, OVERDUE_ANSWER, urgent);
                 }
             }

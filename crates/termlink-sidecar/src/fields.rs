@@ -6,8 +6,14 @@
 //! monotonic clock; the wall time is shown only. The registry lives in memory, so after a restart
 //! every measured field is unknown until its producer has run again (06a 2.13.f).
 //!
+//! Time (r1 BLOCKER): every stored or sent stamp stays wall time (`store::now_ms`). A deadline is an
+//! AGE, and [`Registry::age_ms`] corrects the wall age of a stamp by every wall jump this process saw
+//! after the stamp (a jump = wall and monotonic time disagreeing by more than 2 s between two looks,
+//! taken at least every heartbeat tick), so a wall jump moves no deadline (E-59). Without a jump the
+//! age is plain `now - stamp`, as before.
+//!
 //! Additive only (design 3.0): this module adds `fields` and `clear` to `status`; it changes no
-//! existing key. `TERMLINK_SIDECAR_P24=off` hides both (rollback).
+//! existing key. `TERMLINK_SIDECAR_P24=off|0|false|no` hides them (rollback).
 
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -15,12 +21,15 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use crate::deadline::TICK_MS;
+use crate::store::Store;
 
 /// Producer names the registry stamps.
 pub const PULL: &str = "pull";
+pub const REVOCATION: &str = "revocation";
 pub const CONSUMERS: &str = "consumers";
 pub const HEARTBEAT: &str = "heartbeat";
 pub const LIVENESS: &str = "liveness";
+pub const LEASE: &str = "lease";
 pub const SKEW: &str = "skew";
 pub const NTP: &str = "ntp";
 
@@ -32,27 +41,33 @@ pub const BOUND_DAILY_MS: u64 = 3_600_000;
 pub const SURFACE_AFTER_MS: u64 = 2 * TICK_MS;
 /// A component heartbeat older than this is a bad field.
 pub const COMPONENT_BAD_MS: u64 = 3 * TICK_MS;
-/// CLEAR looks back this far for pending mail.
+/// CLEAR looks back this far for mail that was pending.
 pub const CLEAR_WINDOW_MS: u64 = 3_600_000;
+/// Wall and monotonic time disagreeing by more than this between two looks is a wall jump.
+pub const JUMP_MS: i64 = 2_000;
+/// At most this many jumps are kept (oldest first out).
+pub const JUMPS_CAP: usize = 64;
+/// At most this many stamps are remembered (lowest first out).
+pub const AGES_CAP: usize = 20_000;
 
-/// The value `quota` reads until receiver quotas exist (T-3708 D-2, operator ruling A).
+/// The value `quota` reads until receiver quotas exist (T-3708 D-2, carried provisionally: see the task).
 pub const QUOTA_NOT_BUILT: &str = "absent: receiver quotas not built (P-17)";
 
 /// The switch for the new keys (design 3.0 rollback).
 pub const SWITCH_ENV: &str = "TERMLINK_SIDECAR_P24";
 
-/// Whether the P-24 keys are shown (default on; `off` hides them).
+/// Whether the P-24 keys are shown (default on; `off`, `0`, `false`, `no` hide them, any case).
 pub fn enabled() -> bool {
-    std::env::var(SWITCH_ENV).map(|v| v.trim() != "off").unwrap_or(true)
+    match std::env::var(SWITCH_ENV) {
+        Ok(v) => !matches!(v.trim().to_ascii_lowercase().as_str(), "off" | "0" | "false" | "no"),
+        Err(_) => true,
+    }
 }
 
-/// Time source: monotonic for freshness and deadlines, wall for display.
+/// Time source: monotonic for freshness and ages, wall for stamps and display.
 pub trait Clock: Send + Sync {
     fn mono_ms(&self) -> u64;
     fn wall_ms(&self) -> u64;
-    /// Wall time at start plus monotonic time since: a wall-shaped time that a wall jump does not move
-    /// (design 3.5.3). Deadlines compare against this.
-    fn steady_ms(&self) -> u64;
 }
 
 /// The process clock.
@@ -79,10 +94,6 @@ impl Clock for SystemClock {
     fn wall_ms(&self) -> u64 {
         crate::store::wall_now_ms()
     }
-    fn steady_ms(&self) -> u64 {
-        // the same timeline as every stamp and deadline of this process
-        crate::store::now_ms()
-    }
 }
 
 /// When a producer last succeeded: monotonic and wall time.
@@ -92,17 +103,22 @@ pub struct Seen {
     pub wall_ms: u64,
 }
 
-/// The in-memory registry of producer successes and first missed hook calls.
+/// The in-memory registry of producer successes and of the ages of stamps this process has seen.
 pub struct Registry {
     clock: Arc<dyn Clock>,
     seen: Mutex<BTreeMap<String, Seen>>,
-    /// msg_id -> steady time of the first hook call that ran while it was pending (V-8).
-    hook_missed: Mutex<BTreeMap<String, u64>>,
+    /// The last look at both clocks (mono, wall), and the wall jumps seen: (wall just before, delta).
+    last_look: Mutex<Option<(u64, u64)>>,
+    jumps: Mutex<Vec<(u64, i64)>>,
+    /// stamp -> how many jumps had been seen when this process first aged it. A jump with a higher index
+    /// happened after the stamp was seen, so it was written before that jump. Wall values alone cannot
+    /// say this after a backward jump (the post-jump timeline reuses earlier values).
+    epochs: Mutex<BTreeMap<u64, usize>>,
 }
 
 impl Registry {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
-        Registry { clock, seen: Mutex::new(BTreeMap::new()), hook_missed: Mutex::new(BTreeMap::new()) }
+        Registry { clock, seen: Mutex::new(BTreeMap::new()), last_look: Mutex::new(None), jumps: Mutex::new(vec![]), epochs: Mutex::new(BTreeMap::new()) }
     }
 
     pub fn clock(&self) -> &dyn Clock {
@@ -119,18 +135,51 @@ impl Registry {
         lock(&self.seen).get(name).copied()
     }
 
-    /// A hook call ran while these messages were pending: keep the first such time per message.
-    pub fn hook_call(&self, pending: &[String]) {
-        let now = self.clock.steady_ms();
-        let mut m = lock(&self.hook_missed);
-        m.retain(|k, _| pending.contains(k));
-        for id in pending {
-            m.entry(id.clone()).or_insert(now);
+    /// Look at both clocks; a disagreement past [`JUMP_MS`] since the last look is a wall jump.
+    pub fn look(&self) {
+        let (mono, wall) = (self.clock.mono_ms(), self.clock.wall_ms());
+        let mut last = lock(&self.last_look);
+        if let Some((m0, w0)) = *last {
+            let delta = (wall as i64 - w0 as i64) - (mono as i64 - m0 as i64);
+            if delta.abs() > JUMP_MS {
+                let mut j = lock(&self.jumps);
+                if j.len() >= JUMPS_CAP {
+                    // dropping the oldest jump shifts every index down by one
+                    j.remove(0);
+                    for e in lock(&self.epochs).values_mut() {
+                        *e = e.saturating_sub(1);
+                    }
+                }
+                // the wall time just before the jump: the last look plus the monotonic time since
+                j.push((w0 + mono.saturating_sub(m0), delta));
+            }
         }
+        *last = Some((mono, wall));
     }
 
-    pub fn hook_missed_at(&self, msg_id: &str) -> Option<u64> {
-        lock(&self.hook_missed).get(msg_id).copied()
+    /// The age of a wall stamp at `now_wall`, less every wall jump this process saw after it first aged
+    /// the stamp (E-59). Deadlines age their pending stamps every tick, so a stamp is first seen within a
+    /// tick of being written; a jump inside that tick, or while the process was down, is not corrected
+    /// (the skew line shows a jump while down).
+    pub fn age_ms(&self, stamp_wall: u64, now_wall: u64) -> u64 {
+        self.look();
+        let jumps = lock(&self.jumps);
+        let epoch = {
+            let mut e = lock(&self.epochs);
+            if !e.contains_key(&stamp_wall) && e.len() >= AGES_CAP {
+                if let Some(k) = e.keys().next().copied() {
+                    e.remove(&k);
+                }
+            }
+            *e.entry(stamp_wall).or_insert(jumps.len())
+        };
+        let correction: i64 = jumps.iter().skip(epoch).map(|(_, d)| *d).sum();
+        (now_wall as i64 - stamp_wall as i64 - correction).max(0) as u64
+    }
+
+    #[cfg(test)]
+    pub(crate) fn jumps_len(&self) -> usize {
+        lock(&self.jumps).len()
     }
 }
 
@@ -152,9 +201,14 @@ pub fn touch(name: &str) {
     global().touch(name);
 }
 
-/// Steady time for deadline checks (design 3.5.3).
-pub fn steady_ms() -> u64 {
-    global().clock().steady_ms()
+/// Age of a wall stamp in the process registry (see [`Registry::age_ms`]).
+pub fn age_ms(stamp_wall: u64, now_wall: u64) -> u64 {
+    global().age_ms(stamp_wall, now_wall)
+}
+
+/// Look at the clocks (called every heartbeat tick, so a jump is seen even when no age is asked for).
+pub fn look() {
+    global().look();
 }
 
 /// Render one measured field: fresh with its times, or `unknown (last at T)` past the bound (FCW-120).
@@ -173,7 +227,8 @@ pub fn computed(value: &Value, now_wall: u64) -> Value {
     json!({"state": "fresh", "value": value, "at_ms": now_wall, "bound_ms": 0})
 }
 
-/// One chain row as `status` lists it (the subset V-8 and CLEAR read).
+/// One chain row as `status` lists it (the subset V-8 and CLEAR read). Times are this side's own
+/// stamps (`ts_ms`), never a peer's (r1 MAJOR 6).
 #[derive(Debug, Clone)]
 pub struct Row {
     pub msg_id: String,
@@ -181,7 +236,8 @@ pub struct Row {
     pub ts_ms: u64,
 }
 
-/// Rows of `status.rows` as [`Row`]s.
+/// Rows of `status.rows` as [`Row`]s. A row without its own time is aged as the oldest possible (0),
+/// which can only make it look more overdue, never less (r1 MINOR 13).
 pub fn rows_of(status_rows: &Value) -> Vec<Row> {
     status_rows
         .as_array()
@@ -191,58 +247,114 @@ pub fn rows_of(status_rows: &Value) -> Vec<Row> {
             Some(Row {
                 msg_id: r.get("msg_id")?.as_str()?.to_string(),
                 stage: r.get("stage")?.as_str()?.to_string(),
-                ts_ms: r.get("peer_ts_ms").and_then(Value::as_u64).or_else(|| r.get("ts_ms").and_then(Value::as_u64))?,
+                ts_ms: r.get("ts_ms").and_then(Value::as_u64).unwrap_or(0),
             })
         })
         .collect()
 }
 
-/// Messages this agent received and stored but has not handed over: (msg_id, stored at).
-/// A message this side SENT is never pending here.
-pub fn pending(rows: &[Row]) -> Vec<(String, u64)> {
+/// Messages this agent received and stored but has not handed over: (msg_id, stored at). A message
+/// this side SENT is never pending here. `deliverable`, when given, narrows to the messages the
+/// deliver path may still offer (a held, refused or otherwise closed message is not pending).
+pub fn pending(rows: &[Row], deliverable: Option<&[String]>) -> Vec<(String, u64)> {
     let mut ids: Vec<&str> = rows.iter().filter(|r| r.stage == "STORED").map(|r| r.msg_id.as_str()).collect();
     ids.sort();
     ids.dedup();
     ids.into_iter()
         .filter(|id| !rows.iter().any(|r| r.msg_id == *id && (r.stage == "HANDED_OVER" || r.stage == "SENT")))
+        .filter(|id| deliverable.is_none_or(|d| d.iter().any(|x| x == id)))
         .filter_map(|id| rows.iter().filter(|r| r.msg_id == id && r.stage == "STORED").map(|r| r.ts_ms).min().map(|t| (id.to_string(), t)))
         .collect()
 }
 
 /// Times of hand-overs this side made: HANDED_OVER lines of messages it received (a HANDED_OVER of a
-/// message it SENT is the recipient's, reported back, and is not this agent's surfacing).
+/// message it SENT is the recipient's, reported back, and is not this agent's surfacing). A
+/// HANDED_OVER line is written only with hand-over evidence (an unconfirmed attempt is a different
+/// stage), so the line is the evidence.
 fn own_handovers(rows: &[Row]) -> impl Iterator<Item = u64> + '_ {
     rows.iter()
         .filter(|r| r.stage == "HANDED_OVER" && !rows.iter().any(|s| s.msg_id == r.msg_id && s.stage == "SENT"))
         .map(|r| r.ts_ms)
 }
 
-/// V-8 (06a 2.13.c, arch 6.7.3): the last real surfacing and whether it is bad.
-/// Bad iff a pending message was not handed over 2 ticks after the agent became ready (counted from
-/// the later of storing and readiness, as R-44.e) or 2 ticks after a hook call that missed it.
-/// An idle agent with nothing pending is never bad; its age is shown. Only a HANDED_OVER line counts
-/// as surfacing; a heartbeat or READY never does.
-pub fn last_surface(rows: &[Row], ready_since: Option<u64>, hook_missed: &dyn Fn(&str) -> Option<u64>, now: u64) -> Value {
+/// V-8 hook misses, persisted (r1 MAJOR 7): the first hook call that ran while a message was pending.
+const HOOK_MISSED_STATE: &str = "v8-hook-missed";
+
+/// A hook call ran now while `pending` was pending: keep the first time per message, drop the rest.
+pub fn record_hook_call(store: &Store, pending: &[String], now_wall: u64) {
+    let old = hook_missed(store);
+    let mut m: BTreeMap<String, u64> = old.iter().filter(|(k, _)| pending.contains(k)).map(|(k, v)| (k.clone(), *v)).collect();
+    for id in pending {
+        m.entry(id.clone()).or_insert(now_wall);
+    }
+    if m != old {
+        let text: String = m.iter().map(|(k, t)| format!("{k} {t}\n")).collect();
+        if let Err(e) = store.write_state(HOOK_MISSED_STATE, &text) {
+            eprintln!("termlink-sidecar: V-8 hook-miss record not written: {e}");
+        }
+    }
+}
+
+/// msg_id -> wall time of the first hook call that missed it.
+pub fn hook_missed(store: &Store) -> BTreeMap<String, u64> {
+    store
+        .read_state(HOOK_MISSED_STATE)
+        .ok()
+        .flatten()
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| {
+            let (k, t) = l.split_once(' ')?;
+            Some((k.to_string(), t.trim().parse().ok()?))
+        })
+        .collect()
+}
+
+/// V-8 (06a 2.13.c, arch 6.7.3): the last real surfacing and whether it is bad. Bad iff a pending
+/// message was not handed over 2 ticks after the agent became ready (counted from the later of storing
+/// and readiness, as R-44.e) or 2 ticks after a hook call that missed it. `age(stamp)` gives the
+/// jump-immune age of a wall stamp. An idle agent with nothing pending is never bad; its age is shown.
+pub fn last_surface(
+    rows: &[Row],
+    pending: &[(String, u64)],
+    ready_since: Option<u64>,
+    hook_missed: &BTreeMap<String, u64>,
+    age: &dyn Fn(u64) -> u64,
+) -> Value {
     let last = own_handovers(rows).max();
     let mut overdue = vec![];
-    for (id, stored) in pending(rows) {
-        let by_ready = ready_since.map(|t| t.max(stored)).filter(|t| now.saturating_sub(*t) > SURFACE_AFTER_MS);
-        let by_hook = hook_missed(&id).filter(|t| now.saturating_sub(*t) > SURFACE_AFTER_MS);
-        if let Some(t) = by_ready.or(by_hook) {
-            overdue.push(json!({"msg_id": id, "since_ms": t, "by": if by_ready.is_some() { "ready" } else { "hook call" }}));
+    for (id, stored) in pending {
+        // the later of storing and readiness is the younger of the two ages
+        let by_ready = ready_since.map(|r| age(*stored).min(age(r))).filter(|a| *a > SURFACE_AFTER_MS);
+        let by_hook = hook_missed.get(id).map(|t| age(*t)).filter(|a| *a > SURFACE_AFTER_MS);
+        if let Some(a) = by_ready.or(by_hook) {
+            overdue.push(json!({"msg_id": id, "overdue_by_ms": a - SURFACE_AFTER_MS, "by": if by_ready.is_some() { "ready" } else { "hook call" }}));
         }
     }
     json!({
         "last_surface_ms": last,
-        "age_ms": last.map(|t| now.saturating_sub(t)),
+        "age_ms": last.map(age),
         "bad": !overdue.is_empty(),
         "overdue": overdue,
     })
 }
 
-/// CLEAR (FCW-121): no field bad, no field unknown, and if anything was pending in the last hour, a
-/// HANDED_OVER after the earliest such STORED. Returns `{state, bad, unknown, why}`.
-pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], now: u64) -> Value {
+/// The revocation status forms (T-3703 design 5.5), as CLEAR reads them: ok, unknown or bad. Any other
+/// line is bad: a form this code does not know is never read as fine (r1 MAJOR 5).
+pub fn revocation_reading(line: &str) -> &'static str {
+    if line.starts_with("verified seq ") || line == "off (PH-1 trust)" {
+        "ok"
+    } else if line.starts_with("unverified since ") || line == "hub predates revocation list" {
+        "unknown"
+    } else {
+        "bad"
+    }
+}
+
+/// CLEAR (FCW-121): no field bad, no field unknown, and if any mail was pending in the last hour (still
+/// pending now at any age, or handed over within the hour) a hand-over this side made after the
+/// earliest such STORED. Returns `{state, bad, unknown, why}`.
+pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], pending_now: &[(String, u64)], now_wall: u64) -> Value {
     let mut bad: Vec<String> = vec![];
     let mut unknown: Vec<String> = vec![];
     for (name, f) in fields {
@@ -254,16 +366,15 @@ pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], now: u64) ->
         match name.as_str() {
             "hub" if v["match"] != Value::Bool(true) => bad.push("hub: does not match the declared hub".into()),
             "revocation" => {
-                let s = v["revocation"].as_str().unwrap_or("");
-                if s.starts_with("stale") || s.starts_with("ROLLBACK") {
-                    bad.push(format!("revocation: {s}"));
-                } else if s.starts_with("unverified") || s == "hub predates revocation list" {
-                    // no verified list: revoked keys are not known here
-                    unknown.push("revocation".into());
+                let s = v["revocation"].as_str().unwrap_or("(no line)");
+                match revocation_reading(s) {
+                    "ok" => {}
+                    "unknown" => unknown.push("revocation".into()),
+                    _ => bad.push(format!("revocation: {s}")),
                 }
             }
             "consumers" => {
-                let s = v["consumers"].as_str().unwrap_or("");
+                let s = v["consumers"].as_str().unwrap_or("(no line)");
                 if s.starts_with("unknown") {
                     unknown.push("consumers".into());
                 } else if s != "one (proven)" {
@@ -271,18 +382,21 @@ pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], now: u64) ->
                 }
             }
             "supervision" => {
-                if v.get("heartbeat").is_some() {
+                if v.get("heartbeat").is_some() || !v["heartbeat_age_ms"].is_u64() {
                     unknown.push("supervision".into());
                 } else {
-                    if v["stale"].as_array().is_some_and(|a| !a.is_empty()) {
-                        bad.push("supervision: a component is dead".into());
+                    if v["stale"].as_array().is_some_and(|a| !a.is_empty()) || !v["stale"].is_array() {
+                        bad.push(format!("supervision: dead or unreadable component list: {}", v["stale"]));
                     }
-                    let old: Vec<&String> = v["component_age_ms"]
+                    if v["heartbeat_age_ms"].as_u64().unwrap_or(u64::MAX) > COMPONENT_BAD_MS {
+                        bad.push("supervision: heartbeat older than 3 ticks".into());
+                    }
+                    let old: Vec<String> = v["component_age_ms"]
                         .as_object()
-                        .map(|m| m.iter().filter(|(_, a)| a.as_u64().unwrap_or(u64::MAX) > COMPONENT_BAD_MS).map(|(k, _)| k).collect())
-                        .unwrap_or_default();
+                        .map(|m| m.iter().filter(|(_, a)| a.as_u64().unwrap_or(u64::MAX) > COMPONENT_BAD_MS).map(|(k, _)| k.clone()).collect())
+                        .unwrap_or_else(|| vec!["(no component ages)".into()]);
                     if !old.is_empty() {
-                        bad.push(format!("supervision: heartbeat older than 3 ticks: {}", old.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")));
+                        bad.push(format!("supervision: component heartbeat older than 3 ticks: {}", old.join(", ")));
                     }
                 }
             }
@@ -293,19 +407,24 @@ pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], now: u64) ->
             _ => {}
         }
     }
-    // Pending in the last hour needs a real surfacing after the earliest such STORED.
-    let since = now.saturating_sub(CLEAR_WINDOW_MS);
-    let earliest = rows
+    let since = now_wall.saturating_sub(CLEAR_WINDOW_MS);
+    let handed_in_window: Vec<u64> = rows
         .iter()
-        .filter(|r| r.stage == "STORED" && r.ts_ms >= since && !rows.iter().any(|s| s.msg_id == r.msg_id && s.stage == "SENT"))
-        .map(|r| r.ts_ms)
-        .min();
+        .filter(|r| r.stage == "HANDED_OVER" && r.ts_ms >= since && !rows.iter().any(|s| s.msg_id == r.msg_id && s.stage == "SENT"))
+        .filter_map(|h| rows.iter().filter(|r| r.msg_id == h.msg_id && r.stage == "STORED").map(|r| r.ts_ms).min())
+        .collect();
+    let earliest = pending_now.iter().map(|(_, t)| *t).chain(handed_in_window).min();
     let surfaced = earliest.is_none_or(|e| own_handovers(rows).any(|t| t >= e));
     if !surfaced {
-        bad.push("no hand-over after mail pending in the last hour".into());
+        bad.push("no hand-over after mail that was pending in the last hour".into());
     }
     let state = if bad.is_empty() && unknown.is_empty() { "CLEAR" } else { "NOT CLEAR" };
-    json!({"state": state, "bad": bad, "unknown": unknown})
+    let why = match (bad.first(), unknown.first()) {
+        (Some(b), _) => b.clone(),
+        (None, Some(u)) => format!("{u}: unknown"),
+        (None, None) => "every field fresh and good; mail surfaced".into(),
+    };
+    json!({"state": state, "bad": bad, "unknown": unknown, "why": why})
 }
 
 #[cfg(test)]

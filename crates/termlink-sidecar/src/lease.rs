@@ -163,7 +163,11 @@ pub fn spawn(client: LeaseClient, shared: Arc<Shared>, stop: Arc<AtomicBool>) ->
                 let o = rt.block_on(client.status(&project, None));
                 let at = crate::store::now_ms();
                 match o.view {
-                    Some(v) => shared.set(at, Ok(v)),
+                    Some(v) => {
+                        // T-3708 (FCW-120): the lease view is fresh from this read
+                        crate::fields::touch(crate::fields::LEASE);
+                        shared.set(at, Ok(v))
+                    }
                     None => shared.set(at, Err(o.message)),
                 }
             }

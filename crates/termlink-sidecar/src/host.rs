@@ -67,8 +67,10 @@ pub fn sidecars(proc_root: &Path) -> Option<Vec<Proc>> {
 /// The strength flags as the host shows them (arch 6.7.1; E-58). `procs` is `None` when the process
 /// table could not be read; `own_uid` is this sidecar's effective uid.
 pub fn strength(procs: Option<&[Proc]>, own_uid: u32) -> Value {
-    let per_agent = match procs {
-        None => "no (could not check)".to_string(),
+    // r1 MAJOR 3: the agent sessions' accounts cannot be read from here (only the sidecars'), so
+    // per-agent accounts are never claimed in PH-2; the flag names why it is absent (FCW-123).
+    let (per_agent, shared) = match procs {
+        None => ("no (could not check)".to_string(), None),
         Some(ps) => {
             let mut by_agent: BTreeMap<&str, BTreeSet<u32>> = BTreeMap::new();
             for p in ps {
@@ -76,20 +78,21 @@ pub fn strength(procs: Option<&[Proc]>, own_uid: u32) -> Value {
             }
             let uids: BTreeSet<u32> = ps.iter().map(|p| p.uid).collect();
             if by_agent.len() < 2 {
-                "no (one agent on this host: nothing to separate)".to_string()
-            } else if uids.len() == by_agent.len() && by_agent.values().all(|u| u.len() == 1) && !uids.contains(&0) {
-                "yes".to_string()
+                ("no (one agent on this host: nothing to separate)".to_string(), None)
+            } else if uids.len() < by_agent.len() || uids.contains(&0) {
+                (format!("no: {} agents run under {} account(s)", by_agent.len(), uids.len()), Some(true))
             } else {
-                format!("no: {} agents run under {} account(s)", by_agent.len(), uids.len())
+                ("no (sidecars run under separate accounts; the agent sessions' accounts are not checked)".to_string(), Some(false))
             }
         }
     };
     let same_user = if own_uid == 0 {
         "absent: agents run as root".to_string()
-    } else if per_agent == "yes" {
-        "present: one account per agent".to_string()
     } else {
-        format!("absent: agents share uid {own_uid}")
+        match shared {
+            Some(true) => format!("absent: agents share accounts (this sidecar runs as uid {own_uid})"),
+            _ => "absent (could not check)".to_string(),
+        }
     };
     json!({
         "per_agent_accounts": per_agent,
@@ -281,11 +284,14 @@ mod tests {
     }
 
     #[test]
-    fn one_account_per_agent_is_present_only_off_root() {
-        assert_eq!(strength(Some(&[p("a", 1001), p("b", 1002)]), 1001)["per_agent_accounts"], "yes");
-        assert_eq!(strength(Some(&[p("a", 1001), p("b", 1002)]), 1001)["same_user_separation"], "present: one account per agent");
-        // two processes of one agent under two uids is not per-agent separation
-        assert_ne!(strength(Some(&[p("a", 1001), p("a", 1003), p("b", 1002)]), 1001)["per_agent_accounts"], "yes");
+    fn separate_sidecar_accounts_are_never_claimed_as_per_agent_accounts() {
+        // r1 MAJOR 3: the sessions may still share one account; nothing here can see them
+        for ps in [vec![p("a", 1001), p("b", 1002)], vec![p("a", 1001), p("a", 1003), p("b", 1002)]] {
+            let v = strength(Some(&ps), 1001);
+            assert!(v["per_agent_accounts"].as_str().unwrap().starts_with("no"), "{v}");
+            assert!(v["same_user_separation"].as_str().unwrap().starts_with("absent"), "{v}");
+        }
+        assert_eq!(strength(None, 1001)["same_user_separation"], "absent (could not check)");
     }
 
     #[test]

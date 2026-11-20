@@ -390,6 +390,10 @@ impl Monitor {
         let signers = |fp: &str| fp == self.own_fingerprint || self.roster.get(fp).is_some();
         let expect = Expect { agent: main, instance, signers: &signers };
         let r = read(hub, &liveness_topic(&self.hub_id, main), &inbox_topic(&self.hub_id, main));
+        // T-3708 (FCW-120): the main's liveness verdict is fresh only from a read the hub answered
+        if !matches!(r, Read::Unreadable(_)) {
+            crate::fields::touch(crate::fields::LIVENESS);
+        }
         let v = judge(&expect, &r, now, self.stale_after_ms);
         alarm(&self.store, main, &v);
         self.shared.set(now, v.clone());

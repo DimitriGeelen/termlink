@@ -445,6 +445,8 @@ impl Tracker {
     }
 
     fn verified(&mut self, store: &Store, now: Instant, sender: Option<&crate::send::Sender>) {
+        // T-3708 (FCW-120, r1 MAJOR 4): the revocation field is fresh from this tracker's own evaluation
+        crate::fields::touch(crate::fields::REVOCATION);
         self.last_verified = Some(now);
         self.since_wall = crate::store::now_ms();
         let was = std::mem::replace(&mut self.state, State::Verified);
@@ -502,6 +504,8 @@ impl Tracker {
     }
 
     fn failed(&mut self, store: &Store, now: Instant, why: &str, tamper: bool) {
+        // the status line below says why; the evaluation itself ran now
+        crate::fields::touch(crate::fields::REVOCATION);
         let hour = crate::store::now_ms() / 3_600_000;
         if tamper {
             let _ = store.attention_coalesced("revocation-tamper", &hour.to_string(), &format!("hub {}: {why}", self.hub_id));

@@ -408,6 +408,8 @@ impl Running {
                 }
             }
         }
+        // T-3708 (E-59): look at both clocks every tick, so a wall jump is seen even when no deadline runs
+        crate::fields::look();
         let r = crate::beat::write(self.store.dir(), now, &beats, after);
         // T-3708 (FCW-120): `supervision` is fresh only while the heartbeat is being written
         if r.is_ok() {

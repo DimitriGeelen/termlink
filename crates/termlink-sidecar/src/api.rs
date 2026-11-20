@@ -484,7 +484,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 // T-3708 (P-24 slice a): stamped fields, CLEAR, host strength, skew (additive; design 3.0).
                 if crate::fields::enabled() {
                     let ready = ctx.deliverer.and_then(|d| d.ready_since(crate::store::now_ms()));
-                    p24_fields(&mut v, crate::fields::global(), Some(store), ready, crate::store::now_ms());
+                    let deliverable = ctx.deliverer.map(|d| d.pending_ids());
+                    p24_fields(&mut v, crate::fields::global(), Some(store), ready, deliverable.as_deref(), crate::store::now_ms());
                     // E-55 / E-134 (design 3.9): one latency line per call, bounded; a failing log is shown
                     v["latency_log"] = json!(latency_log(store.dir(), started.elapsed().as_millis() as u64, &v));
                 }
@@ -508,7 +509,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
             }
             // T-3708 (V-8): a hook call ran while these messages were pending; the first such time counts.
             if let Some(d) = ctx.deliverer {
-                crate::fields::global().hook_call(&d.pending_ids());
+                crate::fields::record_hook_call(store, &d.pending_ids(), crate::store::now_ms());
             }
             pull(obj, ctx.deliverer, ctx.lease, agent)
         }
@@ -1205,7 +1206,7 @@ fn status_at(
                 // signal (row P3) the recipient may simply not be running: UNKNOWN,
                 // never STUCK (R-44.a).
                 let posted = first_ts(crate::send::POSTED);
-                if posted.is_some_and(|t| now_ms.saturating_sub(t) > dl.accept(urgent)) {
+                if posted.is_some_and(|t| crate::fields::age_ms(t, now_ms) > dl.accept(urgent)) {
                     v["label"] = json!("UNKNOWN");
                 }
             }
@@ -1234,7 +1235,7 @@ fn status_at(
             let sent_here = rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == "SENT");
             // R-44.e (PH-2 row P2). Received but never stored: the recipient is
             // demonstrably alive, so past the accept deadline it is STUCK.
-            if sent_here && reached == "RECEIVED" && sent_at.is_some_and(|t| now_ms.saturating_sub(t) > dl.accept(urgent)) {
+            if sent_here && reached == "RECEIVED" && sent_at.is_some_and(|t| crate::fields::age_ms(t, now_ms) > dl.accept(urgent)) {
                 stuck(&mut v, crate::deadline::STEP_NOT_ACCEPTED);
             }
             // Stored, not handed over: only the recipient knows when its agent became
@@ -1252,7 +1253,7 @@ fn status_at(
             if sent_here && reached == "HANDED_OVER" {
                 if has(crate::deadline::OVERDUE_ANSWER) {
                     stuck(&mut v, crate::deadline::STEP_NOT_ANSWERED);
-                } else if first_ts("HANDED_OVER").is_some_and(|t| now_ms.saturating_sub(t) > dl.answer(urgent)) {
+                } else if first_ts("HANDED_OVER").is_some_and(|t| crate::fields::age_ms(t, now_ms) > dl.answer(urgent)) {
                     v["label"] = json!("UNKNOWN");
                 }
             }
@@ -1311,17 +1312,27 @@ fn status_at(
 /// `unknown (last at T)` past its bound), `clear`, and `strength_host` to a status reply. Additive:
 /// no existing key is touched. CLEAR is judged over this agent's own fields; the main's liveness is
 /// another agent's state and keeps its own verdict under `main`.
-pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, store: Option<&Store>, ready_since: Option<u64>, now_wall: u64) {
+pub(crate) fn p24_fields(
+    v: &mut Value,
+    reg: &crate::fields::Registry,
+    store: Option<&Store>,
+    ready_since: Option<u64>,
+    deliverable: Option<&[String]>,
+    now_wall: u64,
+) {
     use crate::fields::{self as f, BOUND_DAILY_MS, BOUND_HEARTBEAT_MS, BOUND_TICKS_MS};
     let mono = reg.clock().mono_ms();
     let rows = f::rows_of(&v["rows"]);
-    let missed = |id: &str| reg.hook_missed_at(id);
+    let pending = f::pending(&rows, deliverable);
+    let missed = store.map(f::hook_missed).unwrap_or_default();
+    let age = |t: u64| reg.age_ms(t, now_wall);
     let strength = crate::host::strength_now();
     let mut m = serde_json::Map::new();
     m.insert("mode".into(), f::computed(&v["mode"], now_wall));
     m.insert("binary".into(), f::computed(&v["binary"], now_wall));
     m.insert("hub".into(), f::render(&v["hub"], reg.last(f::PULL), BOUND_TICKS_MS, mono));
-    m.insert("revocation".into(), f::render(&v["revocation"], reg.last(f::PULL), BOUND_TICKS_MS, mono));
+    // r1 MAJOR 4: stamped by the revocation tracker's own evaluation, not by the hub.version check
+    m.insert("revocation".into(), f::render(&v["revocation"], reg.last(f::REVOCATION), BOUND_TICKS_MS, mono));
     m.insert("consumers".into(), f::render(&v["consumers"], reg.last(f::CONSUMERS), 2 * crate::consumers::CHECK_EVERY_MS, mono));
     m.insert("supervision".into(), f::render(&v["supervision"], reg.last(f::HEARTBEAT), BOUND_HEARTBEAT_MS, mono));
     // T-3708 D-2 (operator ruling A): no receiver quotas yet (P-17), so nothing can refuse receipts.
@@ -1331,7 +1342,7 @@ pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, store: Op
     m.insert("skew".into(), f::render(&skew, reg.last(f::SKEW), BOUND_TICKS_MS, mono));
     let ntp = crate::host::ntp_view().map(Value::from).unwrap_or(Value::Null);
     m.insert("ntp".into(), f::render(&ntp, reg.last(f::NTP), BOUND_DAILY_MS, mono));
-    m.insert("last_surface".into(), f::computed(&f::last_surface(&rows, ready_since, &missed, now_wall), now_wall));
+    m.insert("last_surface".into(), f::computed(&f::last_surface(&rows, &pending, ready_since, &missed, &age), now_wall));
     // E-127's reader (carried from T-3703 r1 finding 17): the revocation invariants, computed from local state
     if let Some(store) = store {
         let stored: Vec<(String, String, u64)> = v["rows"]
@@ -1349,8 +1360,17 @@ pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, store: Op
         }
         m.insert("revocation_invariants".into(), f::computed(&json!({"broken": broken}), now_wall));
     }
-    v["clear"] = f::clear(&m, &rows, now_wall);
+    v["clear"] = f::clear(&m, &rows, &pending, now_wall);
+    // r1 MAJOR 8: the hub-derived views of another agent's state, stamped too, but outside CLEAR
+    let mut other = serde_json::Map::new();
+    if v["main"].get("liveness").is_some() {
+        other.insert("main.liveness".into(), f::render(&v["main"]["liveness"], reg.last(f::LIVENESS), BOUND_TICKS_MS, mono));
+    }
+    if v["main"].get("lease").is_some() {
+        other.insert("main.lease".into(), f::render(&v["main"]["lease"], reg.last(f::LEASE), BOUND_TICKS_MS, mono));
+    }
     v["fields"] = Value::Object(m);
+    v["fields_other_agents"] = Value::Object(other);
     v["strength_host"] = strength;
 }
 

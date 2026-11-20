@@ -174,19 +174,15 @@ struct Body<'a> {
 }
 
 /// Wall-clock now in ms since the epoch.
-/// The sidecar's time: the wall time at the first call plus monotonic time since (T-3708, E-59,
-/// design 3.5.3). Every stamp and deadline in this process uses it, so a wall-clock jump moves no
-/// deadline. A host clock step is not absorbed until the next start; the skew estimate against the
-/// hub shows it meanwhile (`status.fields.skew`).
+/// Wall time: what every stamp that is stored or sent carries (T-3708 r1 BLOCKER: it stays wall time;
+/// deadlines measure ages with [`crate::fields::age_ms`] instead, so a wall jump moves none of them).
 pub fn now_ms() -> u64 {
-    static ANCHOR: std::sync::OnceLock<(std::time::Instant, u64)> = std::sync::OnceLock::new();
-    let (at, wall) = ANCHOR.get_or_init(|| (std::time::Instant::now(), wall_now_ms()));
-    wall + at.elapsed().as_millis() as u64
+    wall_now_ms()
 }
 
 static WALL_SHIFT_MS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
 
-/// The host's wall clock, for display only (plus a test shift, see [`test_shift_wall_ms`]).
+/// The host's wall clock (plus a test shift, see [`test_shift_wall_ms`]).
 pub fn wall_now_ms() -> u64 {
     let w = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
