@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T10:57:06Z
+last_update: 2026-11-20T10:57:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -106,9 +106,16 @@ Unblocks: P-25 (T-3709), P-33 (T-3714), P-38 (T-3717); part of gate G-2.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-14 specs pass (strength flags, reachability card, CLEAR, skew, GP-4 lines)
-- [ ] Status answers in 5 s
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-14 E-n and its mutant list is all killed (FP 3.1.b)
+Scope is slice (a) per D-1 (card + GP-4 lines moved to T-3832). Design: `docs/reports/T-3708-design.md`.
+- [ ] Additive only (design 3.0): no existing status key or liveness-note field changes shape; a test pins the pre-P-24 keys; `TERMLINK_SIDECAR_P24=off` hides every new key (rollback).
+- [ ] Freshness (3.1, FCW-120): `status.fields` renders each field fresh with `at_ms`/`bound_ms`, or `unknown (last at T)` past its bound; after a restart every field is unknown; E-19 and E-55 (schema + stale-to-unknown) PASS on a simulated clock.
+- [ ] CLEAR (3.2, FCW-121): pure `clear()` with the AL-29 bad-field list; a heartbeat, READY or pull never counts as surfacing; E-56 PASS (injected refusals: NOT CLEAR with `last_surface` bad; healthy: CLEAR after the hand-over).
+- [ ] V-8 (3.3): the first hook call that did not hand a pending STORED message over is recorded; `last_surface` bad exactly at READY + 2 ticks or hook-miss + 2 ticks; idle 48 h with nothing pending is not bad; E-57 PASS.
+- [ ] Host strength (3.4, FCW-123): `strength_host` flags computed from `/proc` per call; uncomputable reads absent; E-58 PASS on .107 against `ps -o user=`.
+- [ ] Skew/NTP/steady deadlines (3.5): skew from `hub_now_ms` round trips (flags at > 2 s and > 30 s), NTP sampled hourly or `unchecked`; every deadline check uses the steady clock; E-59 PASS (0/3/45 s offsets, ±1 h wall jump fires nothing early or late).
+- [ ] Quota (D-2 A): `quota` reads `absent: receiver quotas not built (P-17)`, and a test shows CLEAR does not wait on it.
+- [ ] Latency (3.9): status makes no blocking hub call; per-call latency log, bounded; E-55 p95 ≤ 5 s over 100 calls under the available fault seams; E-134 log present.
+- [ ] The unit's fixture suite exits 0 with a PASS line per slice-(a) E-n, and the design section 5 mutants for slice (a) are all killed (FP 3.1.b)
 - [ ] (from T-3703 r2 CC 4 / OC 3, deferred) A sender whose recipient's current key is on the hub's revocation list shows that message as WAITING FOR RECIPIENT with the reason "key revoked, operator action needed" and raises one needs-attention entry (RK-1); the sender learns the recipient's key from its hub key card (B-6). Test: revoke fx-a, fx-b sends to fx-a, fx-b's status names the reason.
 - [ ] (from T-3703 r1 finding 17) E-127's reader: count `refused_revoked` in the sidecar status after each revocation row and fire when `unverified` is older than PN-13 without the narrowing applied, or a message from a revoked key is STORED.
 - [ ] (from T-3703 r1 finding 5) Status vocabulary binds: `revocation` = `verified seq N at T` | `unverified since T (<why>)` | `stale since T (<why>)` | `ROLLBACK refused, kept seq N` | `hub predates revocation list` | `off (PH-1 trust)` (T-3703 design 5.5).
