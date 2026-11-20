@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): B-2: consumer list per inbox, sidecar check each tick,
   bind-and-refuse verb (DR-11 A)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/lib.rs, crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/cli.rs, crates/termlink-sidecar/src/client.rs, crates/termlink-sidecar/src/lib.rs, crates/termlink-sidecar/src/pull.rs, crates/termlink-sidecar/src/send.rs]
 related_tasks: [T-3357]
 plan_unit: P-12
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:35Z
-last_update: 2026-11-19T16:56:00Z
-date_finished:
+last_update: 2026-11-20T09:27:10Z
+date_finished: 2026-11-20T09:27:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -356,6 +356,28 @@ grep -q "34/34 killed" docs/reports/T-3700-mutants.md
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-19 — the "authenticated caller" of AL-30 did not exist for reads
+- **What changed:** AL-30 2.14.h marked the reader identity as built [B]; in code, `channel.subscribe` carries no caller
+  identity and claims a self-declared name (spec extract F-1).
+- **Plan impact:** reader identity became an operator decision: ruling E (named reads, signed where a key card
+  exists, `proven`/`claimed`, bind by key) and ruling D (diagnostic peeks through the sidecar, `termlink sidecar peek`).
+- **Triggered:** design doc correction (06a 2.14.h); AEF T-5281 (route `fw sidecar inbox --peek` through the sidecar).
+
+### 2026-11-19 — liveness reads of another agent's inbox would have counted as consumers
+- **What changed:** `liveness.rs` read one message of the main's inbox from every sidecar with a book.
+- **Plan impact:** new content-free hub call `channel.first_at`; liveness falls back to the old read only on an old hub.
+- **Triggered:** design 4.4 (agent choice, reported to the operator).
+
+### 2026-11-20 — review rounds and a live regression
+- **What changed:** three review rounds (cap) found a self-spoof, growth/amplification, a corrupt-table overwrite and the
+  full-table clean-list gap; all fixed and mutant-pinned (34). After deploy, the proof's field name `reader` collided
+  with T-3309's existing plain-name `reader` on `channel.subscribe`: old clients (AEF `fw sidecar inbox`) were refused on
+  inbox topics on .107 and three fleet hubs for ~3 h. Fixed in e15e4c380 (`read_proof`), redeployed, m34 pins it.
+- **Plan impact:** runme action 37 (P-12 live check) reports the upgrade-order artifact (old sidecars' unsigned reads
+  between the hub and sidecar restarts) until it leaves the 24 h window.
+- **Triggered:** T-3827 (status read right after a meter restart), T-3828 (hub_key_pin record under load); learnings on
+  the stale mutated binary and on grepping a handler before adding a param name.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -444,3 +466,16 @@ grep -q "34/34 killed" docs/reports/T-3700-mutants.md
 ### 2026-11-19T16:53:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-20T09:27:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3ae0ed37
+- **Timestamp:** 2026-11-20T09:27:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,182 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3700: P-12: B-2 consumer list per inbox and bind-and-refuse
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-20T09:27:26Z
+# ============================================================================
+
+task_id: T-3700
+task_name: "P-12: B-2 consumer list per inbox and bind-and-refuse"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:35Z
+completed: 2026-11-20T09:27:10Z
+duration_days: 8
+updates_count: 3
+first_commit: 2026-11-19T17:56:00+01:00
+last_commit: 2026-11-20T10:26:29+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-12 spec extract; F-1 reads carry no caller identity (AL-30 2.14.h [B] premise does not hold). F-1 ruling E (named + signed inbox reads, proven/claimed, bind by key) — operator. P-12 design (proven/claimed readers, bind by key, durable consumer table); correct AL-30 2.14.h [B] claim. ruling D (diagnostic peeks go through the sidecar, signed; key-less reads get no exception) — operator. hub side of P-12 — inbox consumer list (proven/claimed), signed read proofs, bind by key, inbox.consumers / hub.inbox_bind / hub.inbox_unbind. termlink hub inbox consumers|bind|unbind (local socket; bind/unbind admin-logged). sidecar side of P-12 — signed inbox reads, per-pass consumer check + status/attention, peek (ruling D), channel.first_at for liveness. E-66/E-66.6/E-133/E-169/V-12 at L4 on a real hub (5 tests green); check_consumers_now; design 4.4 liveness via channel.first_at. mutants 15/15 killed (incl. E-66.5/E-66.6/E-169.5 controls); PASS lines per E-n; liveness first_at unit test; runners rebuild the clean binary after a run. review bundle 1 (redacted, 99 KB). review round 1 fixes — self-spoof closed (entries keyed by strength+key, own = proven by own key, '-' and empty instance refused), record only real topics with bounded length and capped rows, corrupt table moved aside and reported incomplete, aged status, long-poll re-check after a bind, fresh-ack window, bind refuses revoked keys, liveness falls back only for old hubs. 26 mutants (11 for the round-1 fixes); test: a read of a missing topic records nothing. design corrected after review round 1 (codes, no hub claim by the sidecar, section 7). mutants 26/26 killed (m4 needed a failed-save test after round 1); report updated. review bundle 2 + confirmation prompt. review round 2 fixes — full table answers an error for an unrecorded inbox (N1), bound inbox gated before its topic exists (N2), exact old-hub fallback (N3), reset marker saved at once (N4), suppressed count kept until written (N5), reason change on cadence (N6), every gated read re-checks the bind (N7), missing own fingerprint is unknown; 30 mutants. mutants 30/30; r2 dispositions; review bundle 3 + final prompt. review round 3 (final) fixes — an inbox entering the table after a drop is not served clean inside the window (r3 CC 1 MAJOR), drop marker on every drop, empty own fingerprint keeps other readers and hub errors; bound-before-created gated at the handlers (L4); 33 mutants. mutants 33/33 killed (final); r3 dispositions (review cap reached); hub+bus+sidecar+session 1998 green. fix live regression — the read proof travels as 'read_proof'; 'reader' keeps its T-3309 meaning (a plain name old clients send), which the P-12 hub refused on inbox topics. 34/34 mutants (m34 pins the live reader-field regression); agent ACs met (L4 E-66/E-133/E-169 PASS, hub unit green)
+
+# Key outcomes
+outcomes:
+  - 'The B-2 specs pass (consumer list per inbox, sidecar check each tick, bind-and-refuse verb)'
+  - 'The unit''s fixture suite exits 0 with a PASS line per B-2 E-n and its mutant list is all killed (FP 3.1.b)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix live regression — the read proof travels as ''read_proof''; ''reader'' keeps its T-3309 meaning (a plain name old clients send), which the P-12 hub refused on inbox topics'
+    source: git-mined
+  - description: 'review round 3 (final) fixes — an inbox entering the table after a drop is not served clean inside the window (r3 CC 1 MAJOR), drop marker on every drop, empty own fingerprint keeps other readers and hub errors; bound-before-created gated at the handlers (L4); 33 mutants'
+    source: git-mined
+  - description: 'review round 2 fixes — full table answers an error for an unrecorded inbox (N1), bound inbox gated before its topic exists (N2), exact old-hub fallback (N3), reset marker saved at once (N4), suppressed count kept until written (N5), reason change on cadence (N6), every gated read re-checks the bind (N7), missing own fingerprint is unknown; 30 mutants'
+    source: git-mined
+  - description: '26 mutants (11 for the round-1 fixes); test: a read of a missing topic records nothing'
+    source: git-mined
+  - description: 'review round 1 fixes — self-spoof closed (entries keyed by strength+key, own = proven by own key, ''-'' and empty instance refused), record only real topics with bounded length and capped rows, corrupt table moved aside and reported incomplete, aged status, long-poll re-check after a bind, fresh-ack window, bind refuses revoked keys, liveness falls back only for old hubs'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-19 — How the hub identifies an inbox reader (F-1): E, named + signed reads (operator ruling)'
+    chose: 'E (A+B). Every inbox read and claim carries the reader''s agent name; a reader with a key card also signs the read (inbox, cursor, timestamp, hub id; the key it signs posts with) and the hub checks it against the card. Each consumer is listed `proven` or `claimed`. Before a bind unsigned readers are allowed, listed `claimed`, flagged. After a bind only reads signed with the bound agent''s key pass; a matching name alone is refused.'
+    rationale: 'reads carry no caller identity today (spec extract F-1), so the design''s "[B] authenticated caller" does not hold. A alone cannot tell two copies of one agent name apart (V-12); E can, and a bind holds by key, not name. Root on .107 can still read key files; E closes that when PH-4 accounts arrive, without rework. Operator, on the first brief: "A still doesn''t solve a problem that everybody can be" — the brief had omitted A+B; added as E and rescored (A +28, B +17, C −27, E +39).'
+    alternatives_rejected: ['A (names only: spoofable, misses a same-name second copy); B (signed only: every key-less tool refused outright, no `claimed` visibility); C (postpone to PH-4: BP-15 stays invisible, blocks P-24/P-36/G-2). - **Left open:** the rule for the operator''s diagnostic peeks (CLI/MCP inbox reads) — to be proposed in the design and brought back; each bind remains an operator runme action. Design text 06a 2.14.h is corrected under this task.']
+  - decision: '2026-11-19 — Key-less diagnostic reads of an inbox: D, peek through the agent''s own sidecar (operator ruling)'
+    chose: 'D. A sidecar `peek` verb reads the inbox with the sidecar''s own signed reader and does not advance it. Direct key-less reads (CLI `channel subscribe`, MCP `channel_state`, AEF `fw sidecar inbox --peek` today) are treated like any reader: listed `claimed`, flagged, refused after a bind.'
+    rationale: 'keeps the operator''s ability to look without opening the BP-15 hole (a self-labelled "observer" is the 2026-10-06 incident again). Scores D +32, A +6, C −5, B −6.'
+    alternatives_rejected: ['A (no peek path: alarms on every look, none after a bind); B (self-declared observer: reopens BP-15); C (local root as observer: on .107 everything is root, so it exempts exactly where the incident happened). - **Follow-ons:** ask AEF over TermLink to route `fw sidecar inbox --peek` through the sidecar (their code) — asked 2026-11-19 (conv t3700-peek-route); AEF said yes, tracked as their T-5281, waiting on us to post the version with `termlink sidecar peek` once live; confirm in the build that AEF''s inbox route and the arc-011 agent inbox are different topics (`termlink` vs `claude-termlink`).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3700-p-12-b-2-consumer-list-per-inbox-and-bin.md'
+  - '.tasks/active/T-3828-hubkeypin-pinned-attention-record-missin.md'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/inbox_consumers.rs'
+  - 'crates/termlink-hub/src/inbox_consumers_tests.rs'
+  - 'crates/termlink-hub/src/key_card.rs'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/src/rpc_audit.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'crates/termlink-session/src/inbox_read.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/tests/mutants/run-t3700.py'
+  - 'crates/termlink-session/tests/mutants/run-t3823.py'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/cli.rs'
+  - 'crates/termlink-sidecar/src/client.rs'
+  - 'crates/termlink-sidecar/src/consumers.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/liveness.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/tests/t3700_consumers.rs'
+  - 'docs/design/interactive-agent-communication-06a-pseudo-code-ph2-hardening.md'
+  - 'docs/reports/T-3700-design.md'
+  - 'docs/reports/T-3700-mutants.md'
+  - 'docs/reports/T-3700-reviews/bundle-1.md'
+  - 'docs/reports/T-3700-reviews/bundle-2.md'
+  - 'docs/reports/T-3700-reviews/bundle-3.md'
+  - 'docs/reports/T-3700-reviews/prompt-1.md'
+  - 'docs/reports/T-3700-reviews/prompt-2.md'
+  - 'docs/reports/T-3700-reviews/prompt-3.md'
+  - 'docs/reports/T-3700-reviews/r1-dispositions.md'
+  - 'docs/reports/T-3700-reviews/r2-dispositions.md'
+  - 'docs/reports/T-3700-reviews/r3-dispositions.md'
+  - 'docs/reports/T-3700-reviews/review-1-claude-code.md'
+  - 'docs/reports/T-3700-reviews/review-1-independence.json'
+  - 'docs/reports/T-3700-reviews/review-1-opencode.md'
+  - 'docs/reports/T-3700-reviews/review-2-claude-code.md'
+  - 'docs/reports/T-3700-reviews/review-2-independence.json'
+  - 'docs/reports/T-3700-reviews/review-2-opencode.md'
+  - 'docs/reports/T-3700-reviews/review-3-claude-code.md'
+  - 'docs/reports/T-3700-reviews/review-3-independence.json'
+  - 'docs/reports/T-3700-reviews/review-3-opencode.md'
+  - 'docs/reports/T-3700-spec-extract.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-19T17:56:00'
+    action: 'T-3700: P-12 spec extract; F-1 reads carry no caller identity (AL-30 2.14.h [B] premise does not hold)'
+  - time: '2026-11-19T19:47:48'
+    action: 'T-3700: F-1 ruling E (named + signed inbox reads, proven/claimed, bind by key) — operator'
+  - time: '2026-11-19T21:17:51'
+    action: 'T-3700: P-12 design (proven/claimed readers, bind by key, durable consumer table); correct AL-30 2.14.h [B] claim'
+  - time: '2026-11-19T22:31:16'
+    action: 'T-3700: ruling D (diagnostic peeks go through the sidecar, signed; key-less reads get no exception) — operator'
+  - time: '2026-11-19T23:55:06'
+    action: 'T-3700: hub side of P-12 — inbox consumer list (proven/claimed), signed read proofs, bind by key, inbox.consumers / hub.inbox_bind / hub.inbox_unbind'
+  - time: '2026-11-20T00:01:56'
+    action: 'T-3700: termlink hub inbox consumers|bind|unbind (local socket; bind/unbind admin-logged)'
+  - time: '2026-11-20T00:22:42'
+    action: 'T-3700: sidecar side of P-12 — signed inbox reads, per-pass consumer check + status/attention, peek (ruling D), channel.first_at for liveness'
+  - time: '2026-11-20T00:31:53'
+    action: 'T-3700: E-66/E-66.6/E-133/E-169/V-12 at L4 on a real hub (5 tests green); check_consumers_now; design 4.4 liveness via channel.first_at'
+  - time: '2026-11-20T00:49:44'
+    action: 'T-3700: mutants 15/15 killed (incl. E-66.5/E-66.6/E-169.5 controls); PASS lines per E-n; liveness first_at unit test; runners rebuild the clean binary after a run'
+  - time: '2026-11-20T00:51:18'
+    action: 'T-3700: review bundle 1 (redacted, 99 KB)'
+  - time: '2026-11-20T01:16:13'
+    action: 'T-3700: review round 1 fixes — self-spoof closed (entries keyed by strength+key, own = proven by own key, ''-'' and empty instance refused), record only real topics with bounded length and capped rows, corrupt table moved aside and reported incomplete, aged status, long-poll re-check after a bind, fresh-ack window, bind refuses revoked keys, liveness falls back only for old hubs'
+  - time: '2026-11-20T01:18:10'
+    action: 'T-3700: 26 mutants (11 for the round-1 fixes); test: a read of a missing topic records nothing'
+  - time: '2026-11-20T01:21:11'
+    action: 'T-3700: design corrected after review round 1 (codes, no hub claim by the sidecar, section 7)'
+  - time: '2026-11-20T01:43:17'
+    action: 'T-3700: mutants 26/26 killed (m4 needed a failed-save test after round 1); report updated'
+  - time: '2026-11-20T01:46:12'
+    action: 'T-3700: review bundle 2 + confirmation prompt'
+  - time: '2026-11-20T02:05:51'
+    action: 'T-3700: review round 2 fixes — full table answers an error for an unrecorded inbox (N1), bound inbox gated before its topic exists (N2), exact old-hub fallback (N3), reset marker saved at once (N4), suppressed count kept until written (N5), reason change on cadence (N6), every gated read re-checks the bind (N7), missing own fingerprint is unknown; 30 mutants'
+  - time: '2026-11-20T02:20:00'
+    action: 'T-3700: mutants 30/30; r2 dispositions; review bundle 3 + final prompt'
+  - time: '2026-11-20T02:38:28'
+    action: 'T-3700: review round 3 (final) fixes — an inbox entering the table after a drop is not served clean inside the window (r3 CC 1 MAJOR), drop marker on every drop, empty own fingerprint keeps other readers and hub errors; bound-before-created gated at the handlers (L4); 33 mutants'
+  - time: '2026-11-20T03:01:07'
+    action: 'T-3700: mutants 33/33 killed (final); r3 dispositions (review cap reached); hub+bus+sidecar+session 1998 green'
+  - time: '2026-11-20T07:09:17'
+    action: 'T-3700: fix live regression — the read proof travels as ''read_proof''; ''reader'' keeps its T-3309 meaning (a plain name old clients send), which the P-12 hub refused on inbox topics'
+  - time: '2026-11-20T10:26:29'
+    action: 'T-3700: 34/34 mutants (m34 pins the live reader-field regression); agent ACs met (L4 E-66/E-133/E-169 PASS, hub unit green)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 21 commit(s), 11070 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11070
+  commits: 22
+  files_changed: 53
+  lines_added: 7975
+  lines_removed: 283
+  footprint_refreshed_at: '2026-11-20T09:27:32Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3700-p-12-b-2-consumer-list-per-inbox-and-bin.md
+generated_by: context-agent-hybrid
