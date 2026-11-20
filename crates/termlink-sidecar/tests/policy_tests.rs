@@ -377,3 +377,23 @@ fn t3703_stale_gate_keeps_urgent_only_for_the_own_project_while_narrowing() {
     assert!(stale_gate(true, Trust::Admitted, false), "not stale: the allow-list decides");
     assert!(!stale_gate(false, Trust::OwnProject, true), "the gate never raises urgency");
 }
+
+// ---- T-3708 (carried from T-3703 r3 CC N4): the DOWNGRADED reason names a stale-gate downgrade -------
+
+#[test]
+fn t3708_downgrade_reason_names_the_stale_list_only_when_the_gate_caused_it() {
+    use termlink_sidecar::policy::{Trust, downgrade_why, downgrade_why_with};
+    // today the urgent allow-list is the own project only: every downgrade names the allow-list
+    for narrowing in [false, true] {
+        let w = downgrade_why(7, Trust::Admitted, narrowing);
+        assert!(w.contains("urgent needs the allow-list") && !w.contains("revocation list stale"), "{w}");
+    }
+    // widened to admitted senders: while narrowing, the downgrade is the stale gate's and says so
+    fn widened(t: Trust) -> bool {
+        matches!(t, Trust::OwnProject | Trust::Admitted)
+    }
+    let w = downgrade_why_with(7, Trust::Admitted, true, widened);
+    assert!(w.contains("revocation list stale"), "{w}");
+    // not narrowing, a widened sender is not downgraded by the gate; an untrusted one names the allow-list
+    assert!(downgrade_why_with(7, Trust::Untrusted, true, widened).contains("urgent needs the allow-list"));
+}

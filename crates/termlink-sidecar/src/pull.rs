@@ -616,7 +616,7 @@ impl Inner {
         }
         if a.downgraded {
             // Asked for urgent without the allow-list: normal, and said so (SI-18).
-            let why = format!("priority {} from a {} sender: urgent needs the allow-list", a.priority, a.trust.as_str());
+            let why = policy::downgrade_why(a.priority, a.trust, crate::revocation::narrowing(&self.store));
             if let Err(e) = once(policy::DOWNGRADED, Some(&why)) {
                 return Outcome::Retry(format!("DOWNGRADED not recorded: {e}"));
             }

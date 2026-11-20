@@ -257,7 +257,8 @@ pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], now: u64) ->
                 let s = v["revocation"].as_str().unwrap_or("");
                 if s.starts_with("stale") || s.starts_with("ROLLBACK") {
                     bad.push(format!("revocation: {s}"));
-                } else if s.starts_with("unverified") {
+                } else if s.starts_with("unverified") || s == "hub predates revocation list" {
+                    // no verified list: revoked keys are not known here
                     unknown.push("revocation".into());
                 }
             }

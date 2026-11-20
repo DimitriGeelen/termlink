@@ -159,6 +159,34 @@ fn clear_counts_unknown_and_each_bad_field() {
     assert_eq!(clear(&f, &[], now)["unknown"], json!(["revocation"]));
 }
 
+// T-3703 r1 finding 5 (carried): the six `revocation` status forms bind, and CLEAR reads each one.
+#[test]
+fn revocation_vocabulary_binds_and_clear_reads_each_form() {
+    for (line, expect) in [
+        ("verified seq 7 at 1795150000000", "CLEAR"),
+        ("off (PH-1 trust)", "CLEAR"),
+        ("unverified since 1795150000000 (hub unreachable: refused)", "unknown"),
+        ("unverified since start (no pull yet)", "unknown"),
+        ("hub predates revocation list", "unknown"),
+        ("stale since 1795150000000 (hub unreachable: refused)", "bad"),
+        ("ROLLBACK refused, kept seq 7", "bad"),
+    ] {
+        let mut f = healthy();
+        f.insert("revocation".into(), fresh(json!({"revocation": line, "refused_revoked": 0})));
+        let c = clear(&f, &[], 10_000_000);
+        let got = if c["state"] == "CLEAR" {
+            "CLEAR"
+        } else if c["unknown"] == json!(["revocation"]) {
+            "unknown"
+        } else if c["bad"].to_string().contains("revocation") {
+            "bad"
+        } else {
+            "other"
+        };
+        assert_eq!(got, expect, "{line}: {c}");
+    }
+}
+
 // D-2 (operator ruling A): the not-built quota value does not hold CLEAR back.
 #[test]
 fn d2_quota_not_built_does_not_hold_clear() {

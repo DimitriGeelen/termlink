@@ -142,7 +142,7 @@ impl Policy for BuiltIn {
             Trust::Untrusted
         };
         let asks_urgent = priority >= URGENT_AT;
-        let urgent = asks_urgent && trust == Trust::OwnProject;
+        let urgent = asks_urgent && urgent_allowed(trust);
         // T-3703 (DR-8 A, FCW-95/96): while the revocation list is stale or unverified since start, urgent is
         // allowed only from the own project's roster. Today urgent already needs the roster; this gate binds any
         // later widening of the urgent allow-list.
@@ -158,6 +158,27 @@ impl Policy for BuiltIn {
                 Trust::Untrusted => Some(AWAITING_OPERATOR),
             },
         }
+    }
+}
+
+/// The urgent allow-list: who may send urgent at all. Today the own project's roster only; widening it
+/// here also widens what the stale gate below narrows, and what [`downgrade_why`] names.
+pub fn urgent_allowed(trust: Trust) -> bool {
+    trust == Trust::OwnProject
+}
+
+/// The DOWNGRADED chain reason (SI-18). A downgrade the stale gate caused names `revocation list stale`
+/// (T-3703 r3 CC N4, carried into T-3708); any other names the allow-list.
+pub fn downgrade_why(priority: i64, trust: Trust, narrowing: bool) -> String {
+    downgrade_why_with(priority, trust, narrowing, urgent_allowed)
+}
+
+/// As [`downgrade_why`] for a given urgent allow-list (a test can widen it).
+pub fn downgrade_why_with(priority: i64, trust: Trust, narrowing: bool, allowed: fn(Trust) -> bool) -> String {
+    if allowed(trust) && !stale_gate(true, trust, narrowing) {
+        format!("priority {priority} from a {} sender: revocation list stale (urgent only from the own project until a verified pull)", trust.as_str())
+    } else {
+        format!("priority {priority} from a {} sender: urgent needs the allow-list", trust.as_str())
     }
 }
 
