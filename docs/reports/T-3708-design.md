@@ -219,3 +219,8 @@ The steady-time fix (3.5.3) is inside the plan's scope (E-59 requires it), so it
 5. **Strength (review round 1):** the agent sessions' accounts cannot be read from the sidecar, so
    `per_agent_accounts` never reads "yes" in PH-2; it names why. `fields_other_agents` carries `main.liveness` and
    `main.lease` with their own stamps, outside CLEAR. The consumers bound is 2 x its 30 s check.
+6. **Review round 2.** Stamps are registered with the jump count when written, not when first aged; the receiver deadline
+   uses the younger of two corrected ages; the monotonic clock is CLOCK_BOOTTIME (counts through suspend). Pending
+   mail with no READY and no hook call makes `last_surface` unknown, so CLEAR waits. NTP state and clock skew are
+   shown but are not CLEAR conditions (AL-29's bad-field list does not include them). `fields_other_agents` is part
+   of the additive key set (3.0).
