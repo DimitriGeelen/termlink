@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3838: pty stream --read-only must replay the current screen like stream (raw mirror path), not the grid mirror
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-20T16:28:20Z
+# ============================================================================
+
+task_id: T-3838
+task_name: "pty stream --read-only must replay the current screen like stream (raw mirror path), not the grid mirror"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-20T16:25:37Z
+completed: 2026-11-20T16:27:22Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-20T17:27:17+01:00
+last_commit: 2026-11-20T17:27:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  stream --read-only takes the raw mirror (same scrollback replay as stream, byte passthrough; still read half only, no stdin); test pins it; 055 told
+
+# Key outcomes
+outcomes:
+  - '`cmd_stream(.., read_only=true)` calls `cmd_mirror(target, 100, raw=true, quiet=false)`: the same 100-line scrollback replay as `stream`, then byte passthrough (`mirror_loop_raw`: read half only, no stdin, no raw mode); the T-3833 test pins the raw path.'
+  - '055 told on stray-input-t755 that `--read-only` replays the screen, and that it reaches .107 with the next runme deploy.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3838-pty-stream---read-only-must-replay-the-c.md'
+  - 'crates/termlink-cli/src/commands/pty.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-20T17:27:17'
+    action: 'T-3838: stream --read-only takes the raw mirror (same scrollback replay as stream, byte passthrough; still read half only, no stdin); test pins it; 055 told'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 5
+  lines_added: 500
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-20T16:28:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3838-pty-stream---read-only-must-replay-the-c.md
+generated_by: context-agent-hybrid

@@ -4,12 +4,12 @@ name: "pty stream --read-only must replay the current screen like stream (raw mi
 description: >
   055 measured (2026-11-20, msg 8be320f1): pty mirror's grid mode draws only what changed after connecting (near-empty screen); plain pty stream replays scrollback then passes output through. T-3833's --read-only delegated to the grid mirror. Fix: delegate to cmd_mirror raw (100 lines scrollback, byte passthrough, still read half only, no stdin, no raw mode).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/pty.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T16:25:37Z
-last_update: 2026-11-20T16:27:16Z
-date_finished: null
+last_update: 2026-11-20T16:27:22Z
+date_finished: 2026-11-20T16:27:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -377,3 +377,16 @@ grep -q 'return cmd_mirror(target, 100, true, false)' crates/termlink-cli/src/co
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3838-pty-stream---read-only-must-replay-the-c.md
 - **Context:** Initial task creation
+
+### 2026-11-20T16:27:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a4c72cb6
+- **Timestamp:** 2026-11-20T16:28:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
