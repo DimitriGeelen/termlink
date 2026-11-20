@@ -194,3 +194,20 @@ The steady-time fix (3.5.3) is inside the plan's scope (E-59 requires it), so it
 2. Every sidecar posting a note multiplies liveness topics by the agent count (about 20 on .107). Retention bounds it.
 3. The steady clock changes the time base of new chain stamps. Old lines keep wall times. Mixing is safe only while
    the process runs; a restart re-anchors.
+
+## 8. Build notes (slice a, 2026-11-20)
+
+1. **Steady time is the sidecar's only clock (refines 3.5.3).** `store::now_ms()` now returns the wall time at the
+   first call plus monotonic time since, so every stamp and deadline of the process (56 call sites) is immune to a
+   wall jump without touching the callers. `store::wall_now_ms()` is the host clock, for display. A host clock step
+   is not absorbed until the next start; the skew line against the hub shows it meanwhile.
+2. **CLEAR judges this agent's own fields** (refines 3.2): mode, binary, hub, revocation, consumers, supervision,
+   quota, strength, skew, ntp, last_surface. The main's liveness is another agent's state and keeps its own verdict
+   under `main`. `revocation` reads unknown when `unverified …` or `hub predates revocation list` (no verified list:
+   revoked keys are not known), bad when `stale …` or `ROLLBACK …`.
+3. **V-8 counts from the later of storing and readiness** (as R-44.e and `deliver.rs` do), so a message that arrives
+   after the agent became ready gets its 2 ticks.
+4. **Carried T-3703 items:** the vocabulary (3.10.3) and the DOWNGRADED reason (3.10.4) are built. The reason applies
+   only once the urgent allow-list is widened beyond the roster (`policy::urgent_allowed`); today the stale gate cannot
+   change a decision. RK-1 (3.10.1) and E-127's reader (3.10.2) are open: E-127's "a message from a revoked key is
+   STORED" needs the time each key was revoked, which the sidecar does not keep yet.
