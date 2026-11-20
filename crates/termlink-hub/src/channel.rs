@@ -1576,7 +1576,7 @@ pub(crate) fn consumer_gate(
     let position = params.get(position_key).and_then(|v| v.as_u64()).unwrap_or(0);
     let proof = match ic::parse_reader(params) {
         Ok(p) => p,
-        Err(e) => return Err(ErrorResponse::new(id.clone(), -32602, &format!("reader: {e}")).into()),
+        Err(e) => return Err(ErrorResponse::new(id.clone(), -32602, &format!("{}: {e}", ic::PROOF_FIELD)).into()),
     };
     let transport = match peer_addr {
         Some(a) => format!("tcp:{}", a.rsplit_once(':').map(|(h, _)| h).unwrap_or(a)),

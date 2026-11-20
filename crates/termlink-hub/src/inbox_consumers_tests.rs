@@ -127,12 +127,12 @@ fn no_hub_identity_means_claimed() {
 #[test]
 fn parse_reader_rules() {
     assert_eq!(parse_reader(&serde_json::json!({})).unwrap(), None);
-    assert!(parse_reader(&serde_json::json!({"reader": {"agent": "Bad Name"}})).is_err());
-    assert!(parse_reader(&serde_json::json!({"reader": {"agent": "fx-a", "sig": "00"}})).is_err());
+    assert!(parse_reader(&serde_json::json!({"read_proof": {"agent": "Bad Name"}})).is_err());
+    assert!(parse_reader(&serde_json::json!({"read_proof": {"agent": "fx-a", "sig": "00"}})).is_err());
     // r1 CC 1 / OC 1: the instance is required and may not be the ack sentinel
-    assert!(parse_reader(&serde_json::json!({"reader": {"agent": "fx-a"}})).is_err());
-    assert!(parse_reader(&serde_json::json!({"reader": {"agent": "fx-a", "instance": "-"}})).is_err());
-    let p = parse_reader(&serde_json::json!({"reader": {"agent": "fx-a", "instance": "i", "ts_ms": 5}})).unwrap().unwrap();
+    assert!(parse_reader(&serde_json::json!({"read_proof": {"agent": "fx-a"}})).is_err());
+    assert!(parse_reader(&serde_json::json!({"read_proof": {"agent": "fx-a", "instance": "-"}})).is_err());
+    let p = parse_reader(&serde_json::json!({"read_proof": {"agent": "fx-a", "instance": "i", "ts_ms": 5}})).unwrap().unwrap();
     assert_eq!((p.agent.as_str(), p.ts_ms), ("fx-a", 5));
 }
 

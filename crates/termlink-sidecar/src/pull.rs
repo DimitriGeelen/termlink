@@ -485,7 +485,7 @@ impl Inner {
                 method::CHANNEL_SUBSCRIBE,
                 // T-3700 (AL-30, ruling E): a named, signed read of our own inbox (proven consumer)
                 json!({"topic": topic, "cursor": cursor, "limit": self.cfg.page,
-                       "reader": self.sender.read_proof(&topic, method::CHANNEL_SUBSCRIBE, cursor)}),
+                       "read_proof": self.sender.read_proof(&topic, method::CHANNEL_SUBSCRIBE, cursor)}),
             ) {
                 Ok(r) => r,
                 Err(_) => return PassResult::Waiting,

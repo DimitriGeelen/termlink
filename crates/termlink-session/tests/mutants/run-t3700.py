@@ -102,6 +102,8 @@ MUTANTS = [
     ("m33-entered-after-drop-served", "r3 CC 1: an inbox entering after a drop is served as a clean list", IC,
      "        let entered_after_first_drop = st.topic_since.get(topic).is_some_and(|entered| *entered >= first);",
      "        let entered_after_first_drop = st.topic_since.get(topic).is_some_and(|entered| *entered >= first) && false;"),
+    ("m34-proof-in-reader-field", "live regression 2026-11-20: the proof read from `reader`, which old clients send as a name", IC,
+     "pub const PROOF_FIELD: &str = \"read_proof\";", "pub const PROOF_FIELD: &str = \"reader\";"),
     ("m26-full-table-evicts-active", "r1 CC 3: a full table evicts an inbox read inside the window", IC,
      "            Some((old, last)) if last < window_start => {", "            Some((old, _)) => {"),
 ]

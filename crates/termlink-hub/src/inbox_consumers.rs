@@ -51,12 +51,20 @@ pub struct ReadProof {
     pub sig: Option<String>,
 }
 
-/// Parse `params.reader`. `Ok(None)` when absent; `Err` when present but malformed (refused: a caller that
-/// sends a reader object must send a valid one).
+/// The params field carrying a read proof. NOT `reader`: that name already means a plain reader NAME on
+/// `channel.subscribe` (T-3309 read activity) and old clients send it as a string (regression found live
+/// 2026-11-20, fixed T-3700).
+pub const PROOF_FIELD: &str = "read_proof";
+
+/// Parse `params.read_proof`. `Ok(None)` when absent; `Err` when present but malformed (refused: a caller that
+/// sends a proof object must send a valid one).
 pub fn parse_reader(params: &serde_json::Value) -> Result<Option<ReadProof>, String> {
-    let Some(r) = params.get("reader") else { return Ok(None) };
+    let Some(r) = params.get(PROOF_FIELD) else { return Ok(None) };
     if r.is_null() {
         return Ok(None);
+    }
+    if !r.is_object() {
+        return Err(format!("{PROOF_FIELD} must be an object"));
     }
     let s = |k: &str| r.get(k).and_then(|v| v.as_str()).map(str::to_string);
     let agent = s("agent").ok_or("reader.agent is missing")?;

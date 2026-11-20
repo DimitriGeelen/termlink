@@ -91,7 +91,7 @@ fn attention_count(store: &Store) -> usize {
 fn raw_read(e: &Estate, topic: &str, reader: Option<Value>) -> Value {
     let mut p = json!({"topic": topic, "cursor": 0, "limit": 5});
     if let Some(r) = reader {
-        p["reader"] = r;
+        p["read_proof"] = r;
     }
     rpc(e, "channel.subscribe", p)
 }
@@ -269,7 +269,7 @@ fn signed_claim(e: &Estate, id: &str, topic: &str, key: &Identity, agent: &str, 
     let ts = now_ms();
     let b = termlink_session::inbox_read::read_sign_bytes(id, topic, "channel.claim", offset, ts, agent, "inst");
     let reader = json!({"agent": agent, "instance": "inst", "ts_ms": ts, "signer_pk": key.public_key_hex(), "sig": key.sign_hex(&b)});
-    rpc(e, "channel.claim", json!({"topic": topic, "offset": offset, "claimer": agent, "reader": reader}))
+    rpc(e, "channel.claim", json!({"topic": topic, "offset": offset, "claimer": agent, "read_proof": reader}))
 }
 
 #[test]
@@ -301,7 +301,7 @@ fn e66_claims_and_acks_through_the_hub_before_and_after_a_bind() {
     assert!(post_receipt(&e, &topic, &ka, "fx-a", now_ms()).get("result").is_some());
     assert_eq!(signed_claim(&e, &id, &topic, &kb, "fx-b", 0)["error"]["code"], INBOX_BOUND);
     assert_eq!(post_receipt(&e, &topic, &kb, "fx-b", now_ms())["error"]["code"], INBOX_BOUND);
-    let unsigned = rpc(&e, "channel.claim", json!({"topic": topic, "offset": 0, "claimer": "fx-a", "reader": {"agent": "fx-a", "instance": "x"}}));
+    let unsigned = rpc(&e, "channel.claim", json!({"topic": topic, "offset": 0, "claimer": "fx-a", "read_proof": {"agent": "fx-a", "instance": "x"}}));
     assert_eq!(unsigned["error"]["code"], INBOX_BOUND, "{unsigned}");
     // r1 CC 7: a replay of fx-a's OLD receipt (ts outside the window) is refused after the bind
     assert_eq!(post_receipt(&e, &topic, &ka, "fx-a", now_ms() - 300_000)["error"]["code"], INBOX_BOUND);
@@ -342,7 +342,7 @@ fn a_long_poll_opened_before_a_bind_does_not_deliver_after_it() {
     let t = topic.clone();
     let poller = std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-        let p = json!({"topic": t, "cursor": 0, "limit": 5, "timeout_ms": 4000, "reader": {"agent": "fx-z", "instance": "raw"}});
+        let p = json!({"topic": t, "cursor": 0, "limit": 5, "timeout_ms": 4000, "read_proof": {"agent": "fx-z", "instance": "raw"}});
         let r = rt.block_on(termlink_session::client::rpc_call_addr_with_timeout(&addr, "channel.subscribe", p, Duration::from_secs(10))).unwrap();
         serde_json::to_value(&r).unwrap()
     });
@@ -378,10 +378,23 @@ fn a_bound_inbox_is_gated_before_its_topic_exists() {
     assert_eq!(b["result"]["ok"], true, "{b}");
     let r = raw_read(&e, &topic, Some(json!({"agent": "fx-z", "instance": "raw"})));
     assert_eq!(r["error"]["code"], INBOX_BOUND, "read: {r}");
-    let c = rpc(&e, "channel.claim", json!({"topic": topic, "offset": 0, "claimer": "fx-z", "reader": {"agent": "fx-z", "instance": "raw"}}));
+    let c = rpc(&e, "channel.claim", json!({"topic": topic, "offset": 0, "claimer": "fx-z", "read_proof": {"agent": "fx-z", "instance": "raw"}}));
     assert_eq!(c["error"]["code"], INBOX_BOUND, "claim: {c}");
     let z = e.identity("z").unwrap();
     let p = post_receipt(&e, &topic, &z, "fx-z", now_ms());
     assert_eq!(p["error"]["code"], INBOX_BOUND, "ack: {p}");
     println!("E-66 PASS (a bound inbox is gated before its topic exists)");
+}
+
+#[test]
+fn an_old_client_sending_reader_as_a_name_still_reads_an_inbox() {
+    // regression found live 2026-11-20: `reader` was already a plain NAME on channel.subscribe (T-3309); the
+    // proof now travels as `read_proof`, and an old client's string `reader` reads an unbound inbox as before
+    let e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let topic = format!("inbox:{id}/fx-a");
+    let _ = rpc(&e, "channel.create", json!({"name": topic}));
+    let r = rpc(&e, "channel.subscribe", json!({"topic": topic, "cursor": 0, "limit": 5, "reader": "fx-old-cli"}));
+    assert!(r.get("result").is_some(), "{r}");
+    println!("E-66 PASS (an old client's reader name still reads; the proof field is separate)");
 }

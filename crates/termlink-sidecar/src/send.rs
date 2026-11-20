@@ -391,7 +391,7 @@ impl Sender {
         self.inner.check_pin().map_err(|e| format!("{e:?}"))?;
         let topic = inbox_topic(&self.inner.cfg.declared_hub_id, &self.inner.cfg.agent);
         let params = json!({"topic": topic, "cursor": from, "limit": limit.clamp(1, 100),
-                            "reader": self.read_proof(&topic, termlink_protocol::control::method::CHANNEL_SUBSCRIBE, from)});
+                            "read_proof": self.read_proof(&topic, termlink_protocol::control::method::CHANNEL_SUBSCRIBE, from)});
         match self.inner.rpc(termlink_protocol::control::method::CHANNEL_SUBSCRIBE, params)? {
             RpcResponse::Success(s) => Ok(json!({"topic": topic, "from": from, "result": s.result})),
             RpcResponse::Error(e) if e.error.code == termlink_protocol::control::error_code::CHANNEL_TOPIC_UNKNOWN => {
