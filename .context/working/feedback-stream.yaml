@@ -25083,3 +25083,21 @@ scan_id: R-1d08cc00
 task_id: T-3839
 payload:
   task_file: .tasks/active/T-3839-stream---read-only-help-text-drop-same-a.md
+---
+kind: scan_emitted
+timestamp: '2026-11-20T20:15:24Z'
+scan_id: R-b8de3cba
+task_id: T-3835
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-20T20:15:24Z'
+scan_id: R-b8de3cba
+task_id: T-3835
+payload:
+  task_file: .tasks/active/T-3835-client-treats-any-127001localhost1-hub-a.md

@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T16:10:03Z
-last_update: 2026-11-20T19:44:09Z
+last_update: 2026-11-20T20:21:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -96,7 +96,7 @@ recovery and conformance to each backend.
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Item-2 reviews saved under `docs/reports/T-3837-reviews/`, and TermLink's amendment set (fenced close CAS; closure fences T1 only; declared `closure` capability with split CC-15/CC-19; credentialed close; terminal closure + `retry_of_dispatch_id`; first close wins + history) sent to AEF and ring20 with the operator's adoption of items 1 and 3.
 - [x] T3w built in `worker_contract.rs`: dispatched -> done{withdrawn} only from dispatched, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden_transition; repeat -> T8 dedupe; different-reason withdrawal -> forbidden_transition; late real completion -> done_conflict; closes open answers.
-- [ ] Conformance vectors CC-26..CC-29 pass on our backend, plus the reader rule (unknown outcome = terminal, not finished).
+- [x] Conformance vectors CC-26..CC-29 pass on our backend, plus the reader rule (unknown outcome = terminal, not finished).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,7 +174,7 @@ recovery and conformance to each backend.
 env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-bus worker_contract::tests::t3w > /tmp/t3837-bus.out 2>&1 && grep -q "test result: ok. 6 passed" /tmp/t3837-bus.out
 env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-bus worker_contract::tests::reader_rule > /tmp/t3837-rr.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3837-rr.out
 env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-hub dispatch_transition_withdraw_over_rpc > /tmp/t3837-hub.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3837-hub.out
-bash scripts/run-wc-vectors.sh --ref ea8379a56 > /tmp/t3837-wc.out 2>&1 && grep -q "fail=0" /tmp/t3837-wc.out
+bash scripts/run-wc-vectors.sh --ref 4b1d2304e > /tmp/t3837-wc.out 2>&1 && grep -q "fail=0" /tmp/t3837-wc.out
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -442,7 +442,10 @@ bash scripts/run-wc-vectors.sh --ref ea8379a56 > /tmp/t3837-wc.out 2>&1 && grep 
   2. Allowing a worker question while `dispatched` to fit CC-26 answer-channel (see the open finding below).
 - **Open finding (sent to AEF):** CC-26's answer-channel variant asks a question on a `dispatched` attempt. Our
   store refuses it (`answer.rs:289`: only a running or unknown worker asks). The spec's own T2 rule says no agent
-  child runs before T2, so no worker can have asked. Result at ea8379a56: pass 23, fail 1 (that variant only),
+  child runs before T2, so no worker can have asked. **Resolved:** AEF agreed and fixed it (their T-5319, commit
+  4b1d2304e): one un-acked dispatcher answer with no question_id, deadline clock+600, expected state `undelivered`.
+  Result at 4b1d2304e: 29 cases, pass 24, fail 0, not-implemented 4, n/a 1; CC-26 passes every variant.
+  Earlier result at ea8379a56: pass 23, fail 1 (that variant only),
   not-implemented 4, n/a 1.
 
 ## Decision

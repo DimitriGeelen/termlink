@@ -14,7 +14,8 @@
 #        handback-wrong-commission. Our hub requires commission since T-3600, so refs before
 #        cc5842d89 now fail every positive case by design. 18c6e0042 (be.39, AEF T-4818) added
 #        CC-16 handback-absent-commission (T-3602). ea8379a56 (AEF, wc v0.3.4 DRAFT) adds CC-26..29
-#        (withdrawn, T-3837); run it with --ref ea8379a56. The default stays the v0.3.3 file
+#        (withdrawn, T-3837); 4b1d2304e (AEF T-5319) fixes CC-26. Run v0.3.4 with --ref 4b1d2304e.
+#        The default stays the v0.3.3 file
 #        until all three owners adopt v0.3.4.
 # Exit:  0 no case fails (not-implemented cases are listed, not hidden)
 #        1 at least one case fails against the hub backend
