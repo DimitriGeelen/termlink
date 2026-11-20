@@ -80,7 +80,7 @@ fn put_card(e: &Estate, agent: &str, who: &str) {
 }
 
 fn line(store: &Store) -> String {
-    termlink_sidecar::consumers::status(store)["consumers"].as_str().unwrap_or("").to_string()
+    termlink_sidecar::consumers::status(store, now_ms() as u64)["consumers"].as_str().unwrap_or("").to_string()
 }
 
 fn attention_count(store: &Store) -> usize {
@@ -144,7 +144,7 @@ fn e66_second_consumer_flagged_then_refused_after_bind() {
     assert_eq!(admin_rows(&e, "inbox-bind"), 1);
 
     // fx-z unsigned, fx-z naming fx-a unsigned, an unnamed peek: all refused with a reason
-    for reader in [Some(json!({"agent": "fx-z"})), Some(json!({"agent": "fx-a", "instance": "x"})), None] {
+    for reader in [Some(json!({"agent": "fx-z", "instance": "raw"})), Some(json!({"agent": "fx-a", "instance": "x"})), None] {
         let r = raw_read(&e, &topic, reader.clone());
         assert_eq!(r["error"]["code"], INBOX_BOUND, "{reader:?}: {r}");
         assert!(r["error"]["message"].as_str().unwrap().contains("inbox bound to fx-a"), "{r}");
@@ -196,7 +196,7 @@ fn e66_ack_is_a_consumer_and_17_readers_evict_the_oldest() {
     // 17 more named readers: 16 kept, the oldest (fx-b's ack) evicted with an admin row
     for i in 0..17 {
         std::thread::sleep(Duration::from_millis(2));
-        let _ = raw_read(&e, &topic, Some(json!({"agent": format!("fx-r{i}")})));
+        let _ = raw_read(&e, &topic, Some(json!({"agent": format!("fx-r{i}"), "instance": "raw"})));
     }
     let c = consumers(&e, &topic);
     assert_eq!(c.len(), 16, "{c:?}");
@@ -250,4 +250,108 @@ fn liveness_first_at_is_not_a_consumer() {
     assert!(r["result"]["ts"].as_i64().is_some(), "{r}");
     assert!(r["result"].get("messages").is_none(), "no content: {r}");
     assert!(consumers(&e, &topic).is_empty(), "first_at records no consumer");
+}
+
+/// A signed `receipt` post on `topic` by `key` naming `from_agent`, at hub-clock time `ts`.
+fn post_receipt(e: &Estate, topic: &str, key: &Identity, from_agent: &str, ts: i64) -> Value {
+    let payload = format!(r#"{{"from_agent":"{from_agent}","up_to":0}}"#);
+    let sig = key.sign_hex(&termlink_protocol::control::channel::canonical_sign_bytes(topic, "receipt", payload.as_bytes(), None, ts));
+    rpc(e, "channel.post", json!({"topic": topic, "msg_type": "receipt",
+        "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload.as_bytes()), "ts": ts,
+        "sender_id": key.fingerprint(), "sender_pubkey_hex": key.public_key_hex(), "signature_hex": sig}))
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64
+}
+
+fn signed_claim(e: &Estate, id: &str, topic: &str, key: &Identity, agent: &str, offset: u64) -> Value {
+    let ts = now_ms();
+    let b = termlink_session::inbox_read::read_sign_bytes(id, topic, "channel.claim", offset, ts, agent, "inst");
+    let reader = json!({"agent": agent, "instance": "inst", "ts_ms": ts, "signer_pk": key.public_key_hex(), "sig": key.sign_hex(&b)});
+    rpc(e, "channel.claim", json!({"topic": topic, "offset": offset, "claimer": agent, "reader": reader}))
+}
+
+#[test]
+fn e66_claims_and_acks_through_the_hub_before_and_after_a_bind() {
+    let e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let topic = format!("inbox:{id}/fx-a");
+    let _ = rpc(&e, "channel.create", json!({"name": topic}));
+    put_card(&e, "fx-a", "a");
+    put_card(&e, "fx-b", "b");
+    let (ka, kb) = (e.identity("a").unwrap(), e.identity("b").unwrap());
+    let a = side(&e, &id, "a", "inst-a");
+    let _ = a.sender.send("fx-a", "inst-a", Some("c1"), "one message to claim", None);
+
+    // before a bind: fx-b claims fx-a's inbox (signed) and acks it; both are recorded proven as fx-b
+    let c = signed_claim(&e, &id, &topic, &kb, "fx-b", 0);
+    assert!(c.get("result").is_some(), "{c}");
+    assert!(post_receipt(&e, &topic, &kb, "fx-b", now_ms()).get("result").is_some());
+    let list = consumers(&e, &topic);
+    assert!(list.iter().any(|x| x["agent"] == "fx-b" && x["actions"].as_array().unwrap().iter().any(|a| a == "claim")), "{list:?}");
+
+    // after the bind: fx-a's signed claim and fresh ack pass; fx-b's are refused; an unsigned claim is refused
+    let b = rpc(&e, "hub.inbox_bind", json!({"topic": topic, "agent": "fx-a"}));
+    assert_eq!(b["result"]["ok"], true, "{b}");
+    let claim_id = c["result"]["claim_id"].clone();
+    let rel = rpc(&e, "channel.release", json!({"topic": topic, "claim_id": claim_id, "claimer": "fx-b"}));
+    let ca = signed_claim(&e, &id, &topic, &ka, "fx-a", 0);
+    assert!(ca.get("result").is_some(), "release: {rel}\nclaim: {ca}");
+    assert!(post_receipt(&e, &topic, &ka, "fx-a", now_ms()).get("result").is_some());
+    assert_eq!(signed_claim(&e, &id, &topic, &kb, "fx-b", 0)["error"]["code"], INBOX_BOUND);
+    assert_eq!(post_receipt(&e, &topic, &kb, "fx-b", now_ms())["error"]["code"], INBOX_BOUND);
+    let unsigned = rpc(&e, "channel.claim", json!({"topic": topic, "offset": 0, "claimer": "fx-a", "reader": {"agent": "fx-a", "instance": "x"}}));
+    assert_eq!(unsigned["error"]["code"], INBOX_BOUND, "{unsigned}");
+    // r1 CC 7: a replay of fx-a's OLD receipt (ts outside the window) is refused after the bind
+    assert_eq!(post_receipt(&e, &topic, &ka, "fx-a", now_ms() - 300_000)["error"]["code"], INBOX_BOUND);
+    println!("E-66 PASS (claims and acks recorded, and refused after bind unless proven by the bound key)");
+}
+
+#[test]
+fn e66_an_unsigned_reader_using_the_owners_name_and_instance_is_flagged() {
+    let e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let topic = format!("inbox:{id}/fx-a");
+    let _ = rpc(&e, "channel.create", json!({"name": topic}));
+    put_card(&e, "fx-a", "a");
+    let a = side(&e, &id, "a", "inst-a");
+    let _ = a.rx.pass();
+    // r1 CC 1 / OC 1: the owner's own name and instance, unsigned
+    let r = raw_read(&e, &topic, Some(json!({"agent": "fx-a", "instance": "inst-a"})));
+    assert!(r.get("result").is_some(), "{r}");
+    // the ack sentinel may not be claimed at all
+    let r = raw_read(&e, &topic, Some(json!({"agent": "fx-a", "instance": "-"})));
+    assert_eq!(r["error"]["code"], -32602, "{r}");
+    let _ = a.rx.pass(); // the owner's signed read again (it must not absorb the claimed entry)
+    a.rx.check_consumers_now();
+    let l = line(&a.store);
+    assert_eq!(l, "inbox consumed by two identities: fx-a (proven), fx-a (claimed: unsigned) [claims this agent, instance inst-a]", "{l}");
+    println!("E-66 PASS (a name-only reader using the owner's identity is flagged)");
+}
+
+#[test]
+fn a_long_poll_opened_before_a_bind_does_not_deliver_after_it() {
+    // r1 CC 6
+    let e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let topic = format!("inbox:{id}/fx-a");
+    let _ = rpc(&e, "channel.create", json!({"name": topic}));
+    put_card(&e, "fx-a", "a");
+    let addr = e.hub_addr();
+    let t = topic.clone();
+    let poller = std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let p = json!({"topic": t, "cursor": 0, "limit": 5, "timeout_ms": 4000, "reader": {"agent": "fx-z", "instance": "raw"}});
+        let r = rt.block_on(termlink_session::client::rpc_call_addr_with_timeout(&addr, "channel.subscribe", p, Duration::from_secs(10))).unwrap();
+        serde_json::to_value(&r).unwrap()
+    });
+    std::thread::sleep(Duration::from_millis(500));
+    let b = rpc(&e, "hub.inbox_bind", json!({"topic": topic, "agent": "fx-a"}));
+    assert_eq!(b["result"]["ok"], true, "{b}");
+    let a = side(&e, &id, "a", "inst-a");
+    let _ = a.sender.send("fx-a", "inst-a", Some("c1"), "posted after the bind", None);
+    let r = poller.join().unwrap();
+    assert_eq!(r["error"]["code"], INBOX_BOUND, "{r}");
+    println!("E-66 PASS (a long-poll that waited across the bind is refused)");
 }

@@ -186,6 +186,8 @@ impl Receiver {
         let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build()?;
         let interval = cfg.poll_interval;
         let revocation = Mutex::new(crate::revocation::Tracker::new(&store, &cfg.declared_hub_id, crate::revocation::PN13));
+        // T-3700 (r1 CC 2): a consumers line from before this start is never shown
+        crate::consumers::reset(&store);
         let inner = Arc::new(Inner {
             cfg,
             store,
@@ -404,10 +406,12 @@ impl Inner {
         mem.consumers_checked_ms = now;
         let topic = inbox_topic(&self.cfg.declared_hub_id, &self.cfg.agent);
         let answer = self.rpc("inbox.consumers", json!({"topic": topic, "window_s": crate::consumers::WINDOW_S}));
+        let fp = self.sender.key_fp();
+        let (me, inst) = (&self.cfg.agent, &self.cfg.instance);
         let v = match &answer {
-            Ok(RpcResponse::Success(s)) => crate::consumers::verdict(&self.cfg.agent, &self.cfg.instance, Ok(&s.result)),
-            Ok(RpcResponse::Error(e)) => crate::consumers::verdict(&self.cfg.agent, &self.cfg.instance, Err((e.error.code, &e.error.message))),
-            Err(e) => crate::consumers::verdict(&self.cfg.agent, &self.cfg.instance, Err((0, &format!("hub unreachable: {e}")))),
+            Ok(RpcResponse::Success(s)) => crate::consumers::verdict(me, inst, &fp, Ok(&s.result)),
+            Ok(RpcResponse::Error(e)) => crate::consumers::verdict(me, inst, &fp, Err((e.error.code, &e.error.message))),
+            Err(e) => crate::consumers::verdict(me, inst, &fp, Err((0, &format!("hub unreachable: {e}")))),
         };
         crate::consumers::record(&self.store, &topic, &v, now);
     }

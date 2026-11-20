@@ -30,6 +30,7 @@ pub struct Seen {
     pub instance: String,
     pub strength: String,
     pub why: String,
+    pub key_fp: String,
 }
 
 impl Seen {
@@ -50,8 +51,10 @@ pub struct Verdict {
     pub bound: Option<String>,
 }
 
-/// Classify the hub's answer to `inbox.consumers` (`Err((code, message))` when the call failed).
-pub fn verdict(me_agent: &str, me_instance: &str, answer: Result<&Value, (i64, &str)>) -> Verdict {
+/// Classify the hub's answer to `inbox.consumers` (`Err((code, message))` when the call failed). `me_fp` is this
+/// sidecar's own key fingerprint: only an entry PROVEN by that key is this sidecar (r1 CC 1 / OC 1); a name, an
+/// instance or the ack sentinel alone never is.
+pub fn verdict(me_agent: &str, me_instance: &str, me_fp: &str, answer: Result<&Value, (i64, &str)>) -> Verdict {
     let unknown = |why: String| Verdict { line: format!("unknown ({why})"), others: vec![], bound: None };
     let v = match answer {
         Ok(v) => v,
@@ -67,8 +70,11 @@ pub fn verdict(me_agent: &str, me_instance: &str, answer: Result<&Value, (i64, &
     let mut others: Vec<Seen> = Vec::new();
     for e in list {
         let s = |k: &str| e.get(k).and_then(Value::as_str).unwrap_or("").to_string();
-        let seen = Seen { agent: s("agent"), instance: s("instance"), strength: s("strength"), why: s("why") };
-        let is_me = seen.agent == me_agent && (seen.instance == me_instance || seen.instance == ACK_INSTANCE);
+        let seen = Seen { agent: s("agent"), instance: s("instance"), strength: s("strength"), why: s("why"), key_fp: s("key_fp") };
+        let is_me = seen.agent == me_agent
+            && seen.strength == "proven"
+            && seen.key_fp == me_fp
+            && (seen.instance == me_instance || seen.instance == ACK_INSTANCE);
         if is_me { mine.push(seen) } else { others.push(seen) }
     }
     let line = if !others.is_empty() {
@@ -82,8 +88,11 @@ pub fn verdict(me_agent: &str, me_instance: &str, answer: Result<&Value, (i64, &
         let count = if n == 2 { "two".to_string() } else { n.to_string() };
         let names: Vec<String> = std::iter::once(me_shown)
             .chain(others.iter().map(|o| {
-                if o.agent == me_agent {
+                if o.agent == me_agent && o.strength == "proven" {
+                    // proven by a key that is not this sidecar's: another copy of this agent (V-12)
                     format!("{} [second copy, instance {}]", o.shown(), o.instance)
+                } else if o.agent == me_agent {
+                    format!("{} [claims this agent, instance {}]", o.shown(), o.instance)
                 } else {
                     o.shown()
                 }
@@ -100,9 +109,12 @@ pub fn verdict(me_agent: &str, me_instance: &str, answer: Result<&Value, (i64, &
     Verdict { line, others, bound }
 }
 
+/// How old a check may be before `status` shows `unknown` (r1 CC 2).
+pub const STALE_AFTER_MS: u64 = 2 * CHECK_EVERY_MS;
+
 /// Record a verdict: the status line, and one needs-attention entry per other reader per UTC day.
 pub fn record(store: &Store, topic: &str, v: &Verdict, now_ms: u64) {
-    let state = json!({"consumers": v.line, "bound": v.bound}).to_string();
+    let state = json!({"consumers": v.line, "bound": v.bound, "checked_ms": now_ms}).to_string();
     if let Err(e) = store.write_state(STATUS_STATE, &state) {
         eprintln!("termlink-sidecar: consumers status not written: {e}");
     }
@@ -116,22 +128,32 @@ pub fn record(store: &Store, topic: &str, v: &Verdict, now_ms: u64) {
     }
 }
 
-/// The `consumers` status (and `bound`), `unknown (no check yet)` before the first check.
-pub fn status(store: &Store) -> Value {
-    store
-        .read_state(STATUS_STATE)
-        .ok()
-        .flatten()
-        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-        .unwrap_or_else(|| json!({"consumers": "unknown (no check yet)", "bound": null}))
+/// Forget the last check (at start: a line from before a restart is never shown, r1 CC 2).
+pub fn reset(store: &Store) {
+    let _ = store.write_state(STATUS_STATE, "{}");
+}
+
+/// The `consumers` status (and `bound`): `unknown (no check yet)` before the first check, and
+/// `unknown (no check since …)` when the last one is older than [`STALE_AFTER_MS`] (r1 CC 2).
+pub fn status(store: &Store, now_ms: u64) -> Value {
+    let v = store.read_state(STATUS_STATE).ok().flatten().and_then(|s| serde_json::from_str::<Value>(&s).ok());
+    let checked = v.as_ref().and_then(|v| v.get("checked_ms")).and_then(Value::as_u64);
+    match (v, checked) {
+        (Some(v), Some(t)) if now_ms.saturating_sub(t) <= STALE_AFTER_MS => v,
+        (_, Some(t)) => json!({"consumers": format!("unknown (no check since {t})"), "bound": null, "checked_ms": t}),
+        _ => json!({"consumers": "unknown (no check yet)", "bound": null}),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    const FP: &str = "ed25519:mine";
+
     fn e(agent: &str, instance: &str, strength: &str, why: &str) -> Value {
-        json!({"agent": agent, "instance": instance, "strength": strength, "why": why})
+        let fp = if strength == "proven" { FP } else { "" };
+        json!({"agent": agent, "instance": instance, "strength": strength, "why": why, "key_fp": fp})
     }
 
     fn v(list: Vec<Value>) -> Value {
@@ -141,7 +163,7 @@ mod tests {
     #[test]
     fn only_me_proven_is_one() {
         let a = v(vec![e("fx-a", "w1", "proven", ""), e("fx-a", "-", "proven", "")]);
-        let r = verdict("fx-a", "w1", Ok(&a));
+        let r = verdict("fx-a", "w1", FP, Ok(&a));
         assert_eq!(r.line, "one (proven)");
         assert!(r.others.is_empty());
     }
@@ -149,7 +171,7 @@ mod tests {
     #[test]
     fn a_second_identity_is_named_with_its_strength() {
         let a = v(vec![e("fx-a", "w1", "proven", ""), e("fx-z", "local", "claimed", "unsigned")]);
-        let r = verdict("fx-a", "w1", Ok(&a));
+        let r = verdict("fx-a", "w1", FP, Ok(&a));
         assert_eq!(r.line, "inbox consumed by two identities: fx-a (proven), fx-z (claimed: unsigned)");
         assert_eq!(r.others.len(), 1);
     }
@@ -157,21 +179,25 @@ mod tests {
     #[test]
     fn same_agent_other_instance_is_a_second_copy() {
         let a = v(vec![e("fx-a", "w1", "proven", ""), e("fx-a", "w2", "proven", "")]);
-        let r = verdict("fx-a", "w1", Ok(&a));
+        let r = verdict("fx-a", "w1", FP, Ok(&a));
         assert!(r.line.contains("second copy, instance w2"), "{}", r.line);
     }
 
     #[test]
     fn unreadable_is_unknown_never_one() {
-        assert!(verdict("fx-a", "w1", Err((-32049, "consumer list unreadable"))).line.starts_with("unknown ("));
-        assert_eq!(verdict("fx-a", "w1", Err((-32601, "no such method"))).line, "unknown (hub predates the consumer list)");
-        assert!(verdict("fx-a", "w1", Ok(&json!({"bound": null}))).line.starts_with("unknown ("));
+        assert!(verdict("fx-a", "w1", FP, Err((-32049, "consumer list unreadable"))).line.starts_with("unknown ("));
+        assert_eq!(verdict("fx-a", "w1", FP, Err((-32601, "no such method"))).line, "unknown (hub predates the consumer list)");
+        assert!(verdict("fx-a", "w1", FP, Ok(&json!({"bound": null}))).line.starts_with("unknown ("));
     }
 
     #[test]
-    fn my_skewed_clock_shows_as_claimed() {
+    fn my_skewed_clock_is_flagged_not_hidden() {
+        // an unproven read under my name cannot be told from a spoof (r1 CC 1), so it is flagged; a skewed
+        // clock deserves the attention anyway (P-23 reports the skew)
         let a = v(vec![e("fx-a", "w1", "claimed", "clock skew")]);
-        assert_eq!(verdict("fx-a", "w1", Ok(&a)).line, "one (claimed: clock skew)");
+        let r = verdict("fx-a", "w1", FP, Ok(&a));
+        assert_eq!(r.line, "inbox consumed by two identities: fx-a (not seen), fx-a (claimed: clock skew) [claims this agent, instance w1]");
+        assert_eq!(r.others.len(), 1);
     }
 
     #[test]
@@ -179,11 +205,29 @@ mod tests {
         let est = crate::testkit::Estate::create_without_hub().unwrap();
         let store = Store::open(&est.store_root(), "fx-a").unwrap();
         let a = v(vec![e("fx-a", "w1", "proven", ""), e("fx-z", "local", "claimed", "unsigned")]);
-        let r = verdict("fx-a", "w1", Ok(&a));
+        let r = verdict("fx-a", "w1", FP, Ok(&a));
         record(&store, "inbox:h/fx-a", &r, 1_000);
         record(&store, "inbox:h/fx-a", &r, 2_000);
         let n = store.attention_entries().iter().filter(|l| l.contains(ATTENTION_KIND)).count();
         assert_eq!(n, 1);
-        assert_eq!(status(&store)["consumers"], r.line);
+        assert_eq!(status(&store, 2_000)["consumers"], r.line);
+        // r1 CC 2: an old check is not shown as current; a reset forgets it
+        assert!(status(&store, 2_000 + STALE_AFTER_MS + 1)["consumers"].as_str().unwrap().starts_with("unknown (no check since"));
+        reset(&store);
+        assert_eq!(status(&store, 2_000)["consumers"], "unknown (no check yet)");
+    }
+
+    #[test]
+    fn the_owners_name_without_its_key_is_not_me() {
+        // r1 CC 1 / OC 1: an unsigned reader using my agent and my instance, or the ack sentinel, is flagged
+        for inst in ["w1", "-"] {
+            let a = v(vec![e("fx-a", "w1", "proven", ""), e("fx-a", inst, "claimed", "unsigned")]);
+            let r = verdict("fx-a", "w1", FP, Ok(&a));
+            assert_eq!(r.others.len(), 1, "{inst}: {}", r.line);
+        }
+        // a proven entry by another key under my name is a second copy, not me
+        let a = json!({"consumers": [e("fx-a", "w1", "proven", ""),
+            {"agent": "fx-a", "instance": "w1", "strength": "proven", "why": "", "key_fp": "ed25519:other"}], "bound": null});
+        assert_eq!(verdict("fx-a", "w1", FP, Ok(&a)).others.len(), 1);
     }
 }

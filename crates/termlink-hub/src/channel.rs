@@ -985,7 +985,7 @@ pub(crate) async fn handle_channel_post_with_peer(
 
     // T-3700 (AL-30, FCW-209): an ack (receipt) on an inbox records its poster as a consumer and is
     // refused on a bound inbox unless it is the bound agent's bound key.
-    if msg_type == "receipt" && crate::inbox_consumers::applies(&topic) {
+    if msg_type == "receipt" && crate::inbox_consumers::applies(&topic) && topic_exists(&topic) {
         use crate::inbox_consumers as ic;
         let dir = termlink_session::discovery::runtime_dir();
         let reader = {
@@ -998,7 +998,8 @@ pub(crate) async fn handle_channel_post_with_peer(
                     .filter_map(|c| crate::key_card::parse_signing_key(&c.signing_key).map(|k| (c.agent, k)))
                     .collect())
             };
-            ic::assess_ack(&verifying_key, &cards, &l)
+            let claimed = crate::key_card::claimed_agent(&payload);
+            ic::assess_ack(&verifying_key, claimed.as_deref(), ts_unix_ms, now_unix_ms(), &cards, &l)
         };
         let mut log = |row: Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
         if let Err(f) = ic::record(&dir, &topic, &reader, ic::Action::Ack, now_unix_ms().max(0) as u64, &mut log) {
@@ -1505,14 +1506,25 @@ fn activity_json(act: &termlink_bus::TopicActivity, now_ms: i64, days: u64) -> (
 
 pub async fn handle_channel_subscribe(id: Value, params: &Value, peer_addr: Option<&str>) -> RpcResponse {
     // T-3700 (AL-30): an inbox read records its reader and is refused on a bound inbox unless proven
-    if let Some(r) = consumer_gate(&id, params, "channel.subscribe", "cursor", crate::inbox_consumers::Action::Read, peer_addr) {
-        return r;
-    }
+    let reader = match consumer_gate(&id, params, "channel.subscribe", "cursor", crate::inbox_consumers::Action::Read, peer_addr) {
+        Ok(r) => r,
+        Err(refused) => return refused,
+    };
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,
         Err(r) => return r,
     };
-    handle_channel_subscribe_with(bus, id, params).await
+    let resp = handle_channel_subscribe_with(bus, id.clone(), params).await;
+    // r1 CC 6: a long-poll that waited across a bind does not deliver what was posted after it
+    let waited = params.get("timeout_ms").and_then(|v| v.as_u64()).unwrap_or(0) > 0;
+    if let (true, Some(r), Some(topic)) = (waited, reader.as_ref(), param_str(params, "topic")) {
+        let dir = termlink_session::discovery::runtime_dir();
+        let mut log = |row: Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
+        if let Err(f) = crate::inbox_consumers::check_bound(&dir, topic, r, crate::inbox_consumers::Action::Read, now_unix_ms().max(0) as u64, &mut log) {
+            return consumer_refusal(&id, f);
+        }
+    }
+    resp
 }
 
 /// T-3700: `channel.first_at` — offset and timestamp of the first record at or after `from_offset`, no
@@ -1541,7 +1553,9 @@ pub fn handle_channel_first_at(id: Value, params: &Value) -> RpcResponse {
 }
 
 /// T-3700 (06a AL-30, operator rulings E and D 2026-11-19): record the reader of an inbox read or claim
-/// and enforce a bind. `None` lets the call proceed. Non-inbox topics are untouched.
+/// and enforce a bind. `Ok(Some(reader))` lets the call proceed (the reader, for a later re-check);
+/// `Ok(None)` when the gate does not apply (not an inbox topic, or a topic that does not exist: nothing to
+/// read, nothing recorded, r1 CC 3); `Err` refuses the call.
 pub(crate) fn consumer_gate(
     id: &Value,
     params: &Value,
@@ -1549,16 +1563,16 @@ pub(crate) fn consumer_gate(
     position_key: &str,
     action: crate::inbox_consumers::Action,
     peer_addr: Option<&str>,
-) -> Option<RpcResponse> {
+) -> Result<Option<crate::inbox_consumers::Reader>, RpcResponse> {
     use crate::inbox_consumers as ic;
-    let topic = param_str(params, "topic")?;
-    if !ic::applies(topic) {
-        return None;
+    let Some(topic) = param_str(params, "topic") else { return Ok(None) };
+    if !ic::applies(topic) || !topic_exists(topic) {
+        return Ok(None);
     }
     let position = params.get(position_key).and_then(|v| v.as_u64()).unwrap_or(0);
     let proof = match ic::parse_reader(params) {
         Ok(p) => p,
-        Err(e) => return Some(ErrorResponse::new(id.clone(), -32602, &format!("reader: {e}")).into()),
+        Err(e) => return Err(ErrorResponse::new(id.clone(), -32602, &format!("reader: {e}")).into()),
     };
     let transport = match peer_addr {
         Some(a) => format!("tcp:{}", a.rsplit_once(':').map(|(h, _)| h).unwrap_or(a)),
@@ -1573,12 +1587,20 @@ pub(crate) fn consumer_gate(
     };
     let reader = match reader {
         Ok(r) => r,
-        Err(f) => return Some(consumer_refusal(id, f)),
+        Err(f) => return Err(consumer_refusal(id, f)),
     };
     let mut log = |row: Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
     match ic::record(&dir, topic, &reader, action, now.max(0) as u64, &mut log) {
-        Ok(()) => None,
-        Err(f) => Some(consumer_refusal(id, f)),
+        Ok(()) => Ok(Some(reader)),
+        Err(f) => Err(consumer_refusal(id, f)),
+    }
+}
+
+/// Whether a topic exists on the hub's bus; an unknown bus answers "exists" so the gate still applies.
+fn topic_exists(topic: &str) -> bool {
+    match bus_or_err(Value::Null) {
+        Ok(b) => b.topic_exists(topic).unwrap_or(true),
+        Err(_) => true,
     }
 }
 
@@ -2279,8 +2301,8 @@ pub(crate) async fn handle_channel_list_with(
 /// `claimed_until` to retain the claim.
 pub async fn handle_channel_claim(id: Value, params: &Value, peer_addr: Option<&str>) -> RpcResponse {
     // T-3700 (AL-30): a claim on an inbox is a consumer action like a read
-    if let Some(r) = consumer_gate(&id, params, "channel.claim", "offset", crate::inbox_consumers::Action::Claim, peer_addr) {
-        return r;
+    if let Err(refused) = consumer_gate(&id, params, "channel.claim", "offset", crate::inbox_consumers::Action::Claim, peer_addr) {
+        return refused;
     }
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,

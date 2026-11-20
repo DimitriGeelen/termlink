@@ -1278,7 +1278,7 @@ fn status_at(
         // T-3703 (OBS-41, design 5.5): `revocation` and the `refused_revoked` count
         "revocation": crate::revocation::status(store),
         // T-3700 (AL-30, OBS-56): who consumes this inbox; `unknown`, never "one", when unreadable
-        "consumers": crate::consumers::status(store),
+        "consumers": crate::consumers::status(store, now_ms),
         "stages": STAGES,
         "rows": rows,
         "messages": msgs,

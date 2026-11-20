@@ -18,11 +18,15 @@ use termlink_protocol::control::error_code;
 /// AL-30 2.14.c: entries kept per inbox; the oldest by `last_ms` is evicted with an admin row.
 pub const MAX_PER_TOPIC: usize = 16;
 /// Bound on the number of inboxes tracked, so caller-chosen topic names cannot grow the table without limit.
-pub const MAX_TOPICS: usize = 4096;
+pub const MAX_TOPICS: usize = if cfg!(test) { 64 } else { 4096 };
 /// A read proof's timestamp must be this close to the hub clock to prove (P-23 skew bound).
 pub const PROOF_WINDOW_MS: i64 = 120_000;
 /// `last_ms` is persisted when it moved by at least this much since the last write (design 3.2.2).
 pub const PERSIST_EVERY_MS: u64 = 60_000;
+/// Longest inbox topic recorded or bound (r1 CC 3 / OC 2).
+pub const MAX_TOPIC_LEN: usize = 256;
+/// Admin rows of one kind written per minute; the rest are counted and reported on the next row (r1 CC 13).
+pub const ROWS_PER_MINUTE: u32 = 10;
 /// V-11: the default consumer window.
 pub const DEFAULT_WINDOW_S: u64 = 86_400;
 /// The instance recorded for an ack (a receipt post carries no instance).
@@ -60,8 +64,9 @@ pub fn parse_reader(params: &serde_json::Value) -> Result<Option<ReadProof>, Str
         return Err(format!("reader.agent {:?} is not a plain agent name", agent.chars().take(64).collect::<String>()));
     }
     let instance = s("instance").unwrap_or_default();
-    if instance.len() > 128 || instance.chars().any(|c| c.is_control() || c == '\n') {
-        return Err("reader.instance is longer than 128 bytes or holds a control character".into());
+    // r1 CC 1 / OC 1: `-` is the ack sentinel and an empty instance names nobody; neither may be claimed
+    if instance.is_empty() || instance == ACK_INSTANCE || instance.len() > 128 || instance.chars().any(|c| c.is_control()) {
+        return Err("reader.instance is missing, is \"-\", is longer than 128 bytes or holds a control character".into());
     }
     let ts_ms = r.get("ts_ms").and_then(|v| v.as_i64()).unwrap_or(0);
     let signer_pk = s("signer_pk");
@@ -167,27 +172,37 @@ pub fn assess(
         Ok(_) => {}
         Err(e) => return Ok(claimed(&p.agent, &p.instance, &format!("revocation list unreadable: {e}"))),
     }
-    if (now_ms - p.ts_ms).abs() > PROOF_WINDOW_MS {
+    if now_ms.abs_diff(p.ts_ms) > PROOF_WINDOW_MS as u64 {
         return Ok(claimed(&p.agent, &p.instance, "clock skew"));
     }
     Ok(Reader { agent: p.agent.clone(), instance: p.instance.clone(), strength: Strength::Proven, why: String::new(), key_fp: Some(fp) })
 }
 
-/// The reader of a verified receipt post: proven when the signer's key is on a card and not revoked.
-pub fn assess_ack(signer: &VerifyingKey, cards: &dyn Fn() -> Result<Vec<(String, [u8; 32])>, String>, l: &Lookups<'_>) -> Reader {
+/// The reader of a verified receipt post: proven when the signer's key is on a card, not revoked, and the post's
+/// `ts` is within the proof window (a replayed old receipt is only claimed, r1 CC 7). An uncarded ack is listed
+/// under the payload's claimed `from_agent`, else `(unnamed)` (r1 OC 6).
+pub fn assess_ack(
+    signer: &VerifyingKey,
+    claimed_agent: Option<&str>,
+    post_ts_ms: i64,
+    now_ms: i64,
+    cards: &dyn Fn() -> Result<Vec<(String, [u8; 32])>, String>,
+    l: &Lookups<'_>,
+) -> Reader {
     let fp = termlink_session::signed_state::key_fingerprint(signer);
+    let short = fp.chars().skip(8).take(16).collect::<String>();
+    let named = claimed_agent.filter(|a| crate::key_card::valid_name(a)).unwrap_or(UNNAMED).to_string();
     let agent = match cards() {
         Ok(cs) => cs.into_iter().find(|(_, k)| k == signer.as_bytes()).map(|(a, _)| a),
-        Err(e) => return claimed(&format!("key:{}", &fp[8..24.min(fp.len())]), ACK_INSTANCE, &format!("key cards unreadable: {e}")),
+        Err(e) => return claimed(&named, ACK_INSTANCE, &format!("key cards unreadable: {e} (key {short})")),
     };
     let Some(agent) = agent else {
-        return claimed(&format!("key:{}", &fp[8..24.min(fp.len())]), ACK_INSTANCE, "no key card");
+        return claimed(&named, ACK_INSTANCE, &format!("no key card (key {short})"));
     };
     match (l.revoked)() {
-        Ok(keys) if !keys.contains(&fp) => {
-            Reader { agent, instance: ACK_INSTANCE.into(), strength: Strength::Proven, why: String::new(), key_fp: Some(fp) }
-        }
-        Ok(_) => claimed(&agent, ACK_INSTANCE, "key revoked"),
+        Ok(keys) if keys.contains(&fp) => claimed(&agent, ACK_INSTANCE, "key revoked"),
+        Ok(_) if now_ms.abs_diff(post_ts_ms) > PROOF_WINDOW_MS as u64 => claimed(&agent, ACK_INSTANCE, "stale ack"),
+        Ok(_) => Reader { agent, instance: ACK_INSTANCE.into(), strength: Strength::Proven, why: String::new(), key_fp: Some(fp) },
         Err(e) => claimed(&agent, ACK_INSTANCE, &format!("revocation list unreadable: {e}")),
     }
 }
@@ -243,6 +258,9 @@ pub struct Binding {
 struct ConsumersFile {
     schema: String,
     topics: BTreeMap<String, Vec<Entry>>,
+    /// Set when an unreadable table was moved aside: readers before this time are lost (r1 CC 4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    incomplete_since_ms: Option<u64>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -266,10 +284,14 @@ pub fn bindings_path(dir: &Path) -> PathBuf {
 #[derive(Debug, Default)]
 struct State {
     topics: BTreeMap<String, Vec<Entry>>,
+    incomplete_since_ms: Option<u64>,
     /// The last persist of the consumer table failed: `inbox.consumers` answers an error (FCW-125).
     persist_error: Option<String>,
-    /// The consumer file could not be read at load: same.
+    /// The consumer file could not be read nor moved aside: nothing is saved over it, and
+    /// `inbox.consumers` answers an error.
     load_error: Option<String>,
+    /// Admin rows found at load (a corrupt table moved aside), written by the next [`record`].
+    pending_rows: Vec<serde_json::Value>,
 }
 
 static STATES: Mutex<Option<HashMap<PathBuf, State>>> = Mutex::new(None);
@@ -281,8 +303,15 @@ fn with_state<R>(dir: &Path, f: impl FnOnce(&mut State) -> R) -> R {
     f(st)
 }
 
+fn now_wall_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// Load the table. An unreadable or unknown-schema file is never saved over: it is moved to
+/// `<name>.corrupt-<ms>` (admin row on the next record) and the table restarts marked incomplete (r1 CC 4).
 fn load_state(dir: &Path) -> State {
-    match std::fs::read(consumers_path(dir)) {
+    let path = consumers_path(dir);
+    let why = match std::fs::read(&path) {
         Ok(b) => match serde_json::from_slice::<ConsumersFile>(&b) {
             Ok(f) if f.schema == CONSUMERS_SCHEMA => {
                 let mut topics = f.topics;
@@ -291,13 +320,26 @@ fn load_state(dir: &Path) -> State {
                         e.persisted_last_ms = e.last_ms;
                     }
                 }
-                State { topics, ..Default::default() }
+                return State { topics, incomplete_since_ms: f.incomplete_since_ms, ..Default::default() };
             }
-            Ok(f) => State { load_error: Some(format!("unknown schema {:?}", f.schema)), ..Default::default() },
-            Err(e) => State { load_error: Some(format!("unparseable: {e}")), ..Default::default() },
+            Ok(f) => format!("unknown schema {:?}", f.schema),
+            Err(e) => format!("unparseable: {e}"),
         },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => State::default(),
-        Err(e) => State { load_error: Some(e.to_string()), ..Default::default() },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return State::default(),
+        Err(e) => format!("unreadable: {e}"),
+    };
+    let now = now_wall_ms();
+    let aside = path.with_file_name(format!("inbox-consumers.json.corrupt-{now}"));
+    crate::key_card::guard_test_write(dir);
+    match std::fs::rename(&path, &aside) {
+        Ok(()) => State {
+            incomplete_since_ms: Some(now),
+            pending_rows: vec![serde_json::json!({
+                "event": "inbox-consumers-reset", "attention": true, "why": why, "moved_to": aside.display().to_string(),
+            })],
+            ..Default::default()
+        },
+        Err(e) => State { load_error: Some(format!("consumer table {why}; not moved aside: {e}")), ..Default::default() },
     }
 }
 
@@ -315,8 +357,8 @@ fn load_bindings(dir: &Path) -> Result<BTreeMap<String, Binding>, String> {
     }
 }
 
-fn save_consumers(dir: &Path, topics: &BTreeMap<String, Vec<Entry>>) -> Result<(), String> {
-    let f = ConsumersFile { schema: CONSUMERS_SCHEMA.into(), topics: topics.clone() };
+fn save_consumers(dir: &Path, st: &State) -> Result<(), String> {
+    let f = ConsumersFile { schema: CONSUMERS_SCHEMA.into(), topics: st.topics.clone(), incomplete_since_ms: st.incomplete_since_ms };
     let text = serde_json::to_vec_pretty(&f).map_err(|e| e.to_string())?;
     crate::key_card::atomic_write(&consumers_path(dir), &text, 0o600).map_err(|e| e.to_string())
 }
@@ -324,59 +366,120 @@ fn save_consumers(dir: &Path, topics: &BTreeMap<String, Vec<Entry>>) -> Result<(
 /// Admin-log writer, injectable for tests.
 pub type AdminLog<'a> = &'a mut dyn FnMut(serde_json::Value) -> Result<(), String>;
 
+/// Write a capped admin row of one kind: at most [`ROWS_PER_MINUTE`] a minute; the rest are counted and the
+/// count rides on the next written row as `suppressed` (r1 CC 3, CC 13).
+fn capped_row(kind: &'static str, mut row: serde_json::Value, now_ms: u64, log: AdminLog<'_>) {
+    static WIN: Mutex<Option<HashMap<&'static str, (u64, u32, u64)>>> = Mutex::new(None);
+    let mut g = WIN.lock().unwrap_or_else(|p| p.into_inner());
+    let w = g.get_or_insert_with(HashMap::new).entry(kind).or_insert((0, 0, 0));
+    let minute = now_ms / 60_000;
+    if w.0 != minute {
+        w.0 = minute;
+        w.1 = 0;
+    }
+    w.1 += 1;
+    if w.1 > ROWS_PER_MINUTE {
+        w.2 += 1;
+        return;
+    }
+    if w.2 > 0 {
+        row["suppressed"] = serde_json::json!(w.2);
+        w.2 = 0;
+    }
+    let _ = log(row);
+}
+
+/// Whether `reader` passes the binding of `topic` (proven, the bound agent, the bound key).
+fn passes(b: &Binding, reader: &Reader) -> bool {
+    reader.strength == Strength::Proven && reader.agent == b.agent && reader.key_fp.as_deref() == Some(b.key_fp.as_str())
+}
+
+fn bound_refusal(topic: &str, b: &Binding, reader: &Reader, action: Action, now_ms: u64, log: AdminLog<'_>) -> Refusal {
+    let shown = if reader.strength == Strength::Proven {
+        format!("{} (proven)", reader.agent)
+    } else {
+        format!("{} (claimed: {})", reader.agent, reader.why)
+    };
+    capped_row(
+        "inbox-bound-refused",
+        serde_json::json!({
+            "event": "inbox-bound-refused", "attention": true, "topic": topic, "bound": b.agent,
+            "reader": reader.agent, "instance": reader.instance, "strength": reader.strength, "action": action.name(),
+        }),
+        now_ms,
+        log,
+    );
+    Refusal { code: error_code::INBOX_BOUND, fcw: "FCW-124", reason: format!("inbox bound to {}; {} by {shown} refused", b.agent, action.name()) }
+}
+
+fn bindings_refusal(e: String) -> Refusal {
+    Refusal { code: error_code::INBOX_BOUND, fcw: "FCW-124", reason: format!("{e}; inbox reads are refused until it is repaired") }
+}
+
+/// Re-check only the binding (no recording): a long-poll that waited across a bind must not deliver (r1 CC 6).
+pub fn check_bound(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: u64, log: AdminLog<'_>) -> Result<(), Refusal> {
+    let _g = STATES.lock().unwrap_or_else(|p| p.into_inner());
+    let bindings = load_bindings(dir).map_err(bindings_refusal)?;
+    match bindings.get(topic) {
+        Some(b) if !passes(b, reader) => Err(bound_refusal(topic, b, reader, action, now_ms, log)),
+        _ => Ok(()),
+    }
+}
+
 /// Check the bind and record the reader in one locked step (2.14.f(4)). `Err` refuses the call.
+/// The caller records only topics that exist on the bus (r1 CC 3 / OC 2).
 pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: u64, log: AdminLog<'_>) -> Result<(), Refusal> {
     let mut g = STATES.lock().unwrap_or_else(|p| p.into_inner());
     let map = g.get_or_insert_with(HashMap::new);
     let st = map.entry(dir.to_path_buf()).or_insert_with(|| load_state(dir));
+    for row in std::mem::take(&mut st.pending_rows) {
+        let _ = log(row);
+    }
     // the bind is read under the same lock the bind verb writes under
-    let bindings = load_bindings(dir).map_err(|e| Refusal {
-        code: error_code::INBOX_BOUND,
-        fcw: "FCW-124",
-        reason: format!("{e}; inbox reads are refused until it is repaired"),
-    })?;
-    if let Some(b) = bindings.get(topic) {
-        let ok = reader.strength == Strength::Proven && reader.agent == b.agent && reader.key_fp.as_deref() == Some(b.key_fp.as_str());
-        if !ok {
-            let shown = if reader.strength == Strength::Proven {
-                format!("{} (proven)", reader.agent)
-            } else {
-                format!("{} (claimed: {})", reader.agent, reader.why)
-            };
-            if refused_row_allowed(now_ms) {
-                let _ = log(serde_json::json!({
-                    "event": "inbox-bound-refused", "attention": true, "topic": topic, "bound": b.agent,
-                    "reader": reader.agent, "instance": reader.instance, "strength": reader.strength,
-                    "action": action.name(),
-                }));
-            }
-            return Err(Refusal {
-                code: error_code::INBOX_BOUND,
-                fcw: "FCW-124",
-                reason: format!("inbox bound to {}; {} by {shown} refused", b.agent, action.name()),
-            });
-        }
+    let bindings = load_bindings(dir).map_err(bindings_refusal)?;
+    if let Some(b) = bindings.get(topic)
+        && !passes(b, reader)
+    {
+        return Err(bound_refusal(topic, b, reader, action, now_ms, log));
+    }
+    if topic.len() > MAX_TOPIC_LEN || st.load_error.is_some() {
+        // nothing is recorded over an unreadable table (it stays reported unreadable)
+        return Ok(());
     }
     let mut dirty = false;
     if !st.topics.contains_key(topic) && st.topics.len() >= MAX_TOPICS {
-        // evict the inbox whose newest reader is oldest
-        if let Some(old) = st
+        // evict the inbox whose newest reader is oldest, but never one with a reader inside the window
+        let window_start = now_ms.saturating_sub(DEFAULT_WINDOW_S * 1000);
+        let oldest = st
             .topics
             .iter()
-            .min_by_key(|(_, v)| v.iter().map(|e| e.last_ms).max().unwrap_or(0))
-            .map(|(k, _)| k.clone())
-        {
-            st.topics.remove(&old);
-            let _ = log(serde_json::json!({"event": "inbox-consumer-topic-evicted", "topic": old}));
-            dirty = true;
+            .map(|(k, v)| (k.clone(), v.iter().map(|e| e.last_ms).max().unwrap_or(0)))
+            .min_by_key(|(_, last)| *last);
+        match oldest {
+            Some((old, last)) if last < window_start => {
+                st.topics.remove(&old);
+                capped_row("inbox-consumer-topic-evicted", serde_json::json!({"event": "inbox-consumer-topic-evicted", "topic": old}), now_ms, log);
+                dirty = true;
+            }
+            _ => {
+                capped_row(
+                    "inbox-consumer-table-full",
+                    serde_json::json!({"event": "inbox-consumer-table-full", "attention": true, "topic": topic}),
+                    now_ms,
+                    log,
+                );
+                return Ok(());
+            }
         }
     }
     let list = st.topics.entry(topic.to_string()).or_default();
-    match list.iter_mut().find(|e| e.agent == reader.agent && e.instance == reader.instance) {
+    // r1 CC 1 / OC 4: keyed by strength and key too, so a claimed reader never merges into a proven entry
+    match list
+        .iter_mut()
+        .find(|e| e.agent == reader.agent && e.instance == reader.instance && e.strength == reader.strength && e.key_fp == reader.key_fp)
+    {
         Some(e) => {
-            if e.strength != reader.strength || e.key_fp != reader.key_fp || e.why != reader.why {
-                e.strength = reader.strength.clone();
-                e.key_fp = reader.key_fp.clone();
+            if e.why != reader.why {
                 e.why = reader.why.clone();
                 dirty = true;
             }
@@ -389,14 +492,19 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
             }
         }
         None => {
-            if list.len() >= MAX_PER_TOPIC {
-                if let Some(i) = list.iter().enumerate().min_by_key(|(_, e)| e.last_ms).map(|(i, _)| i) {
-                    let gone = list.remove(i);
-                    let _ = log(serde_json::json!({
+            if list.len() >= MAX_PER_TOPIC
+                && let Some(i) = list.iter().enumerate().min_by_key(|(_, e)| e.last_ms).map(|(i, _)| i)
+            {
+                let gone = list.remove(i);
+                capped_row(
+                    "inbox-consumer-evicted",
+                    serde_json::json!({
                         "event": "inbox-consumer-evicted", "topic": topic, "agent": gone.agent,
                         "instance": gone.instance, "last_ms": gone.last_ms,
-                    }));
-                }
+                    }),
+                    now_ms,
+                    log,
+                );
             }
             list.push(Entry {
                 agent: reader.agent.clone(),
@@ -413,7 +521,7 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
         }
     }
     if dirty {
-        match save_consumers(dir, &st.topics) {
+        match save_consumers(dir, st) {
             Ok(()) => {
                 st.persist_error = None;
                 for v in st.topics.values_mut() {
@@ -430,7 +538,8 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
 }
 
 /// `inbox.consumers`: readers seen within `window_s`, plus the binding. `Err` when the list cannot be
-/// trusted (FCW-125): the caller shows `consumers: unknown`, never "one".
+/// trusted (FCW-125): the caller shows `consumers: unknown`, never "one". A table restarted after a corrupt
+/// one stays an error until the window no longer reaches back before the restart (r1 CC 4).
 pub fn consumers(dir: &Path, topic: &str, window_s: u64, now_ms: u64) -> Result<serde_json::Value, String> {
     let bound = load_bindings(dir)?.get(topic).cloned();
     with_state(dir, |st| {
@@ -438,16 +547,29 @@ pub fn consumers(dir: &Path, topic: &str, window_s: u64, now_ms: u64) -> Result<
             return Err(e.clone());
         }
         let since = now_ms.saturating_sub(window_s.saturating_mul(1000));
+        if let Some(t) = st.incomplete_since_ms
+            && t > since
+        {
+            return Err(format!("consumer history incomplete since {t} (an unreadable table was moved aside)"));
+        }
         let list: Vec<&Entry> = st.topics.get(topic).map(|v| v.iter().filter(|e| e.last_ms >= since).collect()).unwrap_or_default();
         Ok(serde_json::json!({"topic": topic, "window_s": window_s, "consumers": list, "bound": bound}))
     })
 }
 
 /// `hub.inbox_bind`: admin row first, then the durable binding (2.14.c). The bound key is the agent's
-/// card key now; an agent without a card cannot be bound.
-pub fn bind(dir: &Path, topic: &str, agent: &str, card_key: Option<[u8; 32]>, now_ms: u64, log: AdminLog<'_>) -> Result<Binding, String> {
-    if !applies(topic) {
-        return Err(format!("{topic:?} is not an inbox topic"));
+/// card key now; an agent without a card, or whose card key is revoked (r1 CC 14), cannot be bound.
+pub fn bind(
+    dir: &Path,
+    topic: &str,
+    agent: &str,
+    card_key: Option<[u8; 32]>,
+    revoked: &dyn Fn() -> Result<BTreeSet<String>, String>,
+    now_ms: u64,
+    log: AdminLog<'_>,
+) -> Result<Binding, String> {
+    if !applies(topic) || topic.len() > MAX_TOPIC_LEN {
+        return Err(format!("{topic:?} is not an inbox topic of at most {MAX_TOPIC_LEN} bytes"));
     }
     if !crate::key_card::valid_name(agent) {
         return Err(format!("{agent:?} is not a plain agent name"));
@@ -455,6 +577,9 @@ pub fn bind(dir: &Path, topic: &str, agent: &str, card_key: Option<[u8; 32]>, no
     let Some(k) = card_key else { return Err(format!("agent {agent:?} has no key card; bind refused")) };
     let vk = VerifyingKey::from_bytes(&k).map_err(|e| format!("agent {agent:?}'s card key is invalid: {e}"))?;
     let b = Binding { agent: agent.into(), key_fp: termlink_session::signed_state::key_fingerprint(&vk), at_ms: now_ms };
+    if revoked().map_err(|e| format!("revocation list unreadable: {e}"))?.contains(&b.key_fp) {
+        return Err(format!("agent {agent:?}'s card key {} is revoked; bind refused", b.key_fp));
+    }
     let _g = STATES.lock().unwrap_or_else(|p| p.into_inner());
     let mut all = load_bindings(dir)?;
     log(serde_json::json!({"event": "inbox-bind", "topic": topic, "agent": agent, "key_fp": b.key_fp}))?;
@@ -480,18 +605,6 @@ fn write_bindings(dir: &Path, bindings: BTreeMap<String, Binding>) -> Result<(),
     let f = BindingsFile { schema: BINDINGS_SCHEMA.into(), bindings };
     let text = serde_json::to_vec_pretty(&f).map_err(|e| e.to_string())?;
     crate::key_card::atomic_write(&bindings_path(dir), &text, 0o600).map_err(|e| e.to_string())
-}
-
-/// At most 10 refused-read admin rows a minute (any caller can provoke them; r2 CC 12 of T-3703).
-fn refused_row_allowed(now_ms: u64) -> bool {
-    static WIN: Mutex<(u64, u32)> = Mutex::new((0, 0));
-    let mut w = WIN.lock().unwrap_or_else(|p| p.into_inner());
-    let minute = now_ms / 60_000;
-    if w.0 != minute {
-        *w = (minute, 0);
-    }
-    w.1 += 1;
-    w.1 <= 10
 }
 
 /// Forget the cached state of `dir` (tests; a hub restart starts from disk anyway).

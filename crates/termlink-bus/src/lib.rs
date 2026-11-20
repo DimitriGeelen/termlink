@@ -668,6 +668,11 @@ impl Bus {
     /// The iterator is backed by the SQLite records index plus positional
     /// reads into the log file, so records trimmed by `sweep` are not
     /// yielded even if the underlying file still contains their bytes.
+    /// T-3700: whether `topic` exists (the hub records inbox consumers only for real topics).
+    pub fn topic_exists(&self, topic: &str) -> Result<bool> {
+        self.meta.topic_exists(topic)
+    }
+
     pub fn subscribe(&self, topic: &str, cursor: Offset) -> Result<SubscribeIter> {
         if !self.meta.topic_exists(topic)? {
             return Err(BusError::UnknownTopic(topic.to_string()));

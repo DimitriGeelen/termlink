@@ -316,6 +316,12 @@ impl Sender {
         })
     }
 
+    /// T-3700: this agent's signing key fingerprint as the hub records it (`ed25519:` + sha256 of the key).
+    pub fn key_fp(&self) -> String {
+        let pk = self.inner.cfg.identity.public_key_hex();
+        termlink_session::signed_state::fingerprint_of_hex(&pk).unwrap_or_default()
+    }
+
     /// The agent's own fingerprint.
     pub fn fingerprint(&self) -> &str {
         self.inner.cfg.identity.fingerprint()

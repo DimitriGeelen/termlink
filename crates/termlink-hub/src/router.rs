@@ -1078,7 +1078,12 @@ fn handle_inbox_bind(id: serde_json::Value, params: &serde_json::Value, peer_add
         Err(e) => return ErrorResponse::new(id, control::error_code::INBOX_BOUND, &format!("bind refused: key cards unreadable: {e}")).into(),
     };
     let mut log = |row: serde_json::Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
-    match crate::inbox_consumers::bind(&dir, &topic, &agent, key, now_ms(), &mut log) {
+    let ident = crate::hub_identity::current();
+    let revoked = || match &ident {
+        Some(i) => crate::revocation::revoked_keys(&dir, &i.hub_id, i.signing_key()),
+        None => Err("the hub identity is not loaded".to_string()),
+    };
+    match crate::inbox_consumers::bind(&dir, &topic, &agent, key, &revoked, now_ms(), &mut log) {
         Ok(b) => Response::success(id, serde_json::json!({"ok": true, "topic": topic, "agent": b.agent, "key_fp": b.key_fp})).into(),
         Err(e) => ErrorResponse::new(id, control::error_code::INBOX_BOUND, &format!("bind refused: {e}")).into(),
     }

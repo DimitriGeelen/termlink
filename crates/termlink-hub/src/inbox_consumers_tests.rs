@@ -129,6 +129,9 @@ fn parse_reader_rules() {
     assert_eq!(parse_reader(&serde_json::json!({})).unwrap(), None);
     assert!(parse_reader(&serde_json::json!({"reader": {"agent": "Bad Name"}})).is_err());
     assert!(parse_reader(&serde_json::json!({"reader": {"agent": "fx-a", "sig": "00"}})).is_err());
+    // r1 CC 1 / OC 1: the instance is required and may not be the ack sentinel
+    assert!(parse_reader(&serde_json::json!({"reader": {"agent": "fx-a"}})).is_err());
+    assert!(parse_reader(&serde_json::json!({"reader": {"agent": "fx-a", "instance": "-"}})).is_err());
     let p = parse_reader(&serde_json::json!({"reader": {"agent": "fx-a", "instance": "i", "ts_ms": 5}})).unwrap().unwrap();
     assert_eq!((p.agent.as_str(), p.ts_ms), ("fx-a", 5));
 }
@@ -229,7 +232,7 @@ fn unreadable_list_is_an_error_never_empty() {
     let d = dir();
     std::fs::write(consumers_path(d.path()), b"{not json").unwrap();
     reset(d.path());
-    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, NOW as u64).is_err());
+    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, now_wall_ms()).is_err());
 }
 
 #[test]
@@ -242,7 +245,7 @@ fn bind_refuses_everyone_but_the_bound_key() {
             logged.push(r);
             Ok(())
         };
-        bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), n, &mut log).unwrap();
+        bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), &no_rev, n, &mut log).unwrap();
         // the bound agent, proven with the bound key
         record(d.path(), T, &proven("fx-a", "w1", 1), Action::Read, n, &mut log).unwrap();
         // another agent, proven
@@ -266,15 +269,15 @@ fn bind_refuses_everyone_but_the_bound_key() {
 fn bind_needs_a_card_and_an_inbox_topic() {
     let d = dir();
     let (_, mut log) = rows();
-    assert!(bind(d.path(), T, "fx-a", None, NOW as u64, &mut log).is_err());
-    assert!(bind(d.path(), "chat:x", "fx-a", Some(*key(1).verifying_key().as_bytes()), NOW as u64, &mut log).is_err());
+    assert!(bind(d.path(), T, "fx-a", None, &no_rev, NOW as u64, &mut log).is_err());
+    assert!(bind(d.path(), "chat:x", "fx-a", Some(*key(1).verifying_key().as_bytes()), &no_rev, NOW as u64, &mut log).is_err());
 }
 
 #[test]
 fn bind_writes_its_admin_row_first() {
     let d = dir();
     let mut failing = |_r: serde_json::Value| Err("admin log full".to_string());
-    assert!(bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), NOW as u64, &mut failing).is_err());
+    assert!(bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), &no_rev, NOW as u64, &mut failing).is_err());
     assert!(!bindings_path(d.path()).exists(), "no row, no bind");
 }
 
@@ -283,7 +286,7 @@ fn unbind_reopens_and_unreadable_bindings_fail_closed() {
     let d = dir();
     let (_, mut log) = rows();
     let n = NOW as u64;
-    bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), n, &mut log).unwrap();
+    bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), &no_rev, n, &mut log).unwrap();
     assert!(unbind(d.path(), T, &mut log).unwrap());
     record(d.path(), T, &claimed_r("fx-z"), Action::Read, n, &mut log).unwrap();
     std::fs::write(bindings_path(d.path()), b"garbage").unwrap();
@@ -293,8 +296,128 @@ fn unbind_reopens_and_unreadable_bindings_fail_closed() {
 #[test]
 fn ack_reader_from_cards() {
     let cards = || -> Result<Vec<(String, [u8; 32])>, String> { Ok(vec![("fx-a".into(), *key(1).verifying_key().as_bytes())]) };
-    let r = with_lookups(BTreeSet::new(), |l| assess_ack(&key(1).verifying_key(), &cards, l));
+    let r = with_lookups(BTreeSet::new(), |l| assess_ack(&key(1).verifying_key(), Some("fx-a"), NOW, NOW, &cards, l));
     assert_eq!((r.agent.as_str(), r.strength), ("fx-a", Strength::Proven));
-    let r = with_lookups(BTreeSet::new(), |l| assess_ack(&key(9).verifying_key(), &cards, l));
-    assert_eq!(r.strength, Strength::Claimed);
+    // r1 OC 6: an uncarded ack is listed under its claimed from_agent
+    let r = with_lookups(BTreeSet::new(), |l| assess_ack(&key(9).verifying_key(), Some("fx-z"), NOW, NOW, &cards, l));
+    assert_eq!((r.agent.as_str(), r.strength), ("fx-z", Strength::Claimed));
+    let r = with_lookups(BTreeSet::new(), |l| assess_ack(&key(9).verifying_key(), Some("Not A Name"), NOW, NOW, &cards, l));
+    assert_eq!(r.agent, UNNAMED);
+    // r1 CC 7: a replayed old receipt by the carded key is only claimed
+    let r = with_lookups(BTreeSet::new(), |l| assess_ack(&key(1).verifying_key(), Some("fx-a"), NOW - PROOF_WINDOW_MS - 1, NOW, &cards, l));
+    assert_eq!((r.strength, r.why.as_str()), (Strength::Claimed, "stale ack"));
+}
+
+fn no_rev() -> Result<BTreeSet<String>, String> {
+    Ok(BTreeSet::new())
+}
+
+#[test]
+fn a_claimed_reader_never_merges_into_a_proven_entry() {
+    // r1 CC 1 / OC 4: an unsigned reader naming the owner's agent AND instance is its own entry
+    let d = dir();
+    let (_, mut log) = rows();
+    let n = NOW as u64;
+    record(d.path(), T, &proven("fx-a", "inst-a", 1), Action::Read, n, &mut log).unwrap();
+    record(d.path(), T, &claimed("fx-a", "inst-a", "unsigned"), Action::Read, n + 1, &mut log).unwrap();
+    record(d.path(), T, &proven("fx-a", "inst-a", 1), Action::Read, n + 2, &mut log).unwrap();
+    let l = listed(d.path(), T, n + 3);
+    assert_eq!(l.len(), 2, "{l:?}");
+    assert!(l.contains(&("fx-a".into(), "inst-a".into(), "proven".into())));
+    assert!(l.contains(&("fx-a".into(), "inst-a".into(), "claimed".into())));
+}
+
+#[test]
+fn replay_across_hub_or_method_does_not_verify() {
+    let k = key(1);
+    let other_hub = read_sign_bytes("ffffffffffffffff", T, "channel.subscribe", 7, NOW, "fx-a", "i");
+    let other_method = read_sign_bytes(HUB, T, "channel.claim", 7, NOW, "fx-a", "i");
+    for b in [other_hub, other_method] {
+        let p = ReadProof {
+            agent: "fx-a".into(),
+            instance: "i".into(),
+            ts_ms: NOW,
+            signer_pk: Some(hex(k.verifying_key().as_bytes())),
+            sig: Some(hex(&k.sign(&b).to_bytes())),
+        };
+        assert_eq!(assess_one(Some(&p)).unwrap_err().code, error_code::CHANNEL_SIGNATURE_INVALID);
+    }
+}
+
+#[test]
+fn extreme_timestamp_does_not_overflow() {
+    let p = proof(&key(1), "fx-a", "i", T, 7, i64::MIN);
+    assert_eq!(assess_one(Some(&p)).unwrap().why, "clock skew");
+}
+
+#[test]
+fn skewed_proof_is_refused_after_a_bind() {
+    let d = dir();
+    let (_, mut log) = rows();
+    bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), &no_rev, NOW as u64, &mut log).unwrap();
+    let r = assess_one(Some(&proof(&key(1), "fx-a", "i", T, 7, NOW - PROOF_WINDOW_MS - 1))).unwrap();
+    assert_eq!(record(d.path(), T, &r, Action::Read, NOW as u64, &mut log).unwrap_err().code, error_code::INBOX_BOUND);
+}
+
+#[test]
+fn bind_refuses_a_revoked_key_and_a_long_topic() {
+    let d = dir();
+    let (_, mut log) = rows();
+    let fp = termlink_session::signed_state::key_fingerprint(&key(1).verifying_key());
+    let rev = move || -> Result<BTreeSet<String>, String> { Ok([fp.clone()].into_iter().collect()) };
+    assert!(bind(d.path(), T, "fx-a", Some(*key(1).verifying_key().as_bytes()), &rev, NOW as u64, &mut log).is_err());
+    let long = format!("inbox:{}", "x".repeat(MAX_TOPIC_LEN));
+    assert!(bind(d.path(), &long, "fx-a", Some(*key(1).verifying_key().as_bytes()), &no_rev, NOW as u64, &mut log).is_err());
+}
+
+#[test]
+fn a_long_topic_is_not_recorded() {
+    let d = dir();
+    let (_, mut log) = rows();
+    let long = format!("inbox:{}", "x".repeat(MAX_TOPIC_LEN));
+    record(d.path(), &long, &claimed_r("fx-z"), Action::Read, NOW as u64, &mut log).unwrap();
+    assert!(listed(d.path(), &long, NOW as u64).is_empty());
+}
+
+#[test]
+fn a_full_table_never_evicts_an_inbox_read_inside_the_window() {
+    let d = dir();
+    let logged = std::cell::RefCell::new(Vec::new());
+    let mut log = |r: serde_json::Value| {
+        logged.borrow_mut().push(r);
+        Ok(())
+    };
+    let n = NOW as u64;
+    for i in 0..MAX_TOPICS {
+        record(d.path(), &format!("inbox:h/t{i}"), &claimed_r("fx-z"), Action::Read, n, &mut log).unwrap();
+    }
+    record(d.path(), "inbox:h/new", &claimed_r("fx-z"), Action::Read, n + 1, &mut log).unwrap();
+    assert!(listed(d.path(), "inbox:h/new", n + 1).is_empty(), "not recorded");
+    assert_eq!(listed(d.path(), "inbox:h/t0", n + 1).len(), 1, "the oldest active inbox kept");
+    assert!(logged.borrow().iter().any(|r| r["event"] == "inbox-consumer-table-full"));
+    // a day later the oldest inbox is out of the window and may be evicted
+    let later = n + 2 * 86_400_000;
+    record(d.path(), "inbox:h/new", &claimed_r("fx-z"), Action::Read, later, &mut log).unwrap();
+    assert_eq!(listed(d.path(), "inbox:h/new", later).len(), 1);
+}
+
+#[test]
+fn a_corrupt_table_is_moved_aside_and_reported_incomplete() {
+    let d = dir();
+    std::fs::write(consumers_path(d.path()), b"{not json").unwrap();
+    reset(d.path());
+    let mut logged = Vec::new();
+    let mut log = |r: serde_json::Value| {
+        logged.push(r);
+        Ok(())
+    };
+    let now = now_wall_ms();
+    record(d.path(), T, &proven("fx-a", "w1", 1), Action::Read, now, &mut log).unwrap();
+    assert!(logged.iter().any(|r| r["event"] == "inbox-consumers-reset"), "{logged:?}");
+    let aside: Vec<_> = std::fs::read_dir(d.path()).unwrap().filter_map(|e| e.ok()).filter(|e| e.file_name().to_string_lossy().contains(".corrupt-")).collect();
+    assert_eq!(aside.len(), 1, "the corrupt file is kept, not overwritten");
+    // inside the window the history is incomplete: an error, never a clean list
+    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, now).is_err());
+    // once the window no longer reaches back before the reset, the list is served again
+    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, now + DEFAULT_WINDOW_S * 1000 + 60_000).is_ok());
 }

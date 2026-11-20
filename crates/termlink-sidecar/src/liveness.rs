@@ -215,11 +215,14 @@ pub fn read(hub: &dyn Hub, topic: &str, inbox: &str) -> Read {
         Ok(n) => match hub.call(method::CHANNEL_FIRST_AT, json!({"topic": inbox, "from_offset": n.drained_up_to})) {
             Ok(v) => v.get("ts").and_then(Value::as_u64).filter(|_| v.get("offset").and_then(Value::as_u64).is_some()),
             Err((Some(code), _)) if code == error_code::CHANNEL_TOPIC_UNKNOWN => None,
-            // a hub that predates channel.first_at: the one-message read (recorded as a consumer there)
-            Err(_) => match oldest_by_subscribe(hub, inbox, n.drained_up_to) {
+            // r1 CC 9 / OC 3: only a hub that predates channel.first_at falls back to the one-message read. A
+            // T-3700 hub's own errors name the method; an old hub routes the unknown method to a session
+            // (-32001 "Missing 'target'"). A transport error (no code) is Unreadable, never a content read.
+            Err((Some(_), m)) if !m.contains("channel.first_at") => match oldest_by_subscribe(hub, inbox, n.drained_up_to) {
                 Ok(t) => t,
                 Err(e) => return Read::Unreadable(e),
             },
+            Err((_, e)) => return Read::Unreadable(format!("channel.first_at {inbox}: {e}")),
         },
     };
     Read::Note { note, signer, oldest_waiting_ms }
@@ -508,6 +511,22 @@ mod tests {
         assert!(!f.calls.borrow().iter().any(|c| c == "channel.subscribe I"));
     }
 
+    /// r1 CC 9 / OC 3: only an old hub (-32001, the unknown method routed to a session) falls back to the
+    /// content read; a transport error or a T-3700 hub's own first_at error is Unreadable.
+    #[test]
+    fn read_falls_back_only_for_an_old_hub() {
+        let n = note(NOW, 2);
+        let mut f = fake(&n, Ok(json!({"messages": [envelope(2, "sidecar.msg.v1", b"x", 1234)]})));
+        f.replies.insert(("channel.first_at".into(), "I".into()), Err((Some(-32001), "Missing 'target' in params".into())));
+        assert!(matches!(read(&f, "L", "I"), Read::Note { oldest_waiting_ms: Some(1234), .. }));
+        for err in [(None, "connection reset".to_string()), (Some(-32603), "channel.first_at: io".to_string())] {
+            let mut f = fake(&n, Ok(json!({"messages": [envelope(2, "sidecar.msg.v1", b"x", 1234)]})));
+            f.replies.insert(("channel.first_at".into(), "I".into()), Err(err.clone()));
+            assert!(matches!(read(&f, "L", "I"), Read::Unreadable(_)), "{err:?}");
+            assert!(!f.calls.borrow().iter().any(|c| c == "channel.subscribe I"), "{err:?}");
+        }
+    }
+
     /// A fake hub: canned replies per (method, topic).
     struct Fake {
         replies: BTreeMap<(String, String), HubResult>,
@@ -534,6 +553,8 @@ mod tests {
                 (("channel.list".into(), "L".into()), Ok(json!({"topics": [{"name": "L", "latest_offset": 4}, {"name": "L2"}]}))),
                 (("channel.subscribe".into(), "L".into()), Ok(json!({"messages": [envelope(4, NOTE_TYPE, &body, n.sample_ms)]}))),
                 (("channel.subscribe".into(), "I".into()), inbox),
+                // an old hub by default: the unknown method is routed to a session (T-3700 fallback)
+                (("channel.first_at".into(), "I".into()), Err((Some(-32001), "Missing 'target' in params".into()))),
             ]),
             calls: RefCell::new(vec![]),
         }
