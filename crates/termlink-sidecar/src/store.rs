@@ -174,11 +174,31 @@ struct Body<'a> {
 }
 
 /// Wall-clock now in ms since the epoch.
+/// The sidecar's time: the wall time at the first call plus monotonic time since (T-3708, E-59,
+/// design 3.5.3). Every stamp and deadline in this process uses it, so a wall-clock jump moves no
+/// deadline. A host clock step is not absorbed until the next start; the skew estimate against the
+/// hub shows it meanwhile (`status.fields.skew`).
 pub fn now_ms() -> u64 {
-    std::time::SystemTime::now()
+    static ANCHOR: std::sync::OnceLock<(std::time::Instant, u64)> = std::sync::OnceLock::new();
+    let (at, wall) = ANCHOR.get_or_init(|| (std::time::Instant::now(), wall_now_ms()));
+    wall + at.elapsed().as_millis() as u64
+}
+
+static WALL_SHIFT_MS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+/// The host's wall clock, for display only (plus a test shift, see [`test_shift_wall_ms`]).
+pub fn wall_now_ms() -> u64 {
+    let w = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    (w + WALL_SHIFT_MS.load(std::sync::atomic::Ordering::SeqCst)).max(0) as u64
+}
+
+/// Test seam (E-59): jump this process's view of the wall clock by `delta_ms`.
+#[doc(hidden)]
+pub fn test_shift_wall_ms(delta_ms: i64) {
+    WALL_SHIFT_MS.fetch_add(delta_ms, std::sync::atomic::Ordering::SeqCst);
 }
 
 fn hex(b: &[u8]) -> String {

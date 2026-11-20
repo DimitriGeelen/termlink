@@ -58,12 +58,11 @@ pub trait Clock: Send + Sync {
 /// The process clock.
 pub struct SystemClock {
     start: Instant,
-    wall_at_start: u64,
 }
 
 impl SystemClock {
     pub fn new() -> Self {
-        SystemClock { start: Instant::now(), wall_at_start: crate::store::now_ms() }
+        SystemClock { start: Instant::now() }
     }
 }
 
@@ -78,10 +77,11 @@ impl Clock for SystemClock {
         self.start.elapsed().as_millis() as u64
     }
     fn wall_ms(&self) -> u64 {
-        crate::store::now_ms()
+        crate::store::wall_now_ms()
     }
     fn steady_ms(&self) -> u64 {
-        self.wall_at_start + self.mono_ms()
+        // the same timeline as every stamp and deadline of this process
+        crate::store::now_ms()
     }
 }
 

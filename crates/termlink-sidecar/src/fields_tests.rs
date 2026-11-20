@@ -231,6 +231,23 @@ fn heartbeat_or_ready_never_counts_as_surfacing() {
     assert_eq!(v["bad"], true);
 }
 
+// E-59 control (design mutant 5): the process time every stamp and deadline uses does not follow a
+// wall-clock jump of ±1 h; the wall clock (display only) does.
+#[test]
+fn e59_process_time_ignores_a_wall_jump() {
+    let before = crate::store::now_ms();
+    let wall_before = crate::store::wall_now_ms();
+    crate::store::test_shift_wall_ms(3_600_000);
+    let after = crate::store::now_ms();
+    let wall_after = crate::store::wall_now_ms();
+    crate::store::test_shift_wall_ms(-7_200_000);
+    let back = crate::store::now_ms();
+    crate::store::test_shift_wall_ms(3_600_000);
+    assert!(wall_after >= wall_before + 3_600_000, "the seam moves the wall clock");
+    assert!(after >= before && after - before < 60_000, "+1 h jump moved process time by {} ms", after - before);
+    assert!(back >= after && back - after < 60_000, "-1 h jump moved process time");
+}
+
 #[test]
 fn switch_off_hides_the_keys() {
     // The env switch is read per call; default on.
