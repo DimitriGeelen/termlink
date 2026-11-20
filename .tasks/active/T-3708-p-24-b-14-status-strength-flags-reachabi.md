@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T10:20:26Z
+last_update: 2026-11-20T10:57:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -408,6 +408,16 @@ Unblocks: P-25 (T-3709), P-33 (T-3714), P-38 (T-3717); part of gate G-2.
 - **Rejected:** B one unit (largest live change); C three slices (extra rounds; the steady-clock change is already
   targeted by (a)'s reviews and mutant 5); D defer.
 - **Left open:** D-2 (quota field before P-17), next in the queue.
+
+### 2026-11-20 — D-2: the `quota` field before P-17 exists (operator ruling: "A")
+- **Chose:** A. `quota` reads a fresh value `absent: receiver quotas not built (P-17)`; it is neither bad nor
+  unknown, so CLEAR does not wait on it. When P-17 (T-3705) lands, the field becomes measured with the normal rules.
+- **Why:** with no quotas nothing can refuse receipts, so "bad" is impossible rather than unmeasured; naming the
+  absence matches the strength-flag rule (FCW-123). Brief scores: A +28, C +11, D -7, B -17.
+- **Rejected:** B `unknown` (every sidecar NOT CLEAR until P-17; E-56 healthy case cannot pass); C build P-17 first
+  (a full unit ahead of the focus); D omit the field (hidden absence; E-55 schema needs it).
+- **Left open:** the exact wording (operator may change it). Build carries a test that CLEAR ignores this value and a
+  note in T-3705.
 
 ## Decision
 
