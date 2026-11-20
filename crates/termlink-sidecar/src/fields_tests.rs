@@ -162,15 +162,28 @@ fn e59_a_stamp_written_before_a_jump_but_first_aged_after_it_is_still_corrected(
 }
 
 #[test]
-fn jump_record_is_bounded_and_slow_drift_is_not_a_jump() {
+fn many_jumps_keep_every_correction_and_written_stamps_are_bounded_first_in_first_out() {
+    // r3 MINOR 15: no jump cap; a stamp from before all of them is corrected by all of them
     let c = FakeClock::new();
     let r = Registry::new(c.clone());
     r.look();
-    for _ in 0..(JUMPS_CAP + 10) {
+    let old = c.wall_ms();
+    for _ in 0..100 {
         c.wall_jump(10_000);
         r.look();
     }
-    assert_eq!(r.jumps_len(), JUMPS_CAP);
+    assert_eq!(r.jumps_len(), 100);
+    assert_eq!(r.age_ms(old, c.wall_ms()), 0, "100 x +10 s jumps, no real time passed");
+    // r3 MINOR 5: eviction by write order, so after a backward jump the newest stamp is not the one dropped
+    let r3 = Registry::new(c.clone());
+    for i in 0..(AGES_CAP as u64 + 5) {
+        r3.register(1_000_000_000 - i); // descending wall values, as after a backward jump
+    }
+    assert_eq!(r3.stamps_len(), AGES_CAP);
+    let newest = 1_000_000_000 - (AGES_CAP as u64 + 4);
+    c.wall_jump(-5_000);
+    r3.look();
+    assert!(r3.age_ms(newest, c.wall_ms()) > 0);
     let c2 = FakeClock::new();
     let r2 = Registry::new(c2.clone());
     r2.look();
@@ -178,6 +191,35 @@ fn jump_record_is_bounded_and_slow_drift_is_not_a_jump() {
     c2.wall_jump(15); // NTP slew over one tick
     r2.look();
     assert_eq!(r2.jumps_len(), 0);
+}
+
+#[test]
+fn clear_orders_by_corrected_age_not_wall_value() {
+    // r3 MINOR 7: a hand-over H two hours ago (outside the window); then the wall went back; new mail M stored
+    // 5 min ago carries a wall stamp LOWER than H's. H came before M, so it must not count as surfacing M.
+    let now = 100_000_000;
+    let h_wall = now; // written before the backward jump: numerically "after" M
+    let m_wall = now - 300_000;
+    let rows = vec![row("h", "STORED", h_wall - 1_000), row("h", "HANDED_OVER", h_wall), row("m", "STORED", m_wall)];
+    let p = pending(&rows, None);
+    // corrected ages: H stored 2 h 1 s ago, handed over 2 h ago; M stored 5 min ago
+    let age = |t: u64| if t == h_wall - 1_000 { 7_201_000 } else if t == h_wall { 7_200_000 } else { 300_000 };
+    let mut f = healthy();
+    f.insert("last_surface".into(), fresh(json!({"bad": false})));
+    assert_eq!(clear(&f, &rows, &p, &age)["state"], "NOT CLEAR", "a hand-over from before the mail cleared it");
+}
+
+#[test]
+fn refused_denied_and_held_mail_is_not_pending() {
+    let rows = vec![
+        row("r", "STORED", 0), row("r", "REFUSED", 1),
+        row("d", "STORED", 0), row("d", "DENIED", 1),
+        row("h", "STORED", 0), row("h", "HELD", 1),
+        row("a", "STORED", 0), row("a", "HELD", 1), row("a", "ADMITTED", 2),
+        row("o", "STORED", 0), row("o", "CLAIMED", 1),
+    ];
+    let ids: Vec<String> = pending(&rows, None).into_iter().map(|(i, _)| i).collect();
+    assert_eq!(ids, ["a", "o"], "an admitted message and one with an open attempt stay pending");
 }
 
 // E-56 (FCW-121): CLEAR needs real surfacing; a fresh heartbeat alone is never enough.
@@ -191,7 +233,7 @@ fn e56_refused_confirmations_with_fresh_heartbeat_read_not_clear() {
     assert_eq!(ls["bad"], true);
     let mut f = healthy();
     f.insert("last_surface".into(), fresh(ls));
-    let c = clear(&f, &rows, &p, now);
+    let c = clear(&f, &rows, &p, &wall_age(now));
     assert_eq!(c["state"], "NOT CLEAR");
     assert!(c["bad"].as_array().unwrap().iter().any(|b| b.as_str().unwrap().starts_with("last_surface")), "{c}");
     assert!(c["why"].as_str().is_some_and(|w| !w.is_empty()));
@@ -204,7 +246,7 @@ fn e56_healthy_receiver_reads_clear_after_the_hand_over() {
     let p = pending(&rows, None);
     let mut f = healthy();
     f.insert("last_surface".into(), fresh(last_surface(&rows, &p, Some(now - 600_000), &BTreeMap::new(), &wall_age(now))));
-    assert_eq!(clear(&f, &rows, &p, now)["state"], "CLEAR");
+    assert_eq!(clear(&f, &rows, &p, &wall_age(now))["state"], "CLEAR");
 }
 
 // r1 MAJOR 2: mail pending for longer than the hour still holds CLEAR (no READY, no hook call: a hung agent).
@@ -213,7 +255,7 @@ fn mail_pending_for_more_than_an_hour_still_reads_not_clear() {
     let now = 100_000_000;
     let rows = vec![row("m1", "STORED", now - 2 * CLEAR_WINDOW_MS)];
     let p = pending(&rows, None);
-    assert_eq!(clear(&healthy(), &rows, &p, now)["state"], "NOT CLEAR");
+    assert_eq!(clear(&healthy(), &rows, &p, &wall_age(now))["state"], "NOT CLEAR");
 }
 
 #[test]
@@ -221,7 +263,7 @@ fn e56_a_sent_message_handed_over_by_the_recipient_is_not_our_surfacing() {
     let now = 10_000_000;
     let rows = vec![row("in", "STORED", now - 600_000), row("out", "SENT", now - 500_000), row("out", "HANDED_OVER", now - 400_000)];
     let p = pending(&rows, None);
-    assert_eq!(clear(&healthy(), &rows, &p, now)["state"], "NOT CLEAR");
+    assert_eq!(clear(&healthy(), &rows, &p, &wall_age(now))["state"], "NOT CLEAR");
 }
 
 #[test]
@@ -237,7 +279,7 @@ fn clear_counts_unknown_and_each_bad_field() {
     let now = 10_000_000;
     let mut f = healthy();
     f.insert("consumers".into(), json!({"state": "unknown", "shown": "unknown (last at 1)"}));
-    let c = clear(&f, &[], &[], now);
+    let c = clear(&f, &[], &[], &wall_age(now));
     assert_eq!(c["state"], "NOT CLEAR");
     assert_eq!(c["unknown"], json!(["consumers"]));
     let dead = json!({"heartbeat_age_ms": 100, "component_age_ms": {}, "stale": ["send"]});
@@ -255,13 +297,13 @@ fn clear_counts_unknown_and_each_bad_field() {
     ] {
         let mut f = healthy();
         f.insert(k.into(), fresh(v));
-        let c = clear(&f, &[], &[], now);
+        let c = clear(&f, &[], &[], &wall_age(now));
         assert_eq!(c["state"], "NOT CLEAR", "{k}");
         assert!(c["bad"].to_string().contains(needle), "{k}: {c}");
     }
     let mut f = healthy();
     f.insert("supervision".into(), fresh(json!({"heartbeat": "none yet"})));
-    assert_eq!(clear(&f, &[], &[], now)["unknown"], json!(["supervision"]));
+    assert_eq!(clear(&f, &[], &[], &wall_age(now))["unknown"], json!(["supervision"]));
 }
 
 // r1 MAJOR 5: the supervision arm reads what beat::view really returns.
@@ -271,12 +313,12 @@ fn clear_reads_a_real_heartbeat_view() {
     crate::beat::write(&dir, 1_000_000, &[("send".into(), 1_000_000), ("tick".into(), 1_000_000 - 3 * TICK_MS - 1)], 3 * TICK_MS).unwrap();
     let mut f = healthy();
     f.insert("supervision".into(), fresh(crate::beat::view(&dir, 1_000_000)));
-    let c = clear(&f, &[], &[], 1_000_000);
+    let c = clear(&f, &[], &[], &wall_age(1_000_000));
     assert_eq!(c["state"], "NOT CLEAR", "{c}");
     crate::beat::write(&dir, 1_000_000, &[("send".into(), 1_000_000), ("tick".into(), 1_000_000)], 3 * TICK_MS).unwrap();
     let mut f = healthy();
     f.insert("supervision".into(), fresh(crate::beat::view(&dir, 1_000_000)));
-    assert_eq!(clear(&f, &[], &[], 1_000_000)["state"], "CLEAR");
+    assert_eq!(clear(&f, &[], &[], &wall_age(1_000_000))["state"], "CLEAR");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -303,7 +345,7 @@ fn revocation_vocabulary_binds_and_clear_reads_each_form() {
     ] {
         let mut f = healthy();
         f.insert("revocation".into(), fresh(json!({"revocation": line, "refused_revoked": 0})));
-        let c = clear(&f, &[], &[], 10_000_000);
+        let c = clear(&f, &[], &[], &wall_age(10_000_000));
         let got = if c["state"] == "CLEAR" {
             "CLEAR"
         } else if c["unknown"] == json!(["revocation"]) {
@@ -326,24 +368,29 @@ fn e127_reader_fires_on_each_broken_invariant_only() {
     let held: BTreeMap<String, u64> = [(key.clone(), 5_000)].into_iter().collect();
     let now = 10 * pn13;
     let line = format!("unverified since {} (hub unreachable)", now - pn13 - 1);
-    assert_eq!(e127_broken(&line, true, &held, &[], now), Vec::<String>::new());
-    assert_eq!(e127_broken(&line, false, &held, &[], now).len(), 1);
+    assert_eq!(e127_broken(&line, true, &held, &[], now, &wall_age(now)), Vec::<String>::new());
+    assert_eq!(e127_broken(&line, false, &held, &[], now, &wall_age(now)).len(), 1);
     let stale = format!("stale since {} (x)", now - pn13 - 1);
-    assert_eq!(e127_broken(&stale, false, &held, &[], now).len(), 1);
+    assert_eq!(e127_broken(&stale, false, &held, &[], now, &wall_age(now)).len(), 1);
     let young = format!("unverified since {} (x)", now - pn13 + 1);
-    assert!(e127_broken(&young, false, &held, &[], now).is_empty());
-    assert!(e127_broken("verified seq 3 at 1", false, &held, &[], now).is_empty());
+    assert!(e127_broken(&young, false, &held, &[], now, &wall_age(now)).is_empty());
+    assert!(e127_broken("verified seq 3 at 1", false, &held, &[], now, &wall_age(now)).is_empty());
     let before = [("m1".to_string(), "abcdef0123456789".to_string(), 4_999)];
-    assert!(e127_broken("verified seq 3 at 1", true, &held, &before, now).is_empty());
+    assert!(e127_broken("verified seq 3 at 1", true, &held, &before, now, &wall_age(now)).is_empty());
     let after = [("m2".to_string(), "abcdef0123456789".to_string(), 5_001)];
-    let b = e127_broken("verified seq 3 at 1", true, &held, &after, now);
+    let b = e127_broken("verified seq 3 at 1", true, &held, &after, now, &wall_age(now));
     assert_eq!(b.len(), 1);
     assert!(b[0].contains("m2"), "{b:?}");
+    // r3 MINOR 4: after a backward jump a lawfully stored message can carry a HIGHER wall stamp than the held
+    // time; ages decide (stored 2 h ago, held 1 min ago: lawful)
+    let lawful = [("m4".to_string(), "abcdef0123456789".to_string(), 5_001)];
+    let age = |t: u64| if t == 5_001 { 7_200_000 } else { 60_000 };
+    assert!(e127_broken("verified seq 3 at 1", true, &held, &lawful, now, &age).is_empty(), "wall order invented a breach");
     let other = [("m3".to_string(), "0000000000000000".to_string(), 9_999)];
-    assert!(e127_broken("verified seq 3 at 1", true, &held, &other, now).is_empty());
+    assert!(e127_broken("verified seq 3 at 1", true, &held, &other, now, &wall_age(now)).is_empty());
     let mut f = healthy();
     f.insert("revocation_invariants".into(), fresh(json!({"broken": b})));
-    assert!(clear(&f, &[], &[], now)["bad"].to_string().contains("revocation_invariants"));
+    assert!(clear(&f, &[], &[], &wall_age(now))["bad"].to_string().contains("revocation_invariants"));
 }
 
 // D-2 (provisional A): the not-built quota value does not hold CLEAR back.
@@ -351,7 +398,7 @@ fn e127_reader_fires_on_each_broken_invariant_only() {
 fn d2_quota_not_built_does_not_hold_clear() {
     let f = healthy();
     assert_eq!(f["quota"]["value"], QUOTA_NOT_BUILT);
-    assert_eq!(clear(&f, &[], &[], 10_000_000)["state"], "CLEAR");
+    assert_eq!(clear(&f, &[], &[], &wall_age(10_000_000))["state"], "CLEAR");
 }
 
 // E-57 (V-8): idle 48 h with nothing pending is never bad, its age is shown.
@@ -423,7 +470,7 @@ fn e57_no_ready_no_hook_call_is_not_bad_but_unknown_and_holds_clear() {
     assert_eq!(v["unknown"], true);
     let mut f = healthy();
     f.insert("last_surface".into(), fresh(v));
-    let c = clear(&f, &rows, &p, now);
+    let c = clear(&f, &rows, &p, &wall_age(now));
     assert_eq!(c["state"], "NOT CLEAR", "another message's hand-over must not clear an unanchored pending one: {c}");
     // young pending mail (within 2 ticks) is not yet unknown
     let young = vec![row("m2", "STORED", now - 1_000)];

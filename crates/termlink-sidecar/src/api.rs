@@ -484,8 +484,13 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 // T-3708 (P-24 slice a): stamped fields, CLEAR, host strength, skew (additive; design 3.0).
                 if crate::fields::enabled() {
                     let ready = ctx.deliverer.and_then(|d| d.ready_since(crate::store::now_ms()));
-                    let deliverable = ctx.deliverer.map(|d| d.pending_ids());
-                    p24_fields(&mut v, crate::fields::global(), Some(store), ready, deliverable.as_deref(), crate::store::now_ms());
+                    // r3 MAJOR-if (finding 3): CLEAR is over ALL mail, never the rows a --conv/--msg-id request filtered
+                    let all_rows = if obj.contains_key("conv") || obj.contains_key("msg_id") {
+                        status_at(&serde_json::Map::new(), store, agent, hub_id, sender, crate::store::now_ms(), &crate::deadline::Deadlines::R44E)["rows"].clone()
+                    } else {
+                        v["rows"].clone()
+                    };
+                    p24_fields(&mut v, crate::fields::global(), Some(store), ready, &all_rows, crate::store::now_ms());
                     // E-55 / E-134 (design 3.9): one latency line per call, bounded; a failing log is shown
                     v["latency_log"] = json!(latency_log(store.dir(), started.elapsed().as_millis() as u64, &v));
                 }
@@ -508,7 +513,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 m.legacy_hook(sess, "post-tool-use", None, crate::meter::adapter_ord(obj));
             }
             // T-3708 (V-8): a hook call ran while these messages were pending; the first such time counts.
-            if let Some(d) = ctx.deliverer {
+            // r3 MINOR 11: inside the switch, like every other P-24 addition
+            if let (true, Some(d)) = (crate::fields::enabled(), ctx.deliverer) {
                 crate::fields::record_hook_call(store, &d.pending_ids(), crate::store::now_ms());
             }
             pull(obj, ctx.deliverer, ctx.lease, agent)
@@ -1317,13 +1323,15 @@ pub(crate) fn p24_fields(
     reg: &crate::fields::Registry,
     store: Option<&Store>,
     ready_since: Option<u64>,
-    deliverable: Option<&[String]>,
+    all_rows: &Value,
     now_wall: u64,
 ) {
     use crate::fields::{self as f, BOUND_DAILY_MS, BOUND_HEARTBEAT_MS, BOUND_TICKS_MS};
     let mono = reg.clock().mono_ms();
-    let rows = f::rows_of(&v["rows"]);
-    let pending = f::pending(&rows, deliverable);
+    let rows = f::rows_of(all_rows);
+    // r3 finding 2: pending from the chain rows alone (no deliver-path call, and its side effects, on the status
+    // path); refused, denied and held-for-operator mail is not pending, an open hand-over attempt is
+    let pending = f::pending(&rows, None);
     let missed = store.map(f::hook_missed).unwrap_or_default();
     let age = |t: u64| reg.age_ms(t, now_wall);
     let strength = crate::host::strength_now();
@@ -1345,7 +1353,7 @@ pub(crate) fn p24_fields(
     m.insert("last_surface".into(), f::computed(&f::last_surface(&rows, &pending, ready_since, &missed, &age), now_wall));
     // E-127's reader (carried from T-3703 r1 finding 17): the revocation invariants, computed from local state
     if let Some(store) = store {
-        let stored: Vec<(String, String, u64)> = v["rows"]
+        let stored: Vec<(String, String, u64)> = all_rows
             .as_array()
             .into_iter()
             .flatten()
@@ -1353,7 +1361,7 @@ pub(crate) fn p24_fields(
             .filter_map(|r| Some((r["msg_id"].as_str()?.to_string(), r["sender"].as_str()?.to_string(), r["ts_ms"].as_u64()?)))
             .collect();
         let line = v["revocation"]["revocation"].as_str().unwrap_or("");
-        let mut broken = crate::revocation::e127_broken(line, crate::revocation::narrowing(store), &crate::revocation::held_since(store), &stored, now_wall);
+        let mut broken = crate::revocation::e127_broken(line, crate::revocation::narrowing(store), &crate::revocation::held_since(store), &stored, now_wall, &age);
         if crate::revocation::held_since_unwritten() {
             broken.push("the held-since record could not be written: a STORED message from a revoked key cannot be checked".into());
         }
@@ -1363,7 +1371,7 @@ pub(crate) fn p24_fields(
         }
         m.insert("revocation_invariants".into(), f::computed(&json!({"broken": broken}), now_wall));
     }
-    v["clear"] = f::clear(&m, &rows, &pending, now_wall);
+    v["clear"] = f::clear(&m, &rows, &pending, &age);
     // r1 MAJOR 8: the hub-derived views of another agent's state, stamped too, but outside CLEAR
     let mut other = serde_json::Map::new();
     if v["main"].get("liveness").is_some() {
@@ -1386,6 +1394,9 @@ pub const LATENCY_LOG_MAX: u64 = 1 << 20;
 pub(crate) fn latency_log(dir: &Path, ms: u64, v: &Value) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static FAILED: AtomicU64 = AtomicU64::new(0);
+    // r3 MINOR 14: rotate-and-append is one step, so two calls at the size mark cannot both rotate
+    static LOG: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _held = LOG.lock().unwrap_or_else(|p| p.into_inner());
     let path = dir.join(LATENCY_LOG);
     let line = json!({
         "ts_ms": crate::store::now_ms(),

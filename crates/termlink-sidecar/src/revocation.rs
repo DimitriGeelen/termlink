@@ -121,7 +121,10 @@ pub fn record_held_since(store: &Store, keys: &BTreeSet<String>, now: u64) {
     let mut m = held_since(store);
     let before = m.len();
     for k in keys {
-        m.entry(k.clone()).or_insert(now);
+        if !m.contains_key(k) {
+            crate::fields::register(now);
+            m.insert(k.clone(), now);
+        }
     }
     if m.len() != before {
         let text: String = m.iter().map(|(k, t)| format!("{k} {t}\n")).collect();
@@ -161,7 +164,14 @@ pub fn held_since(store: &Store) -> std::collections::BTreeMap<String, u64> {
 /// (a) the list unverified or stale for longer than PN-13 while the narrowing is not applied;
 /// (b) a message from a revoked key STORED after this sidecar held that key as revoked.
 /// `stored` is (msg_id, short sender id, stored at). Returns one line per broken invariant.
-pub fn e127_broken(status_line: &str, narrowing_now: bool, held: &std::collections::BTreeMap<String, u64>, stored: &[(String, String, u64)], now: u64) -> Vec<String> {
+pub fn e127_broken(
+    status_line: &str,
+    narrowing_now: bool,
+    held: &std::collections::BTreeMap<String, u64>,
+    stored: &[(String, String, u64)],
+    now: u64,
+    age: &dyn Fn(u64) -> u64,
+) -> Vec<String> {
     let mut out = vec![];
     let since = ["unverified since ", "stale since "]
         .iter()
@@ -177,7 +187,8 @@ pub fn e127_broken(status_line: &str, narrowing_now: bool, held: &std::collectio
         if from.len() < 16 {
             continue;
         }
-        let hit = held.iter().find(|(k, t)| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from.as_str())) && *at > **t);
+        // r3 MINOR 4: "stored after it was held" compares jump-corrected ages, never two raw wall stamps
+        let hit = held.iter().find(|(k, t)| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from.as_str())) && age(*at) < age(**t));
         if let Some((k, t)) = hit {
             out.push(format!("message {id} from revoked key {k} was STORED at {at}, after this sidecar held it as revoked at {t}"));
         }
@@ -519,8 +530,6 @@ impl Tracker {
     }
 
     fn failed(&mut self, store: &Store, now: Instant, why: &str, tamper: bool) {
-        // the status line below says why; the evaluation itself ran now
-        crate::fields::touch(crate::fields::REVOCATION);
         let hour = crate::store::now_ms() / 3_600_000;
         if tamper {
             let _ = store.attention_coalesced("revocation-tamper", &hour.to_string(), &format!("hub {}: {why}", self.hub_id));
@@ -557,6 +566,8 @@ impl Tracker {
             format!("unverified since {since_ms} ({why})")
         };
         self.write_status(store, &line);
+        // r3 finding 1: stamped after the line is rewritten (pinned by e41_a_failed_pull_is_not_an_empty_list…)
+        crate::fields::touch(crate::fields::REVOCATION);
     }
 }
 

@@ -1602,6 +1602,91 @@ head2 "4b. W1 sidecars onto the installed binary (T-3647, makes T-3646 live)"
 w1_restart_onto_binary
 
 # ---------------------------------------------------------------------------
+# 37. P-12 live check: each W1 sidecar sees its inbox's consumer list (T-3700, arc-011 B-2; operator rulings E, D)
+# Verification only, changes nothing. After 4 installs the P-12 binary and 4b restarts the W1 sidecars, each one's
+# `sidecar status` must carry a live `consumers` line within P12_WAIT seconds (the sidecar checks every 30 s):
+#   one (proven)                -> skip (live, one consumer: itself, proven by its own key)
+#   inbox consumed by N ...     -> FAILED, the line names every other reader (a second consumer: find it before any
+#                                  bind; binding an inbox is its own later action, by the operator's ruling)
+#   anything else (unknown, no field) -> FAILED with the line
+# No inbox is bound here. Seams (fixtures only): RUNME_P31_UNITS, RUNME_P31_TL (as 35/36), RUNME_P12_WAIT.
+# ---------------------------------------------------------------------------
+seam P12_WAIT RUNME_P12_WAIT 75
+p12_live_check() {
+    local unit inst agent out line waited
+    if [ -z "$P31_UNITS" ]; then say "  skip    no W1 units configured"; SKIPPED=$((SKIPPED+1)); return; fi
+    for unit in $P31_UNITS; do
+        inst="$(w1_instance_of "$unit")"; agent="$(p31_env_get "$W1_CONF_DIR/$inst.env" AGENT)"
+        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would read $agent's consumers status"; DONE=$((DONE+1)); continue; fi
+        waited=0
+        while :; do
+            out="$(TERMLINK_SIDECAR_STATUS_SOCKET="$W1_SOCK_DIR/$agent.status.sock" "$P31_TL" sidecar status --json 2>/dev/null)"
+            line="$(p31_json "$out" 'v["consumers"]["consumers"]')"
+            case "$line" in "one (proven)"|"inbox consumed by"*) break ;; esac
+            [ "$waited" -ge "$P12_WAIT" ] && break
+            sleep 5; waited=$((waited+5))
+        done
+        case "$line" in
+            "one (proven)") say "  skip    $agent: consumers one (proven) — P-12 live"; SKIPPED=$((SKIPPED+1)) ;;
+            "inbox consumed by"*) say "  FAILED  $agent: $line — find the other reader before any bind"; FAILED=$((FAILED+1)) ;;
+            "") say "  FAILED  $agent: status carries no consumers line after ${P12_WAIT}s (sidecar older than P-12?)"; FAILED=$((FAILED+1)) ;;
+            *) say "  FAILED  $agent: consumers '$line' after ${P12_WAIT}s"; FAILED=$((FAILED+1)) ;;
+        esac
+    done
+}
+
+head2 "37. P-12 live: each W1 sidecar's inbox consumer list (T-3700)"
+p12_live_check
+
+# ---------------------------------------------------------------------------
+# 38. P-24 live check: each W1 sidecar's status is stamped and honest (T-3708, arc-011 B-14 slice a; ruling D-2 A)
+# Verification only, changes nothing. After 4 installs the P-24 binary and 4b restarts the W1 sidecars, within
+# P24_WAIT seconds each one's `sidecar status --json` must carry `fields`, `clear` and `strength_host`, with the
+# measured fields hub, revocation, consumers, skew and supervision all `fresh` (a restarted sidecar reads them
+# unknown until its producers ran: pull pass, revocation tracker, 30 s consumers check, heartbeat tick),
+# `strength_host.per_agent_accounts` never claiming per-agent accounts, and `latency_log` ok.
+#   all of that     -> skip (live), naming CLEAR's state and why (CLEAR is reported, not judged here: a second
+#                      reader on the inbox, action 37, legitimately reads NOT CLEAR)
+#   no `fields`     -> FAILED (sidecar older than P-24, or the switch TERMLINK_SIDECAR_P24 is off)
+#   anything else   -> FAILED naming what
+# Seams (fixtures only): RUNME_P31_UNITS, RUNME_P31_TL (as 35-37), RUNME_P24_WAIT.
+# ---------------------------------------------------------------------------
+seam P24_WAIT RUNME_P24_WAIT 75
+p24_live_check() {
+    local unit inst agent out stale waited pa ll cl
+    if [ -z "$P31_UNITS" ]; then say "  skip    no W1 units configured"; SKIPPED=$((SKIPPED+1)); return; fi
+    for unit in $P31_UNITS; do
+        inst="$(w1_instance_of "$unit")"; agent="$(p31_env_get "$W1_CONF_DIR/$inst.env" AGENT)"
+        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would read $agent's P-24 status fields"; DONE=$((DONE+1)); continue; fi
+        waited=0
+        while :; do
+            out="$(TERMLINK_SIDECAR_STATUS_SOCKET="$W1_SOCK_DIR/$agent.status.sock" "$P31_TL" sidecar status --json 2>/dev/null)"
+            stale="$(p31_json "$out" '"NOFIELDS" if "fields" not in v else ",".join(k for k in ["hub","revocation","consumers","skew","supervision"] if v["fields"].get(k,{}).get("state")!="fresh")')"
+            [ -z "$stale" ] && [ -n "$out" ] && break
+            [ "$waited" -ge "$P24_WAIT" ] && break
+            sleep 5; waited=$((waited+5))
+        done
+        pa="$(p31_json "$out" 'v["strength_host"]["per_agent_accounts"]')"
+        ll="$(p31_json "$out" 'v["latency_log"]')"
+        cl="$(p31_json "$out" 'v["clear"]["state"] + " (" + v["clear"]["why"] + ")"')"
+        if [ -z "$out" ] || [ "$stale" = "NOFIELDS" ]; then
+            say "  FAILED  $agent: status carries no P-24 fields after ${P24_WAIT}s (sidecar older than P-24, or TERMLINK_SIDECAR_P24=off)"; FAILED=$((FAILED+1))
+        elif [ -n "$stale" ]; then
+            say "  FAILED  $agent: fields not fresh after ${P24_WAIT}s: $stale"; FAILED=$((FAILED+1))
+        elif [ "${pa#no}" = "$pa" ]; then
+            say "  FAILED  $agent: per_agent_accounts claims '$pa' (FCW-123: never claimed in PH-2)"; FAILED=$((FAILED+1))
+        elif [ "$ll" != "ok" ]; then
+            say "  FAILED  $agent: latency_log '$ll'"; FAILED=$((FAILED+1))
+        else
+            say "  skip    $agent: P-24 live — fields fresh; clear: $cl"; SKIPPED=$((SKIPPED+1))
+        fi
+    done
+}
+
+head2 "38. P-24 live: each W1 sidecar's status is stamped and honest (T-3708)"
+p24_live_check
+
+# ---------------------------------------------------------------------------
 # ACTION 5b — acknowledge hub flap residue (T-3587; operator ruling 2026-10-26)
 #
 # After a crash loop the unit's NRestarts counter stays high once the hub is

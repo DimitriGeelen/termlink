@@ -79,7 +79,7 @@ pub fn strength(procs: Option<&[Proc]>, own_uid: u32) -> Value {
             let uids: BTreeSet<u32> = ps.iter().map(|p| p.uid).collect();
             if by_agent.len() < 2 {
                 ("no (fewer than two sidecars visible: nothing to compare)".to_string(), None)
-            } else if uids.len() < by_agent.len() || uids.contains(&0) {
+            } else if uids.contains(&0) || !pairwise_disjoint(&by_agent) {
                 (format!("no: {} agents run under {} account(s)", by_agent.len(), uids.len()), Some(true))
             } else {
                 ("no (sidecars run under separate accounts; the agent sessions' accounts are not checked)".to_string(), Some(false))
@@ -91,7 +91,8 @@ pub fn strength(procs: Option<&[Proc]>, own_uid: u32) -> Value {
     } else {
         match shared {
             Some(true) => format!("absent: agents share accounts (this sidecar runs as uid {own_uid})"),
-            _ => "absent (could not check)".to_string(),
+            Some(false) => "absent (the agent sessions' accounts are not checked)".to_string(),
+            None => "absent (could not check)".to_string(),
         }
     };
     json!({
@@ -102,6 +103,12 @@ pub fn strength(procs: Option<&[Proc]>, own_uid: u32) -> Value {
         "confirmation_provider": "no",
         "policy_records": "none (fixed defaults)",
     })
+}
+
+/// r3 MINOR 13: no uid appears under two agents.
+fn pairwise_disjoint(by_agent: &BTreeMap<&str, BTreeSet<u32>>) -> bool {
+    let mut seen = BTreeSet::new();
+    by_agent.values().flatten().all(|u| seen.insert(*u))
 }
 
 /// `strength_host` for this process.
@@ -160,7 +167,17 @@ fn skew_cell() -> &'static Mutex<Skew> {
 
 /// Record a round trip in the process estimator and stamp the `skew` field.
 pub fn record_round_trip(before_ms: u64, after_ms: u64, hub_now_ms: Option<u64>) {
-    let Some(h) = hub_now_ms else { return };
+    let Some(h) = hub_now_ms else {
+        // r3 MINOR 10: a hub that answers without its clock (older than T-3708) is a measured "absent", not unknown
+        if let Ok(mut c) = no_hub_time_cell().lock() {
+            *c = true;
+        }
+        crate::fields::touch(crate::fields::SKEW);
+        return;
+    };
+    if let Ok(mut c) = no_hub_time_cell().lock() {
+        *c = false;
+    }
     match skew_cell().lock() {
         Ok(mut s) => s.sample(before_ms, after_ms, h),
         Err(p) => p.into_inner().sample(before_ms, after_ms, h),
@@ -168,8 +185,16 @@ pub fn record_round_trip(before_ms: u64, after_ms: u64, hub_now_ms: Option<u64>)
     crate::fields::touch(crate::fields::SKEW);
 }
 
+fn no_hub_time_cell() -> &'static Mutex<bool> {
+    static C: OnceLock<Mutex<bool>> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(false))
+}
+
 /// The process estimator's view.
 pub fn skew_view() -> Option<Value> {
+    if no_hub_time_cell().lock().map(|c| *c).unwrap_or(false) {
+        return Some(json!({"clock": "absent: the hub reports no time (older than T-3708)", "cross_host_delays": "unknown"}));
+    }
     match skew_cell().lock() {
         Ok(s) => s.view(),
         Err(p) => p.into_inner().view(),
@@ -253,9 +278,14 @@ pub fn start_ntp_sampler() {
     if STARTED.set(()).is_err() {
         return;
     }
+    // r3 MINOR 8: wait in short steps against the field registry's clock (boot time), so a suspend longer than
+    // NTP_EVERY does not leave the field past its 1 h bound for up to NTP_EVERY after resume
     let _ = std::thread::Builder::new().name("ntp-sampler".into()).spawn(|| loop {
         sample_ntp();
-        std::thread::sleep(NTP_EVERY);
+        let start = crate::fields::global().clock().mono_ms();
+        while crate::fields::global().clock().mono_ms().saturating_sub(start) < NTP_EVERY.as_millis() as u64 {
+            std::thread::sleep(Duration::from_secs(30));
+        }
     });
 }
 
@@ -292,6 +322,8 @@ mod tests {
             assert!(v["same_user_separation"].as_str().unwrap().starts_with("absent"), "{v}");
         }
         assert_eq!(strength(None, 1001)["same_user_separation"], "absent (could not check)");
+        // r3 MINOR 13: a uid shared between two agents is not "separate accounts"
+        assert_eq!(strength(Some(&[p("a", 1), p("a", 2), p("b", 1)]), 1)["per_agent_accounts"], "no: 2 agents run under 2 account(s)");
         // a root sidecar among separated ones is shared, not separated
         assert_eq!(strength(Some(&[p("a", 0), p("b", 1001)]), 1001)["per_agent_accounts"], "no: 2 agents run under 2 account(s)");
     }

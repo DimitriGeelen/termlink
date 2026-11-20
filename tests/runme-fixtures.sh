@@ -465,7 +465,14 @@ case "\$1 \$2" in
   "sidecar status")
     a=\$(basename "\$TERMLINK_SIDECAR_STATUS_SOCKET" .status.sock)
     if [ "\${FAKE_P31_STATUS:-}" = nomatch ]; then echo '{"ok":true,"keys":{"encryption":{"state":"unknown"}}}'
-    else echo '{"ok":true,"keys":{"encryption":{"register":"match"}}}'; fi ;;
+    elif [ "\${FAKE_P12:-}" = none ]; then echo '{"ok":true,"keys":{"encryption":{"register":"match"}}}'
+    else
+      f='"state":"fresh","value":{}'; st=fresh; [ "\${FAKE_P24:-}" = stale ] && st=unknown
+      pa="no: 2 agents run under 1 account(s)"; [ "\${FAKE_P24:-}" = yes ] && pa=yes
+      ll=ok; [ "\${FAKE_P24:-}" = badlog ] && ll="failing (1 appends failed: disk full)"
+      p24=",\"fields\":{\"hub\":{\$f},\"revocation\":{\$f},\"consumers\":{\$f},\"skew\":{\"state\":\"\$st\"},\"supervision\":{\$f}},\"clear\":{\"state\":\"CLEAR\",\"why\":\"every field fresh and good; mail surfaced\"},\"strength_host\":{\"per_agent_accounts\":\"\$pa\"},\"latency_log\":\"\$ll\""
+      [ "\${FAKE_P24:-}" = none ] && p24=""
+      printf '{"ok":true,"keys":{"encryption":{"register":"match"}},"consumers":{"consumers":"%s"}%s}\n' "\${FAKE_P12:-one (proven)}" "\$p24"; fi ;;
   "hub key-card")
     case "\$3" in
       get) if [ -f "\$D/card.\$4" ]; then printf '{"card":%s}\n' "\$(cat "\$D/card.\$4")"; else echo '{"card":null}'; fi ;;
@@ -477,7 +484,7 @@ case "\$1 \$2" in
 esac
 EOS
 chmod +x "$P3/tl"
-export RUNME_P31_UNITS="" RUNME_P31_TL="$P3/tl" RUNME_P31_KEYS_DIR="$P3/keys"
+export RUNME_P31_UNITS="" RUNME_P31_TL="$P3/tl" RUNME_P31_KEYS_DIR="$P3/keys" RUNME_P12_WAIT=0 RUNME_P24_WAIT=0
 p3_seed() {  # fresh scratch state for one W1-like unit `termlink-sidecar@u-p31.service`, agent fx-p
     rm -rf "$P3/keys" "$P3/store" "$P3"/card.* "$P3/mode" "$P3/calls" "$P3/fx-p.json"*; mkdir -p "$P3/keys" "$P3/store"
     printf '%s\n' "$(printf '12%.0s' $(seq 32))" > "$P3/keys/fx-p.pub"
@@ -1144,7 +1151,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 57 ))   # +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 59 ))   # +1 no W1 units for P-24 (T-3708 action 38); +1 no W1 units for P-12 (T-3700 action 37); +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3755,6 +3762,42 @@ out=$(FAKE_P31_STATUS=nomatch RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s35 "$out"
 if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: status does not read keys.encryption register=match after provisioning (E-144)' && [ ! -e "$P3/card.fx-p" ]; then
     ok "35: E-144 not met => FAILED, no card published"
 else bad "35 e144" "rc=$rc: $x"; fi
+
+# T-3700 action 37 — P-12 live check (verification only).
+s37() { echo "$1" | sed -n '/^.*37\. P-12 live/,/^.*5b\. Acknowledge/p'; }
+out=$(run); x=$(s37 "$out")
+if echo "$x" | grep_all 'skip    no W1 units configured'; then ok "37: no units => skip"; else bad "37 none" "$x"; fi
+p3_seed; w1_unit "$P3U" 7061 termlink-new
+out=$(RUNME_P31_UNITS="$P3U" run --dry-run); x=$(s37 "$out")
+if echo "$x" | grep_all "\[DRY\]   would read fx-p's consumers status"; then ok "37: --dry-run names the check"; else bad "37 dry" "$x"; fi
+out=$(RUNME_P31_UNITS="$P3U" run); x=$(s37 "$out")
+if echo "$x" | grep_all 'skip    fx-p: consumers one (proven)'; then ok "37: one proven consumer => skip (live)"; else bad "37 one" "$x"; fi
+out=$(FAKE_P12='inbox consumed by two identities: fx-p (proven), fx-z (claimed: unsigned)' RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s37 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: inbox consumed by two identities: fx-p (proven), fx-z (claimed: unsigned)'; then
+    ok "37: a second consumer => FAILED naming it"
+else bad "37 two" "rc=$rc: $x"; fi
+out=$(FAKE_P12=none RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s37 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: status carries no consumers line'; then ok "37: no consumers field => FAILED"; else bad "37 nofield" "rc=$rc: $x"; fi
+out=$(FAKE_P12='unknown (hub predates the consumer list)' RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s37 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fx-p: consumers 'unknown (hub predates the consumer list)'"; then ok "37: unknown => FAILED with the line"; else bad "37 unknown" "rc=$rc: $x"; fi
+
+# T-3708 action 38 — P-24 live check (verification only).
+s38() { echo "$1" | sed -n '/^.*38\. P-24 live/,/^.*5b\. Acknowledge/p'; }
+p3_seed; out=$(run); x=$(s38 "$out")
+if echo "$x" | grep_all 'skip    no W1 units configured'; then ok "38: no units => skip"; else bad "38 none" "$x"; fi
+p3_seed; w1_unit "$P3U" 7081 termlink-new
+out=$(RUNME_P31_UNITS="$P3U" run --dry-run); x=$(s38 "$out")
+if echo "$x" | grep_all "\[DRY\]   would read fx-p's P-24 status fields"; then ok "38: --dry-run names the check"; else bad "38 dry" "$x"; fi
+out=$(RUNME_P31_UNITS="$P3U" run); x=$(s38 "$out")
+if echo "$x" | grep_all 'skip    fx-p: P-24 live — fields fresh; clear: CLEAR'; then ok "38: fresh fields => skip (live), CLEAR reported"; else bad "38 live" "$x"; fi
+out=$(FAKE_P24=none RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s38 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: status carries no P-24 fields'; then ok "38: no fields => FAILED"; else bad "38 nofields" "rc=$rc: $x"; fi
+out=$(FAKE_P24=stale RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s38 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-p: fields not fresh after 0s: skew'; then ok "38: a stale field => FAILED naming it"; else bad "38 stale" "rc=$rc: $x"; fi
+out=$(FAKE_P24=yes RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s38 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fx-p: per_agent_accounts claims 'yes'"; then ok "38: a per-agent-accounts claim => FAILED (FCW-123)"; else bad "38 yes" "rc=$rc: $x"; fi
+out=$(FAKE_P24=badlog RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s38 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fx-p: latency_log 'failing"; then ok "38: a failing latency log => FAILED"; else bad "38 log" "rc=$rc: $x"; fi
 p3_seed; rm -f "$W1R/conf/u-p31.env" "$W1R/conf/termlink-sidecar@u-p31.service.env"
 
 echo ""

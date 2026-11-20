@@ -97,4 +97,17 @@ fn t3708_status_is_additive_stamped_and_switchable() {
         unsafe { std::env::remove_var("TERMLINK_SIDECAR_P24") };
         assert!(o.get("fields").is_none(), "switch value {word:?} did not hide the keys");
     }
+    // r3 finding 3: a status filtered to one conversation still judges ALL mail (pending in another conversation)
+    store.append_event("c2", "STORED", "m-elsewhere", "abcdef0123456789", "d").unwrap();
+    let filtered = {
+        let cfg = ApiConfig::new("agent-b", &e.runtime_dir());
+        let api = Api::start(cfg, store.clone()).unwrap();
+        let mut s = UnixStream::connect(api.path(Scope::Status)).unwrap();
+        writeln!(s, "{}", json!({"op": "status", "conv": "c1"})).unwrap();
+        let mut line = String::new();
+        BufReader::new(s).read_line(&mut line).unwrap();
+        serde_json::from_str::<Value>(&line).unwrap()
+    };
+    assert_eq!(filtered["fields"]["last_surface"]["value"]["pending"], 1, "{}", filtered["fields"]["last_surface"]);
+
 }

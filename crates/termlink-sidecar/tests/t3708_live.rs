@@ -82,10 +82,8 @@ fn p95(mut d: Vec<Duration>) -> Duration {
 
 #[test]
 fn t3708_e55_fields_stamped_by_producers_and_fast_with_the_hub_up_or_down() {
-    let Ok(mut e) = Estate::create() else {
-        eprintln!("SKIP: no termlink binary for a test hub");
-        return;
-    };
+    // r3 MINOR 12: no SKIP-as-green: without a test hub this evidence did not run
+    let mut e = Estate::create().expect("E-55 needs a test hub (termlink binary); not run is not a PASS");
     let r = rig(&e);
     let _ = r.rx.pass();
     let (v, _) = status(&r);

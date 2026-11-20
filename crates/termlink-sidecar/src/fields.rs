@@ -45,9 +45,7 @@ pub const COMPONENT_BAD_MS: u64 = 3 * TICK_MS;
 pub const CLEAR_WINDOW_MS: u64 = 3_600_000;
 /// Wall and monotonic time disagreeing by more than this between two looks is a wall jump.
 pub const JUMP_MS: i64 = 2_000;
-/// At most this many jumps are kept (oldest first out).
-pub const JUMPS_CAP: usize = 64;
-/// At most this many stamps are remembered (lowest first out).
+/// At most this many written stamps are remembered (first written, first out).
 pub const AGES_CAP: usize = 20_000;
 
 /// The value `quota` reads until receiver quotas exist (T-3708 D-2, carried provisionally: see the task).
@@ -70,14 +68,16 @@ pub trait Clock: Send + Sync {
     fn wall_ms(&self) -> u64;
 }
 
-/// The process clock.
+/// The process clock. The monotonic source is chosen once (r3 MINOR 9): CLOCK_BOOTTIME on Linux when it
+/// answers at start (it keeps counting through a suspend or VM pause, r2 MAJOR 3), else `Instant`.
 pub struct SystemClock {
     start: Instant,
+    boot: bool,
 }
 
 impl SystemClock {
     pub fn new() -> Self {
-        SystemClock { start: Instant::now() }
+        SystemClock { start: Instant::now(), boot: boottime_ms().is_some() }
     }
 }
 
@@ -87,8 +87,7 @@ impl Default for SystemClock {
     }
 }
 
-/// CLOCK_BOOTTIME in ms: monotonic, and it keeps counting through a suspend or VM pause (r2 MAJOR 3), which
-/// `Instant` (CLOCK_MONOTONIC on Linux) does not. Falls back to `Instant` if the call fails.
+#[cfg(target_os = "linux")]
 fn boottime_ms() -> Option<u64> {
     let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     // SAFETY: clock_gettime writes into the timespec we own; CLOCK_BOOTTIME is a valid clock id on Linux.
@@ -96,9 +95,20 @@ fn boottime_ms() -> Option<u64> {
     (rc == 0).then(|| ts.tv_sec as u64 * 1000 + ts.tv_nsec as u64 / 1_000_000)
 }
 
+#[cfg(not(target_os = "linux"))]
+fn boottime_ms() -> Option<u64> {
+    None
+}
+
 impl Clock for SystemClock {
     fn mono_ms(&self) -> u64 {
-        boottime_ms().unwrap_or_else(|| self.start.elapsed().as_millis() as u64)
+        // one source for the life of the process: a failed call keeps the last-known base, never switches
+        if self.boot {
+            if let Some(t) = boottime_ms() {
+                return t;
+            }
+        }
+        self.start.elapsed().as_millis() as u64
     }
     fn wall_ms(&self) -> u64 {
         crate::store::wall_now_ms()
@@ -112,22 +122,27 @@ pub struct Seen {
     pub wall_ms: u64,
 }
 
-/// The in-memory registry of producer successes and of the ages of stamps this process has seen.
+/// Wall-jump bookkeeping: the last look at both clocks, the running total of every jump this process saw,
+/// and per stamp it wrote, that total at write time (r3 MINOR 5, 15: no jump cap, eviction by write order).
+#[derive(Default)]
+struct Jumps {
+    last_look: Option<(u64, u64)>,
+    total: i64,
+    count: usize,
+    at_write: BTreeMap<u64, i64>,
+    order: std::collections::VecDeque<u64>,
+}
+
+/// The in-memory registry of producer successes and of wall jumps.
 pub struct Registry {
     clock: Arc<dyn Clock>,
     seen: Mutex<BTreeMap<String, Seen>>,
-    /// The last look at both clocks (mono, wall), and the wall jumps seen: (wall just before, delta).
-    last_look: Mutex<Option<(u64, u64)>>,
-    jumps: Mutex<Vec<(u64, i64)>>,
-    /// stamp -> how many jumps had been seen when this process WROTE it ([`Registry::register`], r2 MAJOR 1).
-    /// A stamp this process did not write (from before its start) predates all its jumps: epoch 0. Wall
-    /// values alone cannot say which side of a backward jump a stamp is on.
-    epochs: Mutex<BTreeMap<u64, usize>>,
+    jumps: Mutex<Jumps>,
 }
 
 impl Registry {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
-        Registry { clock, seen: Mutex::new(BTreeMap::new()), last_look: Mutex::new(None), jumps: Mutex::new(vec![]), epochs: Mutex::new(BTreeMap::new()) }
+        Registry { clock, seen: Mutex::new(BTreeMap::new()), jumps: Mutex::new(Jumps::default()) }
     }
 
     pub fn clock(&self) -> &dyn Clock {
@@ -144,54 +159,61 @@ impl Registry {
         lock(&self.seen).get(name).copied()
     }
 
+    fn look_locked(&self, j: &mut Jumps) {
+        let (mono, wall) = (self.clock.mono_ms(), self.clock.wall_ms());
+        if let Some((m0, w0)) = j.last_look {
+            let delta = (wall as i64 - w0 as i64) - (mono as i64 - m0 as i64);
+            if delta.abs() > JUMP_MS {
+                j.total += delta;
+                j.count += 1;
+            }
+        }
+        j.last_look = Some((mono, wall));
+    }
+
     /// Look at both clocks; a disagreement past [`JUMP_MS`] since the last look is a wall jump. Both clocks
     /// are read under the lock, so two threads cannot record a false jump between them (r2 MINOR 7).
     pub fn look(&self) {
-        let mut last = lock(&self.last_look);
-        let (mono, wall) = (self.clock.mono_ms(), self.clock.wall_ms());
-        if let Some((m0, w0)) = *last {
-            let delta = (wall as i64 - w0 as i64) - (mono as i64 - m0 as i64);
-            if delta.abs() > JUMP_MS {
-                let mut j = lock(&self.jumps);
-                if j.len() >= JUMPS_CAP {
-                    // dropping the oldest jump shifts every index down by one
-                    j.remove(0);
-                    for e in lock(&self.epochs).values_mut() {
-                        *e = e.saturating_sub(1);
-                    }
-                }
-                j.push((w0 + mono.saturating_sub(m0), delta));
-            }
-        }
-        *last = Some((mono, wall));
+        let mut j = lock(&self.jumps);
+        self.look_locked(&mut j);
     }
 
-    /// This process wrote `stamp` now: remember how many jumps came before it.
+    /// This process wrote `stamp` now: remember the jump total at this moment.
     pub fn register(&self, stamp_wall: u64) {
-        self.look();
-        let n = lock(&self.jumps).len();
-        let mut e = lock(&self.epochs);
-        if !e.contains_key(&stamp_wall) && e.len() >= AGES_CAP {
-            if let Some(k) = e.keys().next().copied() {
-                e.remove(&k);
+        let mut j = lock(&self.jumps);
+        self.look_locked(&mut j);
+        if j.at_write.contains_key(&stamp_wall) {
+            return;
+        }
+        if j.at_write.len() >= AGES_CAP {
+            if let Some(old) = j.order.pop_front() {
+                j.at_write.remove(&old);
             }
         }
-        e.entry(stamp_wall).or_insert(n);
+        let t = j.total;
+        j.at_write.insert(stamp_wall, t);
+        j.order.push_back(stamp_wall);
     }
 
-    /// The age of a wall stamp at `now_wall`, less every wall jump that came after the stamp was written
-    /// (E-59). A jump while the process was down is not seen here; the skew line shows it.
+    /// The age of a wall stamp at `now_wall`, less every wall jump since the stamp was written (E-59). A stamp
+    /// this process did not write predates all its jumps (total 0 at write); the daemon is its store's only
+    /// writer (hooks and CLIs reach the store through its API). A jump while the process was down is not seen
+    /// here; the skew line shows it.
     pub fn age_ms(&self, stamp_wall: u64, now_wall: u64) -> u64 {
-        self.look();
-        let jumps = lock(&self.jumps);
-        let epoch = lock(&self.epochs).get(&stamp_wall).copied().unwrap_or(0);
-        let correction: i64 = jumps.iter().skip(epoch).map(|(_, d)| *d).sum();
+        let mut j = lock(&self.jumps);
+        self.look_locked(&mut j);
+        let correction = j.total - j.at_write.get(&stamp_wall).copied().unwrap_or(0);
         (now_wall as i64 - stamp_wall as i64 - correction).max(0) as u64
     }
 
     #[cfg(test)]
     pub(crate) fn jumps_len(&self) -> usize {
-        lock(&self.jumps).len()
+        lock(&self.jumps).count
+    }
+
+    #[cfg(test)]
+    pub(crate) fn stamps_len(&self) -> usize {
+        lock(&self.jumps).at_write.len()
     }
 }
 
@@ -285,7 +307,9 @@ pub fn pending(rows: &[Row], deliverable: Option<&[String]>) -> Vec<(String, u64
     ids.sort();
     ids.dedup();
     ids.into_iter()
-        .filter(|id| !rows.iter().any(|r| r.msg_id == *id && (r.stage == "HANDED_OVER" || r.stage == "SENT")))
+        .filter(|id| !rows.iter().any(|r| r.msg_id == *id && matches!(r.stage.as_str(), "HANDED_OVER" | "SENT" | "REFUSED" | "DENIED")))
+        // held for the operator (and not admitted): a decision the operator owes, shown in `held`, not surfacing
+        .filter(|id| !(rows.iter().any(|r| r.msg_id == *id && r.stage == "HELD") && !rows.iter().any(|r| r.msg_id == *id && r.stage == "ADMITTED")))
         .filter(|id| deliverable.is_none_or(|d| d.iter().any(|x| x == id)))
         .filter_map(|id| rows.iter().filter(|r| r.msg_id == id && r.stage == "STORED").map(|r| r.ts_ms).min().map(|t| (id.to_string(), t)))
         .collect()
@@ -369,6 +393,7 @@ pub fn last_surface(
         "overdue": overdue,
         "unknown": !unanchored.is_empty(),
         "unanchored": unanchored,
+        "pending": pending.len(),
     })
 }
 
@@ -387,7 +412,7 @@ pub fn revocation_reading(line: &str) -> &'static str {
 /// CLEAR (FCW-121): no field bad, no field unknown, and if any mail was pending in the last hour (still
 /// pending now at any age, or handed over within the hour) a hand-over this side made after the
 /// earliest such STORED. Returns `{state, bad, unknown, why}`.
-pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], pending_now: &[(String, u64)], now_wall: u64) -> Value {
+pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], pending_now: &[(String, u64)], age: &dyn Fn(u64) -> u64) -> Value {
     let mut bad: Vec<String> = vec![];
     let mut unknown: Vec<String> = vec![];
     for (name, f) in fields {
@@ -443,14 +468,15 @@ pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], pending_now:
             _ => {}
         }
     }
-    let since = now_wall.saturating_sub(CLEAR_WINDOW_MS);
+    // r3 MINOR 7: every ordering here compares jump-corrected AGES, never raw wall stamps
     let handed_in_window: Vec<u64> = rows
         .iter()
-        .filter(|r| r.stage == "HANDED_OVER" && r.ts_ms >= since && !rows.iter().any(|s| s.msg_id == r.msg_id && s.stage == "SENT"))
-        .filter_map(|h| rows.iter().filter(|r| r.msg_id == h.msg_id && r.stage == "STORED").map(|r| r.ts_ms).min())
+        .filter(|r| r.stage == "HANDED_OVER" && age(r.ts_ms) <= CLEAR_WINDOW_MS && !rows.iter().any(|s| s.msg_id == r.msg_id && s.stage == "SENT"))
+        .filter_map(|h| rows.iter().filter(|r| r.msg_id == h.msg_id && r.stage == "STORED").map(|r| age(r.ts_ms)).max())
         .collect();
-    let earliest = pending_now.iter().map(|(_, t)| *t).chain(handed_in_window).min();
-    let surfaced = earliest.is_none_or(|e| own_handovers(rows).any(|t| t >= e));
+    // the earliest such STORED is the OLDEST: the largest age
+    let earliest = pending_now.iter().map(|(_, t)| age(*t)).chain(handed_in_window).max();
+    let surfaced = earliest.is_none_or(|e| own_handovers(rows).any(|t| age(t) <= e));
     if !surfaced {
         bad.push("no hand-over after mail that was pending in the last hour".into());
     }
