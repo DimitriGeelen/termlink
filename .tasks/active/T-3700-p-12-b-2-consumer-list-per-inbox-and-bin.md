@@ -161,7 +161,7 @@ Unblocks: P-24 (T-3708); part of gate G-2 (the T1 release).
 # (FP 3.1.b). Scratch runtime dir so no test touches the live hub (T-3822).
 env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=$(mktemp -d) cargo test -p termlink-hub --lib inbox_consumers > .context/working/.t3700-hub.out 2>&1 && grep -q "test result: ok" .context/working/.t3700-hub.out
 env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=$(mktemp -d) cargo test -p termlink-sidecar --test t3700_consumers -- --nocapture > .context/working/.t3700-l4.out 2>&1 && grep -q "E-66 PASS" .context/working/.t3700-l4.out && grep -q "E-133 PASS" .context/working/.t3700-l4.out && grep -q "E-169 PASS" .context/working/.t3700-l4.out
-grep -q "26/26 killed" docs/reports/T-3700-mutants.md
+grep -q "33/33 killed" docs/reports/T-3700-mutants.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
