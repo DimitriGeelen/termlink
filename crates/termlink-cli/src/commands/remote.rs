@@ -6216,9 +6216,11 @@ fn classify_unreachable_hint(name: &str, address: &str) -> String {
     let host = address.split(':').next().unwrap_or(address);
     let port = address.split(':').nth(1).unwrap_or("?");
     if host == "localhost" || host.starts_with("127.") {
+        // T-3835: a loopback profile is this host's hub OR a tunnel (ssh -L) to another hub.
         format!(
-            "{}: Localhost unreachable — hub not running on this host. Start with: termlink hub start (verify with: termlink hub status)",
-            name
+            "{}: Loopback {}:{} unreachable — either this host's hub is not running (start: termlink hub start; verify: termlink hub status), \
+             or, if this profile is a tunnel to another hub (ssh -L), the tunnel is down (check the ssh process for port {})",
+            name, host, port, port
         )
     } else if host.starts_with("192.0.2.")
         || host.starts_with("198.51.100.")
@@ -9837,6 +9839,14 @@ mod tests {
     // -------------------------------------------------------------------
     // T-1614: is_rfc1918 helper for fleet-status TIMEOUT classification
     // -------------------------------------------------------------------
+
+    /// T-3835: a loopback profile may be a tunnel to another hub; the hint names both causes.
+    #[test]
+    fn t3835_loopback_unreachable_hint_names_hub_and_tunnel() {
+        let h = classify_unreachable_hint("ring20-132", "127.0.0.1:19132");
+        assert!(h.contains("127.0.0.1:19132") && h.contains("termlink hub start") && h.contains("ssh -L"), "{h}");
+        assert!(!h.contains("Localhost unreachable"), "{h}");
+    }
 
     #[test]
     fn is_rfc1918_matches_canonical_ranges() {

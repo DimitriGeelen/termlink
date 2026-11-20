@@ -518,6 +518,118 @@ impl ServerCertVerifier for TofuVerifier {
     }
 }
 
+/// T-3835: verifier for a hub reached through a loopback address.
+///
+/// A loopback address is not proof of this host's own hub: an ssh tunnel (`ssh -L`) or a second
+/// hub can listen there. A server presenting the local `hub.cert.pem` is verified against it
+/// (WebPKI, as before). Any other cert is TOFU for that host:port, unless the port is the local
+/// hub's own (`strict`): then only the local cert is accepted, so nothing squatting the hub's
+/// port can be pinned.
+#[derive(Debug)]
+pub struct LoopbackVerifier {
+    local: Arc<rustls::client::WebPkiServerVerifier>,
+    local_certs: Vec<CertificateDer<'static>>,
+    local_cert_path: PathBuf,
+    host_port: String,
+    /// `None` on the local hub's own port (strict): no TOFU fallback.
+    tofu: Option<TofuVerifier>,
+    algs: WebPkiSupportedAlgorithms,
+}
+
+impl LoopbackVerifier {
+    pub fn new(local_cert_pem: &std::path::Path, host_port: String, strict: bool, store: KnownHubStore) -> std::io::Result<Self> {
+        let pem = std::fs::read_to_string(local_cert_pem)?;
+        let local_certs = rustls_pemfile::certs(&mut std::io::BufReader::new(pem.as_bytes()))
+            .collect::<Result<Vec<CertificateDer<'static>>, _>>()?;
+        let mut roots = rustls::RootCertStore::empty();
+        for c in &local_certs {
+            roots.add(c.clone()).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("failed to add cert: {e}")))?;
+        }
+        let local = rustls::client::WebPkiServerVerifier::builder(Arc::new(roots))
+            .build()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("local hub cert verifier: {e}")))?;
+        let tofu = (!strict).then(|| TofuVerifier::new(store, host_port.clone()));
+        Ok(Self { local, local_certs, local_cert_path: local_cert_pem.to_path_buf(), host_port, tofu, algs: signature_algorithms() })
+    }
+}
+
+impl ServerCertVerifier for LoopbackVerifier {
+    fn verify_server_cert(
+        &self,
+        end_entity: &CertificateDer<'_>,
+        intermediates: &[CertificateDer<'_>],
+        server_name: &ServerName<'_>,
+        ocsp_response: &[u8],
+        now: UnixTime,
+    ) -> Result<ServerCertVerified, Error> {
+        if self.local_certs.iter().any(|c| c.as_ref() == end_entity.as_ref()) {
+            return self.local.verify_server_cert(end_entity, intermediates, server_name, ocsp_response, now);
+        }
+        match &self.tofu {
+            Some(t) => t.verify_server_cert(end_entity, intermediates, server_name, ocsp_response, now),
+            None => {
+                let msg = format!(
+                    "loopback {} is this host's hub port (hub.tcp), but the server there presented a certificate other than {} \
+                     (fingerprint {}); refusing. If this is a tunnel to another hub, give it a different local port (T-3835)",
+                    self.host_port,
+                    self.local_cert_path.display(),
+                    cert_fingerprint(end_entity.as_ref())
+                );
+                tracing::error!("{msg}");
+                Err(Error::General(msg))
+            }
+        }
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        // Either path: the peer must hold the key of the cert it presented (T-3629).
+        rustls::crypto::verify_tls12_signature(message, cert, dss, &self.algs)
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        rustls::crypto::verify_tls13_signature(message, cert, dss, &self.algs)
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        self.algs.supported_schemes()
+    }
+}
+
+/// T-3835: a host that names this machine's loopback interface (`localhost`, `127.0.0.0/8`, `::1`).
+pub fn is_loopback_host(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost")
+        || host.trim_matches(|c| c == '[' || c == ']').parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback())
+}
+
+/// T-3835: the TCP port the local hub listens on, read from `hub.tcp` beside its cert
+/// (e.g. `0.0.0.0:9100`). `None` when the file is absent or unreadable.
+pub fn local_hub_port(local_cert_pem: &std::path::Path) -> Option<u16> {
+    let flag = local_cert_pem.parent()?.join("hub.tcp");
+    let text = std::fs::read_to_string(flag).ok()?;
+    text.trim().rsplit_once(':')?.1.parse().ok()
+}
+
+/// T-3835: the connector for a loopback `host:port` when this host has a hub cert.
+pub fn build_loopback_connector(local_cert_pem: &std::path::Path, host: &str, port: u16) -> std::io::Result<tokio_rustls::TlsConnector> {
+    let strict = local_hub_port(local_cert_pem) == Some(port);
+    let verifier = LoopbackVerifier::new(local_cert_pem, format!("{host}:{port}"), strict, KnownHubStore::default_store())?;
+    let config = rustls::ClientConfig::builder()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(verifier))
+        .with_no_client_auth();
+    Ok(tokio_rustls::TlsConnector::from(Arc::new(config)))
+}
+
 /// Build a TLS connector that uses TOFU verification for a specific host:port.
 pub fn build_tofu_connector(host_port: &str) -> tokio_rustls::TlsConnector {
     let store = KnownHubStore::default_store();
@@ -1205,6 +1317,115 @@ mod tests {
         let addr = spawn_tls_server(cert, other_key).await;
         let res = super::probe_cert(&addr.to_string()).await;
         assert!(res.is_err(), "probe must not report a fingerprint the endpoint cannot sign for");
+    }
+
+    /// T-3835: a local hub cert written as PEM into a temp dir, with `hub.tcp` naming `hub_port`.
+    fn local_hub_dir(cert_der: &[u8], hub_port: Option<u16>) -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let pem = rustls_pemfile_encode(cert_der);
+        let path = dir.path().join("hub.cert.pem");
+        std::fs::write(&path, pem).unwrap();
+        if let Some(p) = hub_port {
+            std::fs::write(dir.path().join("hub.tcp"), format!("0.0.0.0:{p}")).unwrap();
+        }
+        (dir, path)
+    }
+
+    fn rustls_pemfile_encode(der: &[u8]) -> String {
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(der);
+        let body: Vec<&str> = b64.as_bytes().chunks(64).map(|c| std::str::from_utf8(c).unwrap()).collect();
+        format!("-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n", body.join("\n"))
+    }
+
+    /// Handshake through 127.0.0.1 with the loopback verifier and a temp TOFU store.
+    async fn loopback_handshake(addr: std::net::SocketAddr, local_pem: &std::path::Path, store: KnownHubStore) -> std::io::Result<()> {
+        let host_port = format!("127.0.0.1:{}", addr.port());
+        let strict = local_hub_port(local_pem) == Some(addr.port());
+        let verifier = LoopbackVerifier::new(local_pem, host_port, strict, store)?;
+        let config = rustls::ClientConfig::builder_with_provider(Arc::new(rustls::crypto::aws_lc_rs::default_provider()))
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(verifier))
+            .with_no_client_auth();
+        let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+        let tcp = tokio::net::TcpStream::connect(addr).await?;
+        let mut tls = connector.connect(ServerName::try_from("localhost".to_string()).unwrap(), tcp).await?;
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        tls.read_to_end(&mut buf).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn t3835_local_cert_on_loopback_passes_on_any_port() {
+        let (cert, key) = self_signed();
+        let addr = spawn_tls_server(cert.clone(), key).await;
+        for hub_port in [None, Some(addr.port())] {
+            let (_d, pem) = local_hub_dir(&cert, hub_port);
+            let (store, _p) = test_store();
+            loopback_handshake(addr, &pem, store.clone()).await.unwrap_or_else(|e| panic!("local hub ({hub_port:?}): {e}"));
+            assert!(store.get(&format!("127.0.0.1:{}", addr.port())).is_none(), "the local hub is not TOFU-pinned");
+        }
+    }
+
+    #[tokio::test]
+    async fn t3835_other_hub_through_loopback_is_tofu_pinned() {
+        // The ring20 case: an ssh tunnel on 127.0.0.1 to a hub with its own cert.
+        let (local_cert, _) = self_signed();
+        let (other_cert, other_key) = self_signed();
+        let addr = spawn_tls_server(other_cert.clone(), other_key).await;
+        // The local hub listens elsewhere (hub.tcp names another port), so this port is not strict.
+        let (_d, pem) = local_hub_dir(&local_cert, Some(addr.port().wrapping_add(1)));
+        let (store, _p) = test_store();
+        loopback_handshake(addr, &pem, store.clone()).await.expect("a tunnelled hub must connect (was BadSignature)");
+        assert_eq!(store.get(&format!("127.0.0.1:{}", addr.port())), Some(cert_fingerprint(&other_cert)), "first sight pins it");
+        // A later, different cert on the same tunnel port is a TOFU violation, as for any hub.
+        let (third_cert, third_key) = self_signed();
+        let addr2 = spawn_tls_server(third_cert, third_key).await;
+        store.accept(&format!("127.0.0.1:{}", addr2.port()), &cert_fingerprint(&other_cert)).unwrap();
+        assert!(loopback_handshake(addr2, &pem, store).await.is_err(), "a changed cert on a pinned tunnel is refused");
+    }
+
+    #[tokio::test]
+    async fn t3835_other_cert_on_the_local_hub_port_is_refused_with_a_named_error() {
+        let (local_cert, _) = self_signed();
+        let (other_cert, other_key) = self_signed();
+        let addr = spawn_tls_server(other_cert, other_key).await;
+        let (_d, pem) = local_hub_dir(&local_cert, Some(addr.port()));
+        let (store, _p) = test_store();
+        let err = loopback_handshake(addr, &pem, store.clone()).await.expect_err("strict on the hub's port");
+        let msg = err.to_string();
+        assert!(msg.contains("loopback") && msg.contains("hub.cert.pem") && msg.contains(&addr.port().to_string()), "{msg}");
+        assert!(store.get(&format!("127.0.0.1:{}", addr.port())).is_none(), "nothing is pinned on a refusal");
+    }
+
+    #[tokio::test]
+    async fn t3835_local_cert_without_its_key_fails_the_handshake() {
+        let (cert, _real) = self_signed();
+        let (_other, other_key) = self_signed();
+        let addr = spawn_tls_server(cert.clone(), other_key).await;
+        let (_d, pem) = local_hub_dir(&cert, Some(addr.port()));
+        let (store, _p) = test_store();
+        assert!(loopback_handshake(addr, &pem, store).await.is_err(), "a replayed local cert must not pass");
+    }
+
+    #[test]
+    fn t3835_loopback_hosts_and_hub_port() {
+        for h in ["localhost", "LOCALHOST", "127.0.0.1", "127.0.0.3", "::1", "[::1]"] {
+            assert!(is_loopback_host(h), "{h}");
+        }
+        for h in ["192.168.10.107", "10.0.0.1", "example.com", "", "::"] {
+            assert!(!is_loopback_host(h), "{h}");
+        }
+        let (cert, _) = self_signed();
+        let (_d, pem) = local_hub_dir(&cert, Some(9100));
+        assert_eq!(local_hub_port(&pem), Some(9100));
+        std::fs::write(pem.parent().unwrap().join("hub.tcp"), "[::]:9200\n").unwrap();
+        assert_eq!(local_hub_port(&pem), Some(9200));
+        let (_d2, bare) = local_hub_dir(&cert, None);
+        assert_eq!(local_hub_port(&bare), None);
     }
 
     #[tokio::test]

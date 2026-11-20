@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::sync::Arc;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
@@ -55,46 +54,17 @@ impl Client {
                 let stream = tokio::net::TcpStream::connect((host.as_str(), *port)).await?;
                 stream.set_nodelay(true)?;
 
-                // Try TLS: use local cert for same-machine connections, TOFU for remote
-                let cert_path = crate::discovery::runtime_dir().join("hub.cert.pem");
-                let is_local = host == "127.0.0.1" || host == "localhost" || host == "::1";
-
-                // T-1029/T-1031: Check alternate cert location for split-brain runtime dirs
-                let effective_cert = if is_local && cert_path.exists() {
-                    Some(cert_path)
-                } else if is_local && std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
-                    let alt = std::path::PathBuf::from("/var/lib/termlink/hub.cert.pem");
-                    if alt.exists() { Some(alt) } else { None }
-                } else {
-                    None
-                };
-
-                if let Some(cert) = effective_cert {
-                    // Local hub — use pinned cert (fastest, no TOFU lookup)
-                    let connector = build_tls_connector(&cert)?;
-                    let host_owned = host.clone();
-                    let server_name = rustls::pki_types::ServerName::try_from(host_owned)
-                        .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
-                    let tls_stream = connector.connect(server_name, stream).await?;
-                    let (reader, writer) = tokio::io::split(tls_stream);
-                    Ok(Self {
-                        writer: Box::new(writer),
-                        reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
-                    })
-                } else {
-                    // Remote hub — use TOFU verification
-                    // T-1029: Never fall back to plaintext; hub TCP always uses TLS.
-                    let host_port = format!("{host}:{port}");
-                    let connector = crate::tofu::build_tofu_connector(&host_port);
-                    let server_name = rustls::pki_types::ServerName::try_from(host.clone())
-                        .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
-                    let tls_stream = connector.connect(server_name, stream).await?;
-                    let (reader, writer) = tokio::io::split(tls_stream);
-                    Ok(Self {
-                        writer: Box::new(writer),
-                        reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
-                    })
-                }
+                // T-1029: Never fall back to plaintext; hub TCP always uses TLS.
+                // T-3835: loopback = local cert or TOFU (strict on the local hub's port); else TOFU.
+                let connector = hub_tls_connector(host, *port)?;
+                let server_name = rustls::pki_types::ServerName::try_from(host.clone())
+                    .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
+                let tls_stream = connector.connect(server_name, stream).await?;
+                let (reader, writer) = tokio::io::split(tls_stream);
+                Ok(Self {
+                    writer: Box::new(writer),
+                    reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+                })
             }
         }
     }
@@ -124,23 +94,8 @@ impl Client {
         let stream = tokio::net::TcpStream::connect((host.as_str(), port)).await?;
         stream.set_nodelay(true)?;
 
-        // Mirror connect_addr's selection: local pinned cert vs remote TOFU.
-        let cert_path = crate::discovery::runtime_dir().join("hub.cert.pem");
-        let is_local = host == "127.0.0.1" || host == "localhost" || host == "::1";
-        let effective_cert = if is_local && cert_path.exists() {
-            Some(cert_path)
-        } else if is_local && std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
-            let alt = std::path::PathBuf::from("/var/lib/termlink/hub.cert.pem");
-            if alt.exists() { Some(alt) } else { None }
-        } else {
-            None
-        };
-
-        let connector = if let Some(cert) = effective_cert {
-            build_tls_connector(&cert)?
-        } else {
-            crate::tofu::build_tofu_connector(&format!("{host}:{port}"))
-        };
+        // Same selection as connect_addr (T-3835: one helper for both).
+        let connector = hub_tls_connector(&host, port)?;
         let server_name = rustls::pki_types::ServerName::try_from(host.clone())
             .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
         connector.connect(server_name, stream).await
@@ -411,23 +366,32 @@ pub enum ClientError {
 }
 
 /// Build a TLS connector that trusts the hub's self-signed certificate.
-fn build_tls_connector(cert_pem_path: &Path) -> std::io::Result<tokio_rustls::TlsConnector> {
-    let cert_pem = std::fs::read_to_string(cert_pem_path)?;
-    let certs = rustls_pemfile::certs(&mut std::io::BufReader::new(cert_pem.as_bytes()))
-        .collect::<Result<Vec<rustls::pki_types::CertificateDer<'_>>, _>>()?;
-
-    let mut root_store = rustls::RootCertStore::empty();
-    for cert in certs {
-        root_store.add(cert).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, format!("failed to add cert: {e}"))
-        })?;
+/// This host's hub cert, if any (T-1029/T-1031: also the alternate location for split-brain
+/// runtime dirs when `TERMLINK_RUNTIME_DIR` is unset).
+fn local_hub_cert() -> Option<std::path::PathBuf> {
+    let cert_path = crate::discovery::runtime_dir().join("hub.cert.pem");
+    if cert_path.exists() {
+        return Some(cert_path);
     }
+    if std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
+        let alt = std::path::PathBuf::from("/var/lib/termlink/hub.cert.pem");
+        if alt.exists() {
+            return Some(alt);
+        }
+    }
+    None
+}
 
-    let config = rustls::ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-
-    Ok(tokio_rustls::TlsConnector::from(Arc::new(config)))
+/// T-3835: the TLS connector for a hub at `host:port`. A loopback host with a local hub cert
+/// gets the loopback verifier (local cert, else TOFU; only the local cert on the local hub's
+/// port). Every other host, and loopback without a local hub, is TOFU.
+fn hub_tls_connector(host: &str, port: u16) -> std::io::Result<tokio_rustls::TlsConnector> {
+    if crate::tofu::is_loopback_host(host)
+        && let Some(cert) = local_hub_cert()
+    {
+        return crate::tofu::build_loopback_connector(&cert, host, port);
+    }
+    Ok(crate::tofu::build_tofu_connector(&format!("{host}:{port}")))
 }
 
 /// Extract the successful result from an RpcResponse, or format the error.

@@ -1,11 +1,17 @@
 ---
-id: T-3839
-name: "stream --read-only help text: drop 'same as termlink pty mirror' (it now takes
-  the raw mirror path)"
+id: T-3835
+name: "Client treats any 127.0.0.1/localhost/::1 hub address as this host's own hub
+  (pins the local cert): ssh tunnels on loopback fail with BadSignature"
 description: >
-  055 field note (b8ace7a5): cli.rs:435 and :7295 say --read-only is the same as pty
-  mirror; since T-3838 it replays the screen via the raw mirror. Fix the doc comment
-  in both forms.
+  Reported by ring20 (T-2787, 2026-11-20), confirmed in code: termlink-session/src/client.rs:60-78
+  (and :129) set is_local for host 127.0.0.1|localhost|::1 and verify the server against
+  this host's own hub.cert.pem, so a hubs.toml profile at 127.0.0.1:19132 (ssh -L
+  to another hub) fails 'invalid peer certificate: BadSignature', while 127.0.0.3:19132
+  (TOFU path) works; termlink fleet also prints 'Localhost unreachable — hub not running'
+  (remote.rs:6220). Fix options: treat as local only when the port is this host's
+  hub port / the presented cert equals the local cert, else TOFU; or treat every hubs.toml
+  profile as remote. Error must name the loopback case. Test: a second hub on loopback
+  with its own cert, reached through 127.0.0.1.
 
 status: started-work
 workflow_type: build
@@ -40,8 +46,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-20T18:59:17Z
-last_update: 2026-11-20T19:58:55Z
+created: 2026-11-20T12:43:11Z
+last_update: 2026-11-20T20:14:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,7 +60,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-11-20T19:55:24Z'
+  - ts: '2026-11-20T19:59:58Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 0
@@ -67,24 +73,26 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3839: stream --read-only help text: drop 'same as termlink pty mirror' (it now takes the raw mirror path)
+# T-3835: Client treats any 127.0.0.1/localhost/::1 hub address as this host's own hub (pins the local cert): ssh tunnels on loopback fail with BadSignature
 
 ## Context
 
-**Background / trigger:** 055-agentic-fleet-cockpit tested `pty stream --read-only` in the field (msg b8ace7a5, 2026-11-20). They noted that its `--help` says "same as `termlink pty mirror`".
+**Background / trigger:** ring20 (T-2787, 2026-11-20) reached another hub through an ssh tunnel at `127.0.0.1:19132`, and the connection failed with `invalid peer certificate: BadSignature`. The same tunnel at `127.0.0.3:19132` worked. `termlink fleet` also said "Localhost unreachable — hub not running".
 
-**Problem / hypothesis:** since T-3838, `--read-only` runs `cmd_mirror(target, 100, raw=true, ..)`. That is a replay of recent output followed by the raw byte stream, i.e. `pty mirror --raw`. Plain `pty mirror` renders through a terminal grid instead, so the help text points readers at the wrong behaviour.
+**Problem / hypothesis:** `client.rs:60` and `:129` treat host `127.0.0.1`, `localhost` or `::1` as this host's own hub. They then accept only the local `hub.cert.pem`, so any other hub reached through loopback (a tunnel, a second hub) is refused. `127.0.0.3` escaped only because the check is an exact string match.
 
-**Goal:** the help text names what `--read-only` actually does.
+**Goal:** a loopback address reaches whatever hub listens there, without weakening the local hub's pin.
 
-**Expected outcome:** both CLI forms (top-level `stream` and `pty stream`) say `--read-only` equals `pty mirror --raw`, and the behaviour is unchanged.
+**Expected outcome:** on any loopback address, a hub presenting the local cert is verified against it as before. Any other cert goes through TOFU for that host:port. On the local hub's own port (from `hub.tcp`), only the local cert is accepted, and the refusal names the loopback case. The fleet hint for a loopback address no longer assumes "hub not running".
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Both `--read-only` doc comments in `crates/termlink-cli/src/cli.rs` (top-level and `pty` forms) say it equals `termlink pty mirror --raw`, and neither says "same as `termlink pty mirror`" any more.
-- [x] `termlink pty stream --help` shows the new wording, and the T-3833 CLI tests still pass.
+- [x] `connect_addr` and `connect_tls_stream` share one loopback connector. A loopback hub presenting the local cert passes, a different cert on another port is TOFU-pinned and passes, and a different cert on the local hub's port is refused with an error naming loopback, the port and `hub.cert.pem`.
+- [x] Tests: a second TLS server with its own cert, reached through 127.0.0.1, connects (TOFU) and gets pinned. The same server treated as the local hub's port is refused. A server with the local cert passes in both modes. A cert signed with another key fails the handshake.
+- [x] The `fleet` unreachable hint for a loopback address names both causes: the local hub is not running, or the tunnel (`ssh -L`) to another hub is down.
+- [x] `cargo test -p termlink-session` and the CLI tests pass; clippy adds no new warning in the changed files.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -159,9 +167,9 @@ bvp_scores_proposed:
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
-test "$(grep -c 'termlink pty mirror --raw' crates/termlink-cli/src/cli.rs)" -ge 2
-! grep -q 'never forward input (same as `termlink pty mirror`)' crates/termlink-cli/src/cli.rs
-env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3839-rt cargo test -p termlink t3833 > /tmp/t3839.out 2>&1 && grep -q "test result: ok. 2 passed" /tmp/t3839.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3835-rt cargo test -p termlink-session t3835 > /tmp/t3835-s.out 2>&1 && grep -q "test result: ok. 5 passed" /tmp/t3835-s.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3835-rt cargo test -p termlink t3835_loopback_unreachable_hint > /tmp/t3835-c.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3835-c.out
+! grep -q 'host == "127.0.0.1" || host == "localhost"' crates/termlink-session/src/client.rs
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -384,11 +392,11 @@ env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3839-rt cargo test -p termlink t3
 
 ## Updates
 
-### 2026-11-20T18:59:17Z — task-created [task-create-agent]
+### 2026-11-20T12:43:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3839-stream---read-only-help-text-drop-same-a.md
+- **Output:** /opt/termlink/.tasks/active/T-3835-client-treats-any-127001localhost1-hub-a.md
 - **Context:** Initial task creation
 
-### 2026-11-20T19:55:22Z — status-update [task-update-agent]
+### 2026-11-20T19:59:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
