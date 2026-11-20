@@ -271,8 +271,12 @@ impl Inner {
     }
 
     fn check_pin(&self) -> Result<Value, PinError> {
+        let before = crate::store::now_ms();
         let resp = self.rpc("hub.version", json!({})).map_err(PinError::Unreachable)?;
+        let after = crate::store::now_ms();
         let v = unwrap_result(resp).map_err(PinError::Unreachable)?;
+        // T-3708 (V-5): every pass is a skew sample, also for an agent whose inbox has never had mail
+        crate::host::record_round_trip(before, after, v.get("hub_now_ms").and_then(Value::as_u64));
         let found = v.get("hub_id").and_then(Value::as_str).map(str::to_owned);
         crate::hub_key_pin::observe_hub_id(&self.store, &self.cfg.declared_hub_id, found.as_deref());
         if found.as_deref() == Some(self.cfg.declared_hub_id.as_str()) {

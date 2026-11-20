@@ -1221,6 +1221,8 @@ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
             "hub_instance_id": instance,
             "signing_key": signing_key,
             "signing_public_key": signing_public_key,
+            // T-3708 (V-5): the hub's clock, so every client pass can estimate skew (additive field)
+            "hub_now_ms": crate::channel::hub_now_ms(),
         }),
     )
     .into()
