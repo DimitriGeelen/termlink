@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): B-14: status strength flags, reachability card, CLEAR,
   skew, GP-4 lines
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-hub/src/router.rs, crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/daemon.rs, crates/termlink-sidecar/src/deliver.rs, crates/termlink-sidecar/src/lib.rs, crates/termlink-sidecar/src/policy.rs, crates/termlink-sidecar/src/pull.rs, crates/termlink-sidecar/src/store.rs, crates/termlink-sidecar/tests/policy_tests.rs, runme.sh, tests/runme-fixtures.sh]
 related_tasks: [T-3357, T-3700, T-3703, T-3364]
 plan_unit: P-24
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T16:05:28Z
-date_finished:
+last_update: 2026-11-20T16:05:31Z
+date_finished: 2026-11-20T16:05:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -483,3 +483,16 @@ grep -q 'P-24 live — fields fresh' .context/working/runme-logs/latest.log
 ### 2026-11-20T09:38:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-20T16:05:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a2fc2820
+- **Timestamp:** 2026-11-20T16:06:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

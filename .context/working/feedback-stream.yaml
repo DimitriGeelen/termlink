@@ -24993,3 +24993,21 @@ scan_id: R-3ae0ed37
 task_id: T-3700
 payload:
   task_file: .tasks/active/T-3700-p-12-b-2-consumer-list-per-inbox-and-bin.md
+---
+kind: scan_emitted
+timestamp: '2026-11-20T16:06:10Z'
+scan_id: R-a2fc2820
+task_id: T-3708
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-20T16:06:10Z'
+scan_id: R-a2fc2820
+task_id: T-3708
+payload:
+  task_file: .tasks/active/T-3708-p-24-b-14-status-strength-flags-reachabi.md

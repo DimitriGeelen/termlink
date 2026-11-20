@@ -1,0 +1,206 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3708: P-24: B-14 status strength flags, reachability, CLEAR, skew
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-20T16:06:35Z
+# ============================================================================
+
+task_id: T-3708
+task_name: "P-24: B-14 status strength flags, reachability, CLEAR, skew"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:45Z
+completed: 2026-11-20T16:05:31Z
+duration_days: 8
+updates_count: 3
+first_commit: 2026-11-20T10:17:33+01:00
+last_commit: 2026-11-20T17:05:29+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-24 spec extract (AL-29, arch 6.7, E-19/E-55..61/E-134; what exists, what is missing, two-slice proposal). P-24 design draft (additive status fields, freshness registry, CLEAR, V-8, host strength, skew + steady deadlines, card, GP-4 lines; two-slice proposal; D-1, D-2 open). D-1 ruled A (two slices); slice (b) captured as T-3832. D-2 ruled A (quota reads 'absent: receiver quotas not built (P-17)', not counted by CLEAR); note carried to T-3705. slice (a) acceptance criteria (additive, freshness, CLEAR, V-8, host strength, skew/steady deadlines, quota, latency). slice (a) increment 1 — status fields stamped (FCW-120), CLEAR (FCW-121), V-8 last_surface, host strength flags (FCW-123), skew from hub round trips, NTP sampler, quota per D-2; additive behind TERMLINK_SIDECAR_P24 (22 unit tests; sidecar suite green). slice (a) increment 2 — steady process time (wall at start + monotonic) for every sidecar stamp and deadline (E-59, design 3.5.3); wall_now_ms for display; E-59 control test with a ±1 h wall-jump seam; 401/0. slice (a) increment 3 — bounded status latency log (E-55/E-134, design 3.9; failures shown); L2 test: pre-P-24 keys unchanged, E-55 field schema, restart reads unknown and NOT CLEAR, switch off hides every new key. slice (a) increment 4 — carried T-3703 items: revocation status vocabulary bound (CLEAR reads all six forms; 'hub predates' = unknown); one urgent allow-list function, DOWNGRADED reason names 'revocation list stale' when the stale gate caused it (tested with a widened list); 404/0. design build notes (steady clock scope, CLEAR scope, V-8 start, carried items state). D-2 marked UNCONFIRMED (the '[A' was a stray keystroke injection by a 055 pty stream test, not the operator); T-3833 captured (pty stream forwards stdin as a viewer). slice (a) increment 5 — E-127's reader (carried T-3703 r1 f17): sidecar records when it first held each key as revoked; status field revocation_invariants flags a list unverified past PN-13 without the narrowing, or a STORED message from a key after it was held; CLEAR reads it bad; coalesced attention; 405/0. RK-1 sender label moved to T-3834 (needs a recipient record outside the hashed chain and a key-card cache; not a status field). slice (a) increment 6 — skew sampled on every pass from hub.version (hub adds hub_now_ms, additive), so an agent with an empty inbox is measured too (found by the live test); L4 test: fields fresh after a real pass, p95 status 73 ms hub up / 67 ms hub stopped over 100 calls each (E-55), a failed pass does not stamp hub, E-58 flags match ps on .107 (28 agents, all root); hub 686/0, sidecar 407/0. review round 1 bundle + prompt; slice (a) mutant runner (26 mutants). slice (a) mutants 26/26 killed. review round 1 fixes — now_ms stays wall time (BLOCKER); deadlines use jump-corrected ages (jumps seen per tick, stamps classified by first-seen epoch); CLEAR counts mail pending at any age, unknown revocation forms read bad, supervision reads the real heartbeat view; strength never claims per-agent accounts (sessions not checkable); stamps from their own producer (revocation tracker, consumers only on a hub answer, lease, liveness); local ts only; hook misses persisted; main.liveness/lease stamped outside CLEAR; switch takes off/0/false/no; process-wide tests in own binaries; silent-hub status test; 412/0; runner 36 mutants. review round 1 (claude-code FAIL 1B/8M/6m; opencode truncated) + dispositions; design build notes updated (time, carried items, strength). close 5 mutant survivors — switched-off revocation pass now stamps the field (bug: it would read unknown, never CLEAR); consumers stamp rule as consumers::stamps_field with a unit test; exact root-host strength text; local-time rows test; receiver hand-over deadline across a +1 h jump (t3708_clock); t3708_revoff in its own binary; 415/0. review round 2 bundle + prompt. review round 2 fixes — stamps registered with the jump count when written (chain events, readiness, hook misses), not when first aged; receiver deadline = younger of two jump-corrected ages; CLOCK_BOOTTIME so suspend is neither a jump nor frozen freshness; clocks read under the lock; pending mail with no READY/hook anchor makes last_surface unknown (NOT CLEAR); failed held-since write reported in E-127; fields_other_agents pinned; old keys equal with switch on/off; failed revocation pass rewrites the line (tested); mutants 40 (m10b silent hub, m5d/m5e, m34); 416/0. review round 2 record + dispositions; design note 6. D-2 confirmed by the operator: A (quota reads 'absent: receiver quotas not built (P-17)'); T-3705 note updated. pin stamp registration (a chain event written after a backward jump ages plainly) and make m34 a compiling mutant. mutants 40/40; review round 3 (final) bundle + prompt. review round 3 (final) fixes + runme action 38 — jump bookkeeping as a running total recorded per written stamp (no jump cap, eviction by write order); CLEAR and E-127 order by corrected ages; pending from chain rows only (refused/denied/held-for-operator excluded, open attempts kept; no deliver-path call on the status path); CLEAR over unfiltered rows for --conv/--msg-id; revocation stamped after the line rewrite; hook record inside the switch; skew 'absent' from a hub without a clock; NTP sampler waits on boot time; one monotonic source per process, cfg-guarded; strength needs disjoint uid sets; latency rotation under a lock; E-55 no SKIP-as-green; action 38 P-24 live check (verification only) + 6 fixtures (450/0); sidecar 418/0; runner 45 mutants. review round 3 (final, claude-code PASS) record + dispositions; residual risks named. final mutants 45/45 killed. evidence suite (PASS line per slice-a E-n: E-19, E-55, E-56, E-57, E-58, E-59, E-134; ALL PASS); agent ACs ticked with as-built notes; E-41.3-through-assess deferred to the widening task; Verification block filled. Evolution entries (clock redesign after r1; scope cuts and build findings)
+
+# Key outcomes
+outcomes:
+  - 'Additive only (design 3.0): no existing status key or liveness-note field changes shape; a test pins the pre-P-24 keys; `TERMLINK_SIDECAR_P24=off` hides every new key (rollback).'
+  - 'Freshness (3.1, FCW-120): `status.fields` renders each field fresh with `at_ms`/`bound_ms`, or `unknown (last at T)` past its bound; after a restart every field is unknown; E-19 and E-55 (schema + stale-to-unknown) PASS on a simulated clock.'
+  - 'CLEAR (3.2, FCW-121): pure `clear()` with the AL-29 bad-field list; a heartbeat, READY or pull never counts as surfacing; E-56 PASS (injected refusals: NOT CLEAR with `last_surface` bad; healthy: CLEAR after the hand-over).'
+  - 'V-8 (3.3): the first hook call that did not hand a pending STORED message over is recorded; `last_surface` bad exactly at READY + 2 ticks or hook-miss + 2 ticks; idle 48 h with nothing pending is not bad; E-57 PASS.'
+  - 'Host strength (3.4, FCW-123): `strength_host` flags computed from `/proc` per call; uncomputable reads absent; E-58 PASS on .107 against `ps -o user=`.'
+  - 'Skew/NTP/steady deadlines (3.5): skew from `hub_now_ms` round trips (flags at > 2 s and > 30 s), NTP sampled hourly or `unchecked`; every deadline check uses the steady clock [as built after review r1: jump-corrected ages per written stamp, `fields::age_ms`; stamps stay wall time]; E-59 PASS (0/3/45 s offsets, ±1 h wall jump fires nothing early or late).'
+  - 'Quota (D-2 A): `quota` reads `absent: receiver quotas not built (P-17)`, and a test shows CLEAR does not wait on it.'
+  - 'Latency (3.9): status makes no blocking hub call; per-call latency log, bounded; E-55 p95 ≤ 5 s over 100 calls under the available fault seams; E-134 log present.'
+  - 'The unit''s fixture suite exits 0 with a PASS line per slice-(a) E-n, and the design section 5 mutants for slice (a) are all killed (FP 3.1.b) [`tests/t3708-evidence.sh`: ALL PASS; mutants 45/45]'
+  - 'MOVED to T-3834 on 2026-11-20 (sender-side delivery label, own build; design 8.4) — was: (from T-3703 r2 CC 4 / OC 3, deferred) A sender whose recipient''s current key is on the hub''s revocation list shows that message as WAITING FOR RECIPIENT with the reason "key revoked, operator action needed" and raises one needs-attention entry (RK-1); the sender learns the recipient''s key from its hub key card (B-6). Test: revoke fx-a, fx-b sends to fx-a, fx-b''s status names the reason.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'review round 3 (final) fixes + runme action 38 — jump bookkeeping as a running total recorded per written stamp (no jump cap, eviction by write order); CLEAR and E-127 order by corrected ages; pending from chain rows only (refused/denied/held-for-operator excluded, open attempts kept; no deliver-path call on the status path); CLEAR over unfiltered rows for --conv/--msg-id; revocation stamped after the line rewrite; hook record inside the switch; skew ''absent'' from a hub without a clock; NTP sampler waits on boot time; one monotonic source per process, cfg-guarded; strength needs disjoint uid sets; latency rotation under a lock; E-55 no SKIP-as-green; action 38 P-24 live check (verification only) + 6 fixtures (450/0); sidecar 418/0; runner 45 mutants'
+    source: git-mined
+  - description: 'review round 2 fixes — stamps registered with the jump count when written (chain events, readiness, hook misses), not when first aged; receiver deadline = younger of two jump-corrected ages; CLOCK_BOOTTIME so suspend is neither a jump nor frozen freshness; clocks read under the lock; pending mail with no READY/hook anchor makes last_surface unknown (NOT CLEAR); failed held-since write reported in E-127; fields_other_agents pinned; old keys equal with switch on/off; failed revocation pass rewrites the line (tested); mutants 40 (m10b silent hub, m5d/m5e, m34); 416/0'
+    source: git-mined
+  - description: 'close 5 mutant survivors — switched-off revocation pass now stamps the field (bug: it would read unknown, never CLEAR); consumers stamp rule as consumers::stamps_field with a unit test; exact root-host strength text; local-time rows test; receiver hand-over deadline across a +1 h jump (t3708_clock); t3708_revoff in its own binary; 415/0'
+    source: git-mined
+  - description: 'review round 1 fixes — now_ms stays wall time (BLOCKER); deadlines use jump-corrected ages (jumps seen per tick, stamps classified by first-seen epoch); CLEAR counts mail pending at any age, unknown revocation forms read bad, supervision reads the real heartbeat view; strength never claims per-agent accounts (sessions not checkable); stamps from their own producer (revocation tracker, consumers only on a hub answer, lease, liveness); local ts only; hook misses persisted; main.liveness/lease stamped outside CLEAR; switch takes off/0/false/no; process-wide tests in own binaries; silent-hub status test; 412/0; runner 36 mutants'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-20 — D-1: slicing P-24 (operator ruling: "A")'
+    chose: 'A, two slices. (a) honest status (design 3.1-3.5, 3.7, 3.9, 3.10; E-19, E-55..E-59, E-134) under T-3708; (b) reachability card + GP-4 offline lines (design 3.6, 3.8; E-60, E-61) as its own task, after (a).'
+    rationale: 'each live change stays reviewable (lesson of the e15e4c380 regression); (b) needs (a)''s fields anyway. Brief scores: A +37, C +25, B -2, D -28 (`docs/reports/T-3708-design.md` section 6).'
+    alternatives_rejected: ['B one unit (largest live change); C three slices (extra rounds; the steady-clock change is already targeted by (a)''s reviews and mutant 5); D defer. - **Left open:** D-2 (quota field before P-17), next in the queue.']
+  - decision: '2026-11-20 — D-2: the `quota` field before P-17 exists — CONFIRMED by the operator: "A"'
+    chose: 'A. `quota` reads a fresh value `absent: receiver quotas not built (P-17)`; it is neither bad nor unknown, so CLEAR does not wait on it. When P-17 (T-3705) lands, the field becomes measured with the normal rules.'
+    rationale: 'with no quotas nothing can refuse receipts, so "bad" is impossible rather than unmeasured; naming the absence matches the strength-flag rule (FCW-123). Brief scores: A +28, C +11, D -7, B -17.'
+    alternatives_rejected: ['B `unknown` (every sidecar NOT CLEAR until P-17; E-56 healthy case cannot pass); C build P-17 first (a full unit ahead of the focus); D omit the field (hidden absence; E-55 schema needs it). - **Left open:** the exact wording (operator may change it). Build carries a test that CLEAR ignores this value and a note in T-3705.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3705-p-17-b-7-receiver-quotas-sender-window-h.md'
+  - '.tasks/active/T-3708-p-24-b-14-status-strength-flags-reachabi.md'
+  - '.tasks/active/T-3832-p-24-slice-b-reachability-card-on-every-.md'
+  - '.tasks/active/T-3833-termlink-pty-stream-forwards-stdin-when-.md'
+  - '.tasks/active/T-3834-rk-1-sender-shows-key-revoked-operator-a.md'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-session/tests/mutants/run-t3708.py'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/consumers.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/fields.rs'
+  - 'crates/termlink-sidecar/src/fields_tests.rs'
+  - 'crates/termlink-sidecar/src/host.rs'
+  - 'crates/termlink-sidecar/src/lease.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/liveness.rs'
+  - 'crates/termlink-sidecar/src/policy.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/revocation.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/tests/policy_tests.rs'
+  - 'crates/termlink-sidecar/tests/t3708_clock.rs'
+  - 'crates/termlink-sidecar/tests/t3708_live.rs'
+  - 'crates/termlink-sidecar/tests/t3708_revoff.rs'
+  - 'crates/termlink-sidecar/tests/t3708_status.rs'
+  - 'docs/reports/T-3708-design.md'
+  - 'docs/reports/T-3708-mutants.md'
+  - 'docs/reports/T-3708-reviews/bundle-1.md'
+  - 'docs/reports/T-3708-reviews/bundle-2.md'
+  - 'docs/reports/T-3708-reviews/bundle-3.md'
+  - 'docs/reports/T-3708-reviews/prompt-1.md'
+  - 'docs/reports/T-3708-reviews/prompt-2.md'
+  - 'docs/reports/T-3708-reviews/prompt-3.md'
+  - 'docs/reports/T-3708-reviews/r1-dispositions.md'
+  - 'docs/reports/T-3708-reviews/r2-dispositions.md'
+  - 'docs/reports/T-3708-reviews/r3-dispositions.md'
+  - 'docs/reports/T-3708-reviews/review-1-claude-code.md'
+  - 'docs/reports/T-3708-reviews/review-1-independence.json'
+  - 'docs/reports/T-3708-reviews/review-1-opencode.md'
+  - 'docs/reports/T-3708-reviews/review-2-claude-code.md'
+  - 'docs/reports/T-3708-reviews/review-2-independence.json'
+  - 'docs/reports/T-3708-reviews/review-2-opencode.md'
+  - 'docs/reports/T-3708-reviews/review-3-claude-code.md'
+  - 'docs/reports/T-3708-reviews/review-3-independence.json'
+  - 'docs/reports/T-3708-reviews/review-3-opencode.md'
+  - 'docs/reports/T-3708-spec-extract.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+  - 'tests/t3708-evidence.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-20T10:17:33'
+    action: 'T-3708: P-24 spec extract (AL-29, arch 6.7, E-19/E-55..61/E-134; what exists, what is missing, two-slice proposal)'
+  - time: '2026-11-20T11:07:05'
+    action: 'T-3708: P-24 design draft (additive status fields, freshness registry, CLEAR, V-8, host strength, skew + steady deadlines, card, GP-4 lines; two-slice proposal; D-1, D-2 open)'
+  - time: '2026-11-20T11:20:26'
+    action: 'T-3708: D-1 ruled A (two slices); slice (b) captured as T-3832'
+  - time: '2026-11-20T11:57:06'
+    action: 'T-3708: D-2 ruled A (quota reads ''absent: receiver quotas not built (P-17)'', not counted by CLEAR); note carried to T-3705'
+  - time: '2026-11-20T11:57:32'
+    action: 'T-3708: slice (a) acceptance criteria (additive, freshness, CLEAR, V-8, host strength, skew/steady deadlines, quota, latency)'
+  - time: '2026-11-20T12:07:24'
+    action: 'T-3708: slice (a) increment 1 — status fields stamped (FCW-120), CLEAR (FCW-121), V-8 last_surface, host strength flags (FCW-123), skew from hub round trips, NTP sampler, quota per D-2; additive behind TERMLINK_SIDECAR_P24 (22 unit tests; sidecar suite green)'
+  - time: '2026-11-20T12:12:54'
+    action: 'T-3708: slice (a) increment 2 — steady process time (wall at start + monotonic) for every sidecar stamp and deadline (E-59, design 3.5.3); wall_now_ms for display; E-59 control test with a ±1 h wall-jump seam; 401/0'
+  - time: '2026-11-20T12:15:05'
+    action: 'T-3708: slice (a) increment 3 — bounded status latency log (E-55/E-134, design 3.9; failures shown); L2 test: pre-P-24 keys unchanged, E-55 field schema, restart reads unknown and NOT CLEAR, switch off hides every new key'
+  - time: '2026-11-20T12:23:19'
+    action: 'T-3708: slice (a) increment 4 — carried T-3703 items: revocation status vocabulary bound (CLEAR reads all six forms; ''hub predates'' = unknown); one urgent allow-list function, DOWNGRADED reason names ''revocation list stale'' when the stale gate caused it (tested with a widened list); 404/0'
+  - time: '2026-11-20T12:23:34'
+    action: 'T-3708: design build notes (steady clock scope, CLEAR scope, V-8 start, carried items state)'
+  - time: '2026-11-20T12:25:18'
+    action: 'T-3708: D-2 marked UNCONFIRMED (the ''[A'' was a stray keystroke injection by a 055 pty stream test, not the operator); T-3833 captured (pty stream forwards stdin as a viewer)'
+  - time: '2026-11-20T12:54:28'
+    action: 'T-3708: slice (a) increment 5 — E-127''s reader (carried T-3703 r1 f17): sidecar records when it first held each key as revoked; status field revocation_invariants flags a list unverified past PN-13 without the narrowing, or a STORED message from a key after it was held; CLEAR reads it bad; coalesced attention; 405/0'
+  - time: '2026-11-20T12:55:39'
+    action: 'T-3708: RK-1 sender label moved to T-3834 (needs a recipient record outside the hashed chain and a key-card cache; not a status field)'
+  - time: '2026-11-20T13:04:55'
+    action: 'T-3708: slice (a) increment 6 — skew sampled on every pass from hub.version (hub adds hub_now_ms, additive), so an agent with an empty inbox is measured too (found by the live test); L4 test: fields fresh after a real pass, p95 status 73 ms hub up / 67 ms hub stopped over 100 calls each (E-55), a failed pass does not stamp hub, E-58 flags match ps on .107 (28 agents, all root); hub 686/0, sidecar 407/0'
+  - time: '2026-11-20T13:06:52'
+    action: 'T-3708: review round 1 bundle + prompt; slice (a) mutant runner (26 mutants)'
+  - time: '2026-11-20T13:11:58'
+    action: 'T-3708: slice (a) mutants 26/26 killed'
+  - time: '2026-11-20T13:41:18'
+    action: 'T-3708: review round 1 fixes — now_ms stays wall time (BLOCKER); deadlines use jump-corrected ages (jumps seen per tick, stamps classified by first-seen epoch); CLEAR counts mail pending at any age, unknown revocation forms read bad, supervision reads the real heartbeat view; strength never claims per-agent accounts (sessions not checkable); stamps from their own producer (revocation tracker, consumers only on a hub answer, lease, liveness); local ts only; hook misses persisted; main.liveness/lease stamped outside CLEAR; switch takes off/0/false/no; process-wide tests in own binaries; silent-hub status test; 412/0; runner 36 mutants'
+  - time: '2026-11-20T13:42:10'
+    action: 'T-3708: review round 1 (claude-code FAIL 1B/8M/6m; opencode truncated) + dispositions; design build notes updated (time, carried items, strength)'
+  - time: '2026-11-20T13:54:54'
+    action: 'T-3708: close 5 mutant survivors — switched-off revocation pass now stamps the field (bug: it would read unknown, never CLEAR); consumers stamp rule as consumers::stamps_field with a unit test; exact root-host strength text; local-time rows test; receiver hand-over deadline across a +1 h jump (t3708_clock); t3708_revoff in its own binary; 415/0'
+  - time: '2026-11-20T13:55:25'
+    action: 'T-3708: review round 2 bundle + prompt'
+  - time: '2026-11-20T14:19:19'
+    action: 'T-3708: review round 2 fixes — stamps registered with the jump count when written (chain events, readiness, hook misses), not when first aged; receiver deadline = younger of two jump-corrected ages; CLOCK_BOOTTIME so suspend is neither a jump nor frozen freshness; clocks read under the lock; pending mail with no READY/hook anchor makes last_surface unknown (NOT CLEAR); failed held-since write reported in E-127; fields_other_agents pinned; old keys equal with switch on/off; failed revocation pass rewrites the line (tested); mutants 40 (m10b silent hub, m5d/m5e, m34); 416/0'
+  - time: '2026-11-20T14:19:47'
+    action: 'T-3708: review round 2 record + dispositions; design note 6'
+  - time: '2026-11-20T14:32:39'
+    action: 'T-3708: D-2 confirmed by the operator: A (quota reads ''absent: receiver quotas not built (P-17)''); T-3705 note updated'
+  - time: '2026-11-20T14:39:04'
+    action: 'T-3708: pin stamp registration (a chain event written after a backward jump ages plainly) and make m34 a compiling mutant'
+  - time: '2026-11-20T14:41:28'
+    action: 'T-3708: mutants 40/40; review round 3 (final) bundle + prompt'
+  - time: '2026-11-20T15:20:48'
+    action: 'T-3708: review round 3 (final) fixes + runme action 38 — jump bookkeeping as a running total recorded per written stamp (no jump cap, eviction by write order); CLEAR and E-127 order by corrected ages; pending from chain rows only (refused/denied/held-for-operator excluded, open attempts kept; no deliver-path call on the status path); CLEAR over unfiltered rows for --conv/--msg-id; revocation stamped after the line rewrite; hook record inside the switch; skew ''absent'' from a hub without a clock; NTP sampler waits on boot time; one monotonic source per process, cfg-guarded; strength needs disjoint uid sets; latency rotation under a lock; E-55 no SKIP-as-green; action 38 P-24 live check (verification only) + 6 fixtures (450/0); sidecar 418/0; runner 45 mutants'
+  - time: '2026-11-20T15:21:13'
+    action: 'T-3708: review round 3 (final, claude-code PASS) record + dispositions; residual risks named'
+  - time: '2026-11-20T15:38:13'
+    action: 'T-3708: final mutants 45/45 killed'
+  - time: '2026-11-20T17:04:26'
+    action: 'T-3708: evidence suite (PASS line per slice-a E-n: E-19, E-55, E-56, E-57, E-58, E-59, E-134; ALL PASS); agent ACs ticked with as-built notes; E-41.3-through-assess deferred to the widening task; Verification block filled'
+  - time: '2026-11-20T17:05:29'
+    action: 'T-3708: Evolution entries (clock redesign after r1; scope cuts and build findings)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 30 commit(s), 11468 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11468
+  commits: 31
+  files_changed: 53
+  lines_added: 11245
+  lines_removed: 461
+  footprint_refreshed_at: '2026-11-20T16:06:51Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3708-p-24-b-14-status-strength-flags-reachabi.md
+generated_by: context-agent-hybrid
