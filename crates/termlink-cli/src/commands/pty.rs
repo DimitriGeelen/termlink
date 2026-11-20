@@ -1137,7 +1137,11 @@ async fn attach_loop(
     Ok(())
 }
 
-pub(crate) async fn cmd_stream(target: &str) -> Result<()> {
+/// T-3833: `--read-only` hands off to the mirror path, which drops the write half and never reads stdin.
+pub(crate) async fn cmd_stream(target: &str, read_only: bool) -> Result<()> {
+    if read_only {
+        return cmd_mirror(target, 100, false, false).await;
+    }
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -1168,10 +1172,12 @@ pub(crate) async fn cmd_stream(target: &str) -> Result<()> {
         .await
         .context("Failed to connect to data plane")?;
 
+    // T-3833: say it plainly, every time: this verb types into the session
     eprintln!(
-        "Streaming {} ({}) via data plane. Press Ctrl+] to detach.",
+        "Streaming {} ({}) via data plane. Your keystrokes ARE sent to the session. Press Ctrl+] to detach.",
         reg.display_name, reg.id
     );
+    eprintln!("To watch without typing into it: termlink pty mirror {} (or stream --read-only).", reg.display_name);
     eprintln!();
 
     // Put terminal in raw mode
@@ -1575,6 +1581,43 @@ pub(crate) fn char_boundary_floor(s: &str, idx: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+    /// T-3833: `--read-only` parses on both forms of the stream verb and defaults to off (interactive attach).
+    #[test]
+    fn t3833_stream_read_only_flag_parses_on_both_forms() {
+        use crate::cli::{Cli, Command, PtyCommand};
+        use clap::Parser;
+        let ro = |args: &[&str]| match Cli::try_parse_from(args).expect("parse").command {
+            Command::Pty(PtyCommand::Stream { read_only, .. }) | Command::Stream { read_only, .. } => read_only,
+            _ => panic!("expected a stream command"),
+        };
+        assert!(ro(&["termlink", "pty", "stream", "s1", "--read-only"]));
+        assert!(!ro(&["termlink", "pty", "stream", "s1"]));
+        assert!(ro(&["termlink", "stream", "s1", "--read-only"]));
+        assert!(!ro(&["termlink", "stream", "s1"]));
+    }
+
+    /// T-3833: the read-only viewers can never write into a session: the mirror loops keep only the read half of
+    /// the data-plane connection, build no frame writer, and never read stdin; `stream --read-only` takes that path.
+    #[test]
+    fn t3833_mirror_loops_never_write_to_the_session() {
+        let src = include_str!("pty.rs");
+        let body = |name: &str| {
+            let start = src.find(&format!("async fn {name}(")).unwrap_or_else(|| panic!("{name} not found"));
+            let end = src[start..].find("\n}\n").map(|e| start + e).unwrap();
+            &src[start..end]
+        };
+        for f in ["mirror_loop_raw", "mirror_loop_grid"] {
+            let b = body(f);
+            assert!(b.contains("_write_half"), "{f} must drop the write half");
+            assert!(!b.contains("FrameWriter"), "{f} must not build a frame writer");
+            assert!(!b.contains("stdin"), "{f} must not read stdin");
+        }
+        let stream = body("cmd_stream");
+        let ro = stream.find("if read_only").expect("cmd_stream checks read_only");
+        assert!(stream[ro..].starts_with("if read_only {\n        return cmd_mirror("), "--read-only must hand off to the mirror path first");
+        assert!(ro < stream.find("cfmakeraw").expect("raw mode"), "read-only must return before raw mode");
+    }
+
     /// T-3533: the CLI surface gives a token no value flag. `--token <value>`
     /// would put the bearer credential in every process's argv.
     #[test]

@@ -1,10 +1,16 @@
 ---
 id: T-3833
-name: "termlink pty stream forwards stdin when used as a viewer (no read-only mode): injected stray input into a live claude session"
+name: "termlink pty stream forwards stdin when used as a viewer (no read-only mode):
+  injected stray input into a live claude session"
 description: >
-  Field incident 2026-11-20 10:56:47Z: a 055 cockpit screen check ran 'termlink pty stream claude-master-3715439' in a throwaway tmux pane; the pane's terminal input (up-arrow escape tail + Enter) reached the live session as a user turn '[A', which was taken as an operator ruling (T-3708 D-2). Need: pty stream read-only by default or an explicit --read-only/--input flag, and a test that a viewer cannot write. Reported by 055 (msg e3640be4).
+  Field incident 2026-11-20 10:56:47Z: a 055 cockpit screen check ran 'termlink pty
+  stream claude-master-3715439' in a throwaway tmux pane; the pane's terminal input
+  (up-arrow escape tail + Enter) reached the live session as a user turn '[A', which
+  was taken as an operator ruling (T-3708 D-2). Need: pty stream read-only by default
+  or an explicit --read-only/--input flag, and a test that a viewer cannot write.
+  Reported by 055 (msg e3640be4).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T11:24:58Z
-last_update: 2026-11-20T11:24:58Z
-date_finished: null
+last_update: 2026-11-20T16:23:24Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +56,45 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-20T16:19:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3833: termlink pty stream forwards stdin when used as a viewer (no read-only mode): injected stray input into a live claude session
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** 2026-11-20 10:56:47Z a 055 cockpit screen check ran `termlink pty stream
+claude-master-3715439` in a tmux pane; the pane's keystrokes (up-arrow escape + Enter) reached the live session as a
+user turn. Reported by 055 (msg e3640be4).
+
+**Problem / hypothesis:** `pty stream` is the interactive attach: it puts the terminal in raw mode and forwards stdin
+by design, with no read-only option, and its banner does not say it types into the session. A read-only viewer
+already exists (`termlink pty mirror`: drops the write half, never reads stdin), but nothing points a viewer at it.
+
+**Goal:** a viewer cannot write: `pty stream --read-only` (the mirror path) and a banner on interactive `stream` that
+says keystrokes are sent and names the read-only verb.
+
+**Expected outcome:** 055 can watch sessions with `pty mirror` / `stream --read-only` and no input can leak.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `termlink pty stream --read-only <target>` and `termlink stream --read-only <target>` take the mirror path (no raw mode, write half dropped, stdin never read); clap tests pin the flag on both forms.
+- [x] Interactive `stream` prints that keystrokes ARE sent and names `termlink pty mirror` / `--read-only` for watching.
+- [x] A test pins that the mirror loops never write to the data plane (they keep only the read half).
+- [x] 055 told the verb/flag on conversation stray-input-t755.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +145,8 @@ date_finished: null
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT cargo test -p termlink --bin termlink -- t3833 > .context/working/.t3833-verify.out 2>&1 && grep -q 'test result: ok. 2 passed' .context/working/.t3833-verify.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +397,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3833-termlink-pty-stream-forwards-stdin-when-.md
 - **Context:** Initial task creation
+
+### 2026-11-20T16:19:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

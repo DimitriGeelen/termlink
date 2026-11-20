@@ -427,11 +427,14 @@ pub(crate) enum Command {
         timeout: u64,
     },
 
-    /// Stream a PTY session via data plane
+    /// Stream a PTY session via data plane (forwards your keystrokes; `--read-only` to only watch)
     #[command(hide = true)]
     Stream {
         /// Session ID or display name (omit to pick interactively)
         target: Option<String>,
+        /// T-3833: watch only, never forward input (same as `termlink pty mirror`)
+        #[arg(long)]
+        read_only: bool,
     },
 
     /// Mirror a PTY session — read-only terminal output
@@ -7284,10 +7287,14 @@ pub(crate) enum PtyCommand {
         timeout: u64,
     },
 
-    /// Stream a PTY session via data plane (real-time binary frames, zero polling)
+    /// Stream a PTY session via data plane (real-time binary frames, zero polling). Forwards your
+    /// keystrokes into the session; to only watch, use `--read-only` or `termlink pty mirror`.
     Stream {
         /// Session ID or display name (omit to pick interactively)
         target: Option<String>,
+        /// T-3833: watch only, never forward input (same as `termlink pty mirror`)
+        #[arg(long)]
+        read_only: bool,
     },
 
     /// Mirror a PTY session — read-only terminal output (no input forwarded)
