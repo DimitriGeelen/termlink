@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T16:04:26Z
+last_update: 2026-11-20T16:05:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -349,6 +349,27 @@ grep -q 'P-24 live — fields fresh' .context/working/runme-logs/latest.log
 -->
 
 ## Evolution
+
+### 2026-11-20 — the clock: a steady process time was wrong; jump-corrected ages are right
+- **What changed:** E-59 ("deadlines on the observer's monotonic clock") first led to making the sidecar's whole time
+  base steady (`now_ms` = wall at start + monotonic). Review r1 showed that breaks every stamp compared across
+  processes and hosts (liveness notes, stored times across a restart, suspend). As built: stamps stay wall time; each
+  stamp the process writes records the running total of wall jumps seen so far, and a deadline age is corrected by
+  how much that total moved since (`fields::age_ms`); the monotonic source is CLOCK_BOOTTIME (counts through suspend).
+- **Plan impact:** design 3.5.3 replaced (design build notes 8.1, 8.6); E-59 met for jumps while the process runs; a
+  jump while it is down is shown by the skew line, not corrected.
+- **Triggered:** none new; residual risks recorded in `docs/reports/T-3708-reviews/r3-dispositions.md`.
+
+### 2026-11-20 — scope cuts and findings during the build
+- **What changed:** RK-1 (sender label "key revoked, operator action needed") needs a recipient record outside the
+  hashed chain and a key-card cache: not a status field. The live test found that an agent with an empty inbox was
+  never sampled for skew (fixed: the hub's `hub.version` now carries `hub_now_ms`, additive). Mutant work found a real
+  bug (a switched-off revocation pass left the field unstamped, so that agent could never read CLEAR). Review r3 found
+  `status --conv` computed CLEAR over one conversation (fixed: P-24 always uses unfiltered rows).
+- **Plan impact:** slice (b) (card + GP-4 lines) as its own task per D-1; E-41.3-through-assess waits for a widening
+  of the urgent allow-list.
+- **Triggered:** T-3832 (slice b), T-3834 (RK-1); side findings T-3830 (channel info as an unproven reader), T-3833
+  (pty stream forwards input), T-3835 (loopback hub address pinned to the local cert).
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
