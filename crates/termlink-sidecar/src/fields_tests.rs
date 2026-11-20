@@ -187,6 +187,39 @@ fn revocation_vocabulary_binds_and_clear_reads_each_form() {
     }
 }
 
+// E-127's reader (carried from T-3703 r1 finding 17): both invariants fire, and only when broken.
+#[test]
+fn e127_reader_fires_on_each_broken_invariant_only() {
+    use crate::revocation::{PN13, e127_broken};
+    let pn13 = PN13.as_millis() as u64;
+    let key = "ed25519:abcdef0123456789aaaa".to_string();
+    let held: std::collections::BTreeMap<String, u64> = [(key.clone(), 5_000)].into_iter().collect();
+    let now = 10 * pn13;
+    // (a) unverified longer than PN-13: fires only without the narrowing
+    let line = format!("unverified since {} (hub unreachable)", now - pn13 - 1);
+    assert_eq!(e127_broken(&line, true, &held, &[], now), Vec::<String>::new());
+    assert_eq!(e127_broken(&line, false, &held, &[], now).len(), 1);
+    let stale = format!("stale since {} (x)", now - pn13 - 1);
+    assert_eq!(e127_broken(&stale, false, &held, &[], now).len(), 1);
+    let young = format!("unverified since {} (x)", now - pn13 + 1);
+    assert!(e127_broken(&young, false, &held, &[], now).is_empty());
+    assert!(e127_broken("verified seq 3 at 1", false, &held, &[], now).is_empty());
+    // (b) STORED from a held key: before it was held is lawful, after is broken
+    let before = [("m1".to_string(), "abcdef0123456789".to_string(), 4_999)];
+    assert!(e127_broken("verified seq 3 at 1", true, &held, &before, now).is_empty());
+    let after = [("m2".to_string(), "abcdef0123456789".to_string(), 5_001)];
+    let b = e127_broken("verified seq 3 at 1", true, &held, &after, now);
+    assert_eq!(b.len(), 1);
+    assert!(b[0].contains("m2"), "{b:?}");
+    // another key's message is not flagged
+    let other = [("m3".to_string(), "0000000000000000".to_string(), 9_999)];
+    assert!(e127_broken("verified seq 3 at 1", true, &held, &other, now).is_empty());
+    // CLEAR reads a broken invariant as bad
+    let mut f = healthy();
+    f.insert("revocation_invariants".into(), fresh(json!({"broken": b})));
+    assert!(clear(&f, &[], now)["bad"].to_string().contains("revocation_invariants"));
+}
+
 // D-2 (operator ruling A): the not-built quota value does not hold CLEAR back.
 #[test]
 fn d2_quota_not_built_does_not_hold_clear() {

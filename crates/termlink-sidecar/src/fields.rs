@@ -287,6 +287,9 @@ pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], now: u64) ->
                 }
             }
             "last_surface" if v["bad"] == Value::Bool(true) => bad.push("last_surface: pending mail not handed over".into()),
+            "revocation_invariants" if v["broken"].as_array().is_some_and(|a| !a.is_empty()) => {
+                bad.push(format!("revocation_invariants: {}", v["broken"]))
+            }
             _ => {}
         }
     }

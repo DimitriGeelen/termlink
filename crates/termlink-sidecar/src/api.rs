@@ -484,7 +484,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 // T-3708 (P-24 slice a): stamped fields, CLEAR, host strength, skew (additive; design 3.0).
                 if crate::fields::enabled() {
                     let ready = ctx.deliverer.and_then(|d| d.ready_since(crate::store::now_ms()));
-                    p24_fields(&mut v, crate::fields::global(), ready, crate::store::now_ms());
+                    p24_fields(&mut v, crate::fields::global(), Some(store), ready, crate::store::now_ms());
                     // E-55 / E-134 (design 3.9): one latency line per call, bounded; a failing log is shown
                     v["latency_log"] = json!(latency_log(store.dir(), started.elapsed().as_millis() as u64, &v));
                 }
@@ -1311,7 +1311,7 @@ fn status_at(
 /// `unknown (last at T)` past its bound), `clear`, and `strength_host` to a status reply. Additive:
 /// no existing key is touched. CLEAR is judged over this agent's own fields; the main's liveness is
 /// another agent's state and keeps its own verdict under `main`.
-pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, ready_since: Option<u64>, now_wall: u64) {
+pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, store: Option<&Store>, ready_since: Option<u64>, now_wall: u64) {
     use crate::fields::{self as f, BOUND_DAILY_MS, BOUND_HEARTBEAT_MS, BOUND_TICKS_MS};
     let mono = reg.clock().mono_ms();
     let rows = f::rows_of(&v["rows"]);
@@ -1332,6 +1332,23 @@ pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, ready_sin
     let ntp = crate::host::ntp_view().map(Value::from).unwrap_or(Value::Null);
     m.insert("ntp".into(), f::render(&ntp, reg.last(f::NTP), BOUND_DAILY_MS, mono));
     m.insert("last_surface".into(), f::computed(&f::last_surface(&rows, ready_since, &missed, now_wall), now_wall));
+    // E-127's reader (carried from T-3703 r1 finding 17): the revocation invariants, computed from local state
+    if let Some(store) = store {
+        let stored: Vec<(String, String, u64)> = v["rows"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|r| r["stage"] == "STORED")
+            .filter_map(|r| Some((r["msg_id"].as_str()?.to_string(), r["sender"].as_str()?.to_string(), r["ts_ms"].as_u64()?)))
+            .collect();
+        let line = v["revocation"]["revocation"].as_str().unwrap_or("");
+        let broken = crate::revocation::e127_broken(line, crate::revocation::narrowing(store), &crate::revocation::held_since(store), &stored, now_wall);
+        if !broken.is_empty() {
+            let day = (now_wall / 86_400_000).to_string();
+            let _ = store.attention_coalesced("revocation-invariant", &day, &broken.join("; "));
+        }
+        m.insert("revocation_invariants".into(), f::computed(&json!({"broken": broken}), now_wall));
+    }
     v["clear"] = f::clear(&m, &rows, now_wall);
     v["fields"] = Value::Object(m);
     v["strength_host"] = strength;

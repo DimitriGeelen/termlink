@@ -111,6 +111,67 @@ pub fn revoked_from(store: &Store, from: &str) -> bool {
     held_keys(store).iter().any(|k| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from)))
 }
 
+/// T-3708 (E-127's reader): when this sidecar first held each key as revoked (its own time), one
+/// `<key> <ms>` line per key. A message stored before then was stored lawfully (the list was not known
+/// here yet); one stored after is a broken invariant.
+const HELD_SINCE_STATE: &str = "revocation-held-since";
+
+/// Add the keys not recorded yet, at `now`.
+pub fn record_held_since(store: &Store, keys: &BTreeSet<String>, now: u64) {
+    let mut m = held_since(store);
+    let before = m.len();
+    for k in keys {
+        m.entry(k.clone()).or_insert(now);
+    }
+    if m.len() != before {
+        let text: String = m.iter().map(|(k, t)| format!("{k} {t}\n")).collect();
+        let _ = store.write_state(HELD_SINCE_STATE, &text);
+    }
+}
+
+/// Key -> the time this sidecar first held it as revoked.
+pub fn held_since(store: &Store) -> std::collections::BTreeMap<String, u64> {
+    store
+        .read_state(HELD_SINCE_STATE)
+        .ok()
+        .flatten()
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| {
+            let (k, t) = l.split_once(' ')?;
+            Some((k.to_string(), t.trim().parse().ok()?))
+        })
+        .collect()
+}
+
+/// E-127's reader (T-3703 r1 finding 17, carried into T-3708): the invariants that must never break.
+/// (a) the list unverified or stale for longer than PN-13 while the narrowing is not applied;
+/// (b) a message from a revoked key STORED after this sidecar held that key as revoked.
+/// `stored` is (msg_id, short sender id, stored at). Returns one line per broken invariant.
+pub fn e127_broken(status_line: &str, narrowing_now: bool, held: &std::collections::BTreeMap<String, u64>, stored: &[(String, String, u64)], now: u64) -> Vec<String> {
+    let mut out = vec![];
+    let since = ["unverified since ", "stale since "]
+        .iter()
+        .find_map(|p| status_line.strip_prefix(p))
+        .and_then(|r| r.split_whitespace().next())
+        .and_then(|n| n.parse::<u64>().ok());
+    if let Some(t) = since {
+        if now.saturating_sub(t) > PN13.as_millis() as u64 && !narrowing_now {
+            out.push(format!("revocation list unverified since {t}, longer than PN-13, and the narrowing is not applied"));
+        }
+    }
+    for (id, from, at) in stored {
+        if from.len() < 16 {
+            continue;
+        }
+        let hit = held.iter().find(|(k, t)| k.strip_prefix("ed25519:").is_some_and(|h| h.starts_with(from.as_str())) && *at > **t);
+        if let Some((k, t)) = hit {
+            out.push(format!("message {id} from revoked key {k} was STORED at {at}, after this sidecar held it as revoked at {t}"));
+        }
+    }
+    out
+}
+
 /// DR-8 A: true while the list is STALE or not yet verified since start.
 pub fn narrowing(store: &Store) -> bool {
     SNAPS.lock().unwrap_or_else(|p| p.into_inner()).get(store.dir()).is_none_or(|s| s.narrowing)
@@ -377,6 +438,9 @@ impl Tracker {
         let _ = store.write_state(HUB_PK_STATE, &ss::hex(pk.as_bytes()));
         self.held = Some(held_of(&l));
         self.held_unverified = false;
+        if let Some(h) = &self.held {
+            record_held_since(store, &h.keys, crate::store::now_ms());
+        }
         Ok(())
     }
 
