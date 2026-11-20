@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""T-3708 (arc-011 P-24 slice a, B-14, AL-29) mutants (FP 3.1.b): apply each, run the unit's tests, restore. Every
+mutant must be killed. Design `docs/reports/T-3708-design.md` section 5 (slice-a subset) plus the build's own rules.
+
+Run from the repo root:  python3 crates/termlink-session/tests/mutants/run-t3708.py [mutant-id ...]
+Writes a table to stdout; exit 0 only if every mutant is killed and the unmutated suite passes.
+"""
+import os
+import tempfile
+import subprocess
+import sys
+
+F = "crates/termlink-sidecar/src/fields.rs"
+H = "crates/termlink-sidecar/src/host.rs"
+S = "crates/termlink-sidecar/src/store.rs"
+P = "crates/termlink-sidecar/src/pull.rs"
+A = "crates/termlink-sidecar/src/api.rs"
+R = "crates/termlink-sidecar/src/revocation.rs"
+PO = "crates/termlink-sidecar/src/policy.rs"
+HR = "crates/termlink-hub/src/router.rs"
+
+# (id, what, file, old, new)
+MUTANTS = [
+    ("m1-cached-without-stamp", "E-19/E-55 control: a field past its bound is served as fresh", F,
+     "        Some(s) if now_mono.saturating_sub(s.mono_ms) <= bound_ms => {", "        Some(s) if true => {"),
+    ("m2-heartbeat-is-surfacing", "E-56 control (arch 6.7.5): pending mail without a hand-over still reads CLEAR", F,
+     "    if !surfaced {", "    if false && !surfaced {"),
+    ("m3-idle-age-threshold", "E-57 control: an idle agent turns bad by age alone", F,
+     "        \"bad\": !overdue.is_empty(),", "        \"bad\": !overdue.is_empty() || last.is_some_and(|t| now.saturating_sub(t) > 24 * 3_600_000),"),
+    ("m4-per-agent-yes-on-root", "E-58 control: per_agent_accounts claims yes on a root host", H,
+     "            } else if uids.len() == by_agent.len() && by_agent.values().all(|u| u.len() == 1) && !uids.contains(&0) {",
+     "            } else if true {"),
+    ("m5-wall-time-deadlines", "E-59 control: process time follows the wall clock", S,
+     "    wall + at.elapsed().as_millis() as u64", "    let _ = (at, wall);\n    wall_now_ms()"),
+    ("m6-unknown-counts-fresh", "FCW-121: an unknown field does not hold CLEAR", F,
+     "        if f[\"state\"] != \"fresh\" {", "        if false {"),
+    ("m7-failed-pass-stamps-hub", "FCW-120: a pass that could not reach the hub stamps `hub` fresh", P,
+     "                self.revocation_outage(&format!(\"hub unreachable: {e}\"));",
+     "                crate::fields::touch(crate::fields::PULL);\n                self.revocation_outage(&format!(\"hub unreachable: {e}\"));"),
+    ("m8-restart-is-fresh", "06a 2.13.f: a field never measured since start reads fresh", F,
+     "        None => json!({\"state\": \"unknown\", \"shown\": \"unknown (not measured since start)\", \"last_at_ms\": null, \"bound_ms\": bound_ms}),",
+     "        None => json!({\"state\": \"fresh\", \"value\": value, \"at_ms\": 0, \"bound_ms\": bound_ms}),"),
+    ("m9-switch-default-off", "design 3.0: the new keys are hidden by default", F,
+     "    std::env::var(SWITCH_ENV).map(|v| v.trim() != \"off\").unwrap_or(true)",
+     "    std::env::var(SWITCH_ENV).map(|v| v.trim() != \"off\").unwrap_or(false)"),
+    ("m10-sent-handover-is-ours", "a recipient's hand-over of a message we SENT counts as our surfacing", F,
+     "        .filter(|r| r.stage == \"HANDED_OVER\" && !rows.iter().any(|s| s.msg_id == r.msg_id && s.stage == \"SENT\"))",
+     "        .filter(|r| r.stage == \"HANDED_OVER\")"),
+    ("m11-v8-from-ready-only", "V-8: a message stored after READY is overdue counted from READY", F,
+     "        let by_ready = ready_since.map(|t| t.max(stored))", "        let by_ready = ready_since.map(|t| t.max(stored.min(0)))"),
+    ("m12-hook-time-overwritten", "V-8: a later hook call resets the first missed time", F,
+     "            m.entry(id.clone()).or_insert(now);", "            m.insert(id.clone(), now);"),
+    ("m13-e127-ignores-narrowing", "E-127 reader: an unverified list past PN-13 fires even while narrowing", R,
+     "        if now.saturating_sub(t) > PN13.as_millis() as u64 && !narrowing_now {",
+     "        if now.saturating_sub(t) > PN13.as_millis() as u64 {"),
+    ("m14-e127-ignores-held-time", "E-127 reader: a message stored before the key was held is flagged", R,
+     " && *at > **t);", ");"),
+    ("m15-skew-last-not-median", "V-5: one slow round trip flags clock skew", H,
+     "        let offset = o[o.len() / 2];", "        let offset = self.samples.back().map(|s| s.0).unwrap_or(o[0]);"),
+    ("m16-skew-threshold-30s", "V-5: clock skew flagged only past 30 s", H,
+     "        \"clock\": if a > SKEW_FLAG_MS {", "        \"clock\": if a > SKEW_UNUSABLE_MS {"),
+    ("m17-ntp-guess", "V-5: with no tools the NTP state is claimed synchronised", H,
+     "    }\n    \"unchecked\"\n}", "    }\n    \"synchronised (timedatectl)\"\n}"),
+    ("m18-stale-revocation-ok", "AL-29: a stale revocation list is not a bad field", F,
+     "                if s.starts_with(\"stale\") || s.starts_with(\"ROLLBACK\") {", "                if s.starts_with(\"ROLLBACK\") {"),
+    ("m19-second-consumer-ok", "AL-29: more than one consumer is not a bad field", F,
+     "                } else if s != \"one (proven)\" {", "                } else if false {"),
+    ("m20-downgrade-reason-never-stale", "carried T-3703 CC N4: a stale-gate downgrade names the allow-list", PO,
+     "    if allowed(trust) && !stale_gate(true, trust, narrowing) {", "    if false {"),
+    ("m21-no-skew-from-version", "V-5: an agent with an empty inbox is never measured for skew", P,
+     "        crate::host::record_round_trip(before, after, v.get(\"hub_now_ms\").and_then(Value::as_u64));",
+     "        let _ = (before, after);"),
+    ("m22-hub-version-no-time", "V-5: the hub's version reply carries no clock", HR,
+     "            \"hub_now_ms\": crate::channel::hub_now_ms(),\n", ""),
+    ("m23-latency-not-logged", "E-55/E-134: status calls leave no latency line", A,
+     "        writeln!(f, \"{line}\")", "        let _ = (&mut f, &line);\n        Ok(())"),
+    ("m24-pass-not-stamped", "FCW-120: a successful pass does not stamp `hub`", P,
+     "                crate::fields::touch(crate::fields::PULL);\n                self.observe_impersonation();",
+     "                self.observe_impersonation();"),
+    ("m25-hub-predates-is-fine", "no verified list (`hub predates`) does not hold CLEAR", F,
+     "                } else if s.starts_with(\"unverified\") || s == \"hub predates revocation list\" {",
+     "                } else if s.starts_with(\"unverified\") {"),
+    ("m26-invariant-ignored", "a broken revocation invariant does not hold CLEAR", F,
+     "            \"revocation_invariants\" if v[\"broken\"].as_array().is_some_and(|a| !a.is_empty()) => {",
+     "            \"revocation_invariants\" if false => {"),
+]
+
+CMDS = [
+    ["cargo", "test", "-p", "termlink-sidecar", "--lib", "--", "fields::", "host::"],
+    ["cargo", "test", "-p", "termlink-sidecar", "--test", "policy_tests", "t3708"],
+    ["cargo", "test", "-p", "termlink-sidecar", "--test", "t3708_status"],
+    ["cargo", "build", "-p", "termlink"],
+    ["cargo", "test", "-p", "termlink-sidecar", "--test", "t3708_live"],
+]
+
+SCRATCH_RT = tempfile.mkdtemp(prefix="t3708-mutants-rt.")
+
+
+def env():
+    e = dict(os.environ)
+    e.pop("PROJECT_ROOT", None)
+    # T-3822: never let a mutant write into a live hub's runtime dir
+    e["TERMLINK_RUNTIME_DIR"] = SCRATCH_RT
+    return e
+
+
+def run():
+    out = ""
+    for c in CMDS:
+        r = subprocess.run(c, env=env(), capture_output=True, text=True)
+        out += r.stdout + r.stderr
+        if r.returncode != 0:
+            return r.returncode, out
+    return 0, out
+
+
+def main():
+    rc, out = run()
+    if rc != 0:
+        print("unmutated suite FAILS; no mutant run\n" + out[-2000:])
+        return 2
+    rows, survivors = [], 0
+    for mid, what, path, old, new in MUTANTS:
+        if sys.argv[1:] and mid not in sys.argv[1:]:
+            continue
+        orig = open(path).read()
+        if orig.count(old) != 1:
+            rows.append((mid, what, "NOT APPLIED (pattern count %d)" % orig.count(old)))
+            survivors += 1
+            continue
+        open(path, "w").write(orig.replace(old, new))
+        try:
+            rc, out = run()
+        finally:
+            open(path, "w").write(orig)
+        if rc == 0:
+            verdict = "SURVIVED"
+            survivors += 1
+        elif "error[E" in out or "could not compile" in out:
+            verdict = "COMPILE ERROR (not a kill)"
+            survivors += 1
+        else:
+            verdict = "killed"
+        rows.append((mid, what, verdict))
+    # A mutant killed after `cargo build -p termlink` leaves its mutated binary on disk (T-3700 lesson): rebuild clean.
+    if subprocess.run(["cargo", "build", "-p", "termlink"], env=env(), capture_output=True).returncode != 0:
+        print("WARNING: the clean termlink binary could not be rebuilt; run cargo build -p termlink")
+    print("| mutant | what | verdict |\n|---|---|---|")
+    for r in rows:
+        print("| %s | %s | %s |" % r)
+    print("\n%d/%d killed" % (len(rows) - survivors, len(rows)))
+    return 0 if survivors == 0 else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
