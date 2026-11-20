@@ -18,4 +18,10 @@ fn t3708_switched_off_revocation_is_still_stamped() {
     t.tick(&store, &serde_json::json!({}), &rpc, Instant::now(), None);
     assert!(fields::global().last(fields::REVOCATION).is_some(), "an off pass left the revocation field unstamped");
     let _ = Duration::ZERO;
+    // r2 MINOR 6: a failed pass stamps the field and rewrites the line, so it never reads "verified" fresh
+    store.write_state("revocation-pull", "on").unwrap();
+    t.tick(&store, &serde_json::json!({}), &rpc, Instant::now(), None);
+    let line = termlink_sidecar::revocation::status(&store)["revocation"].as_str().unwrap().to_string();
+    assert!(!line.starts_with("verified"), "a failed pull left the line as {line}");
+    assert!(termlink_sidecar::fields::revocation_reading(&line) != "ok", "{line}");
 }

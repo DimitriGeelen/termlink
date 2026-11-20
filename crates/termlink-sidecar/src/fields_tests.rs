@@ -112,8 +112,10 @@ fn e59_wall_jump_moves_neither_freshness_nor_ages() {
     assert_eq!(r.age_ms(stamp, c.wall_ms()), 10_000, "-1 h wall jump must not make it younger");
     c.advance(5_000);
     assert_eq!(r.age_ms(stamp, c.wall_ms()), 15_000, "it ages on the monotonic clock");
-    // a stamp written after the jumps is aged plainly
-    let late = c.wall_ms() - 1_000;
+    // a stamp written (registered) after the jumps is aged plainly
+    let late = c.wall_ms();
+    r.register(late);
+    c.advance(1_000);
     assert_eq!(r.age_ms(late, c.wall_ms()), 1_000);
 }
 
@@ -132,6 +134,31 @@ fn e59_v8_deadline_neither_early_nor_late_across_a_jump() {
     c.wall_jump(-7_200_000);
     c.advance(SURFACE_AFTER_MS + 1); // -1 h then 2 ticks: a wall-based deadline would wait another hour
     assert_eq!(last_surface(&rows, &pending, Some(ready), &empty, &age)["bad"], true, "late after a backward jump");
+}
+
+#[test]
+fn e59_a_stamp_written_before_a_jump_but_first_aged_after_it_is_still_corrected() {
+    // r2 MAJOR 1: the side of the jump is fixed when the stamp is written, not when it is first aged
+    let c = FakeClock::new();
+    let r = Registry::new(c.clone());
+    r.look();
+    let posted = c.wall_ms();
+    r.register(posted);
+    c.advance(10_000);
+    c.wall_jump(3_600_000);
+    r.look(); // the heartbeat sees the jump before anyone ages the stamp
+    c.advance(10_000);
+    assert_eq!(r.age_ms(posted, c.wall_ms()), 20_000);
+    // written after the jump: no correction
+    let after = c.wall_ms();
+    r.register(after);
+    c.advance(5_000);
+    assert_eq!(r.age_ms(after, c.wall_ms()), 5_000);
+    // backward jump: the stamp written before keeps its true age; one written after ages plainly
+    c.wall_jump(-7_200_000);
+    r.look();
+    assert_eq!(r.age_ms(posted, c.wall_ms()), 25_000);
+    assert_eq!(r.age_ms(after, c.wall_ms()), 5_000);
 }
 
 #[test]
@@ -386,10 +413,22 @@ fn e57_bad_two_ticks_after_a_hook_call_that_missed_it_and_across_a_restart() {
 }
 
 #[test]
-fn e57_no_ready_no_hook_call_is_not_bad_however_old() {
-    let rows = vec![row("m1", "STORED", 0)];
+fn e57_no_ready_no_hook_call_is_not_bad_but_unknown_and_holds_clear() {
+    // r2 MAJOR 4: with nothing to measure from, surfacing cannot be judged: not bad, unknown, NOT CLEAR
+    let now = 100 * 3_600_000;
+    let rows = vec![row("m0", "STORED", 0), row("m1", "STORED", now - 600_000), row("m1", "HANDED_OVER", now - 590_000)];
     let p = pending(&rows, None);
-    assert_eq!(last_surface(&rows, &p, None, &BTreeMap::new(), &wall_age(100 * 3_600_000))["bad"], false);
+    let v = last_surface(&rows, &p, None, &BTreeMap::new(), &wall_age(now));
+    assert_eq!(v["bad"], false);
+    assert_eq!(v["unknown"], true);
+    let mut f = healthy();
+    f.insert("last_surface".into(), fresh(v));
+    let c = clear(&f, &rows, &p, now);
+    assert_eq!(c["state"], "NOT CLEAR", "another message's hand-over must not clear an unanchored pending one: {c}");
+    // young pending mail (within 2 ticks) is not yet unknown
+    let young = vec![row("m2", "STORED", now - 1_000)];
+    let p2 = pending(&young, None);
+    assert_eq!(last_surface(&young, &p2, None, &BTreeMap::new(), &wall_age(now))["unknown"], false);
 }
 
 #[test]

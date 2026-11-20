@@ -1353,7 +1353,10 @@ pub(crate) fn p24_fields(
             .filter_map(|r| Some((r["msg_id"].as_str()?.to_string(), r["sender"].as_str()?.to_string(), r["ts_ms"].as_u64()?)))
             .collect();
         let line = v["revocation"]["revocation"].as_str().unwrap_or("");
-        let broken = crate::revocation::e127_broken(line, crate::revocation::narrowing(store), &crate::revocation::held_since(store), &stored, now_wall);
+        let mut broken = crate::revocation::e127_broken(line, crate::revocation::narrowing(store), &crate::revocation::held_since(store), &stored, now_wall);
+        if crate::revocation::held_since_unwritten() {
+            broken.push("the held-since record could not be written: a STORED message from a revoked key cannot be checked".into());
+        }
         if !broken.is_empty() {
             let day = (now_wall / 86_400_000).to_string();
             let _ = store.attention_coalesced("revocation-invariant", &day, &broken.join("; "));

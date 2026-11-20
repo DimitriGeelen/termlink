@@ -87,9 +87,18 @@ impl Default for SystemClock {
     }
 }
 
+/// CLOCK_BOOTTIME in ms: monotonic, and it keeps counting through a suspend or VM pause (r2 MAJOR 3), which
+/// `Instant` (CLOCK_MONOTONIC on Linux) does not. Falls back to `Instant` if the call fails.
+fn boottime_ms() -> Option<u64> {
+    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // SAFETY: clock_gettime writes into the timespec we own; CLOCK_BOOTTIME is a valid clock id on Linux.
+    let rc = unsafe { libc::clock_gettime(libc::CLOCK_BOOTTIME, &mut ts) };
+    (rc == 0).then(|| ts.tv_sec as u64 * 1000 + ts.tv_nsec as u64 / 1_000_000)
+}
+
 impl Clock for SystemClock {
     fn mono_ms(&self) -> u64 {
-        self.start.elapsed().as_millis() as u64
+        boottime_ms().unwrap_or_else(|| self.start.elapsed().as_millis() as u64)
     }
     fn wall_ms(&self) -> u64 {
         crate::store::wall_now_ms()
@@ -110,9 +119,9 @@ pub struct Registry {
     /// The last look at both clocks (mono, wall), and the wall jumps seen: (wall just before, delta).
     last_look: Mutex<Option<(u64, u64)>>,
     jumps: Mutex<Vec<(u64, i64)>>,
-    /// stamp -> how many jumps had been seen when this process first aged it. A jump with a higher index
-    /// happened after the stamp was seen, so it was written before that jump. Wall values alone cannot
-    /// say this after a backward jump (the post-jump timeline reuses earlier values).
+    /// stamp -> how many jumps had been seen when this process WROTE it ([`Registry::register`], r2 MAJOR 1).
+    /// A stamp this process did not write (from before its start) predates all its jumps: epoch 0. Wall
+    /// values alone cannot say which side of a backward jump a stamp is on.
     epochs: Mutex<BTreeMap<u64, usize>>,
 }
 
@@ -135,10 +144,11 @@ impl Registry {
         lock(&self.seen).get(name).copied()
     }
 
-    /// Look at both clocks; a disagreement past [`JUMP_MS`] since the last look is a wall jump.
+    /// Look at both clocks; a disagreement past [`JUMP_MS`] since the last look is a wall jump. Both clocks
+    /// are read under the lock, so two threads cannot record a false jump between them (r2 MINOR 7).
     pub fn look(&self) {
-        let (mono, wall) = (self.clock.mono_ms(), self.clock.wall_ms());
         let mut last = lock(&self.last_look);
+        let (mono, wall) = (self.clock.mono_ms(), self.clock.wall_ms());
         if let Some((m0, w0)) = *last {
             let delta = (wall as i64 - w0 as i64) - (mono as i64 - m0 as i64);
             if delta.abs() > JUMP_MS {
@@ -150,29 +160,31 @@ impl Registry {
                         *e = e.saturating_sub(1);
                     }
                 }
-                // the wall time just before the jump: the last look plus the monotonic time since
                 j.push((w0 + mono.saturating_sub(m0), delta));
             }
         }
         *last = Some((mono, wall));
     }
 
-    /// The age of a wall stamp at `now_wall`, less every wall jump this process saw after it first aged
-    /// the stamp (E-59). Deadlines age their pending stamps every tick, so a stamp is first seen within a
-    /// tick of being written; a jump inside that tick, or while the process was down, is not corrected
-    /// (the skew line shows a jump while down).
+    /// This process wrote `stamp` now: remember how many jumps came before it.
+    pub fn register(&self, stamp_wall: u64) {
+        self.look();
+        let n = lock(&self.jumps).len();
+        let mut e = lock(&self.epochs);
+        if !e.contains_key(&stamp_wall) && e.len() >= AGES_CAP {
+            if let Some(k) = e.keys().next().copied() {
+                e.remove(&k);
+            }
+        }
+        e.entry(stamp_wall).or_insert(n);
+    }
+
+    /// The age of a wall stamp at `now_wall`, less every wall jump that came after the stamp was written
+    /// (E-59). A jump while the process was down is not seen here; the skew line shows it.
     pub fn age_ms(&self, stamp_wall: u64, now_wall: u64) -> u64 {
         self.look();
         let jumps = lock(&self.jumps);
-        let epoch = {
-            let mut e = lock(&self.epochs);
-            if !e.contains_key(&stamp_wall) && e.len() >= AGES_CAP {
-                if let Some(k) = e.keys().next().copied() {
-                    e.remove(&k);
-                }
-            }
-            *e.entry(stamp_wall).or_insert(jumps.len())
-        };
+        let epoch = lock(&self.epochs).get(&stamp_wall).copied().unwrap_or(0);
         let correction: i64 = jumps.iter().skip(epoch).map(|(_, d)| *d).sum();
         (now_wall as i64 - stamp_wall as i64 - correction).max(0) as u64
     }
@@ -204,6 +216,18 @@ pub fn touch(name: &str) {
 /// Age of a wall stamp in the process registry (see [`Registry::age_ms`]).
 pub fn age_ms(stamp_wall: u64, now_wall: u64) -> u64 {
     global().age_ms(stamp_wall, now_wall)
+}
+
+/// Register a stamp this process writes (chain events, readiness, hook misses).
+pub fn register(stamp_wall: u64) {
+    global().register(stamp_wall);
+}
+
+/// The wall time now, registered as a stamp this process writes.
+pub fn stamp_now() -> u64 {
+    let t = crate::store::now_ms();
+    register(t);
+    t
 }
 
 /// Look at the clocks (called every heartbeat tick, so a jump is seen even when no age is asked for).
@@ -285,7 +309,10 @@ pub fn record_hook_call(store: &Store, pending: &[String], now_wall: u64) {
     let old = hook_missed(store);
     let mut m: BTreeMap<String, u64> = old.iter().filter(|(k, _)| pending.contains(k)).map(|(k, v)| (k.clone(), *v)).collect();
     for id in pending {
-        m.entry(id.clone()).or_insert(now_wall);
+        m.entry(id.clone()).or_insert_with(|| {
+            register(now_wall);
+            now_wall
+        });
     }
     if m != old {
         let text: String = m.iter().map(|(k, t)| format!("{k} {t}\n")).collect();
@@ -323,12 +350,16 @@ pub fn last_surface(
 ) -> Value {
     let last = own_handovers(rows).max();
     let mut overdue = vec![];
+    let mut unanchored = vec![];
     for (id, stored) in pending {
         // the later of storing and readiness is the younger of the two ages
         let by_ready = ready_since.map(|r| age(*stored).min(age(r))).filter(|a| *a > SURFACE_AFTER_MS);
         let by_hook = hook_missed.get(id).map(|t| age(*t)).filter(|a| *a > SURFACE_AFTER_MS);
         if let Some(a) = by_ready.or(by_hook) {
             overdue.push(json!({"msg_id": id, "overdue_by_ms": a - SURFACE_AFTER_MS, "by": if by_ready.is_some() { "ready" } else { "hook call" }}));
+        } else if ready_since.is_none() && !hook_missed.contains_key(id) && age(*stored) > SURFACE_AFTER_MS {
+            // r2 MAJOR 4: pending mail with no READY and no hook call to measure from: surfacing cannot be judged
+            unanchored.push(json!(id));
         }
     }
     json!({
@@ -336,6 +367,8 @@ pub fn last_surface(
         "age_ms": last.map(age),
         "bad": !overdue.is_empty(),
         "overdue": overdue,
+        "unknown": !unanchored.is_empty(),
+        "unanchored": unanchored,
     })
 }
 
@@ -401,6 +434,9 @@ pub fn clear(fields: &serde_json::Map<String, Value>, rows: &[Row], pending_now:
                 }
             }
             "last_surface" if v["bad"] == Value::Bool(true) => bad.push("last_surface: pending mail not handed over".into()),
+            "last_surface" if v["unknown"] == Value::Bool(true) => {
+                unknown.push("last_surface (pending mail with no READY or hook call to measure from)".into())
+            }
             "revocation_invariants" if v["broken"].as_array().is_some_and(|a| !a.is_empty()) => {
                 bad.push(format!("revocation_invariants: {}", v["broken"]))
             }

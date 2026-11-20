@@ -21,9 +21,9 @@ fn t3708_e59_deadline_ages_ignore_wall_jumps_on_the_real_clock_path() {
     let b = fields::age_ms(stamp, store::now_ms());
     assert!((10_000..15_000).contains(&b), "after -2 h the stamp's age is {b} ms: a deadline would fire late");
 
-    // a stamp written after the jumps is aged plainly
-    let late = store::now_ms() - 1_000;
-    assert!((1_000..3_000).contains(&fields::age_ms(late, store::now_ms())));
+    // a stamp written (registered) after the jumps is aged plainly
+    let late = fields::stamp_now();
+    assert!(fields::age_ms(late, store::now_ms()) < 2_000);
     store::test_shift_wall_ms(3_600_000);
     fields::look();
 
@@ -88,4 +88,19 @@ fn receiver_deadline_ignores_a_forward_jump() {
     store::test_shift_wall_ms(-3_600_000);
     fields::look();
     assert_eq!(fired, 0, "a +1 h wall jump fired the hand-over deadline early");
+
+    // r2 MAJOR 2 (the reviewer's sequence): stored, the wall goes back 1 h, the agent becomes ready 29 minutes
+    // later (on the new, earlier wall), and is checked 30 s after that. Readiness is the later event, 30 s ago:
+    // nothing may fire. Ordering the two wall stamps instead picks the storing stamp and reads ~29.5 min.
+    let m2 = Msg { msg_id: "h2".into(), ..m };
+    st.append_event(&m2.conv, "RECEIVED", &m2.msg_id, &m2.from, &m2.digest()).unwrap();
+    st.put(&m2.from, &m2.conv, &m2.msg_id, &m2.payload_bytes()).unwrap();
+    store::test_shift_wall_ms(-3_600_000);
+    fields::look();
+    let ready = store::now_ms() + 29 * 60_000;
+    d.mark_ready("s2", ready).unwrap();
+    let fired2 = d.check_overdue(ready + 30_000, &Deadlines::R44E);
+    store::test_shift_wall_ms(3_600_000);
+    fields::look();
+    assert_eq!(fired2, 0, "after a -1 h jump the hand-over deadline fired 30 s after readiness");
 }

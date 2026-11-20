@@ -325,6 +325,7 @@ impl Deliverer {
     /// Record that `session` is live and can take mail (SessionStart, Stop).
     /// PH-1 only records it; the PH-2 doorbell reads it.
     pub fn mark_ready(&self, session: &str, now_ms: u64) -> Result<(), String> {
+        crate::fields::register(now_ms);
         self.store.write_state(&format!("ready-{session}"), &now_ms.to_string()).map_err(|e| e.to_string())
     }
 
@@ -518,9 +519,10 @@ impl Deliverer {
                 .and_then(|ls| ls.into_iter().find(|l| l.event == "STORED" && own(l) && l.msg_id == c.msg_id))
                 .and_then(|l| l.ts_ms)
                 .unwrap_or(now_ms);
-            let start = stored_at.max(ready_at);
-            // T-3708 (E-59): the age is corrected for wall jumps this process saw
-            if crate::fields::age_ms(start, now_ms) > d.handover(c.assessment.urgent) {
+            // T-3708 (E-59, r2 MAJOR 2): the later of storing and readiness is the younger of the two jump-corrected
+            // ages; ordering the two wall stamps directly is wrong across a backward jump
+            let age = crate::fields::age_ms(stored_at, now_ms).min(crate::fields::age_ms(ready_at, now_ms));
+            if age > d.handover(c.assessment.urgent) {
                 notify(&c.conv, &c.msg, &c.digest, OVERDUE_HANDOVER, c.assessment.urgent);
             }
         }

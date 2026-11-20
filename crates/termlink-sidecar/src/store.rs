@@ -519,7 +519,8 @@ impl Store {
             digest: digest.into(),
             prev,
             hash: String::new(),
-            ts_ms: Some(now_ms()),
+            // T-3708 (E-59, r2 MAJOR 1): registered, so a later wall jump is known to come after it
+            ts_ms: Some(crate::fields::stamp_now()),
             peer_ts_ms: extra.peer_ts_ms,
             reason: extra.reason.map(|r| {
                 let mut r = r;

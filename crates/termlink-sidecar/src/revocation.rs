@@ -125,8 +125,21 @@ pub fn record_held_since(store: &Store, keys: &BTreeSet<String>, now: u64) {
     }
     if m.len() != before {
         let text: String = m.iter().map(|(k, t)| format!("{k} {t}\n")).collect();
-        let _ = store.write_state(HELD_SINCE_STATE, &text);
+        if let Err(e) = store.write_state(HELD_SINCE_STATE, &text) {
+            // r2 MINOR 8: never fail open: E-127 then says its invariant (b) cannot be checked
+            HELD_SINCE_UNWRITTEN.store(true, std::sync::atomic::Ordering::SeqCst);
+            eprintln!("termlink-sidecar: revocation held-since record not written: {e}");
+        } else {
+            HELD_SINCE_UNWRITTEN.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
     }
+}
+
+static HELD_SINCE_UNWRITTEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether the last held-since write failed (E-127's invariant (b) then cannot be checked).
+pub fn held_since_unwritten() -> bool {
+    HELD_SINCE_UNWRITTEN.load(std::sync::atomic::Ordering::SeqCst)
 }
 
 /// Key -> the time this sidecar first held it as revoked.

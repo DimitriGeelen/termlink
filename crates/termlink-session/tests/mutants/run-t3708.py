@@ -38,7 +38,13 @@ MUTANTS = [
      "        let correction: i64 = jumps.iter().skip(epoch).map(|(_, d)| *d).sum();",
      "        let _ = epoch;\n        let correction: i64 = jumps.iter().filter(|(b, _)| stamp_wall <= *b).map(|(_, d)| *d).sum();"),
     ("m5c-deliver-wall-deadline", "E-59: the receiver's hand-over deadline uses plain wall age", "crates/termlink-sidecar/src/deliver.rs",
-     "            if crate::fields::age_ms(start, now_ms) > d.handover(c.assessment.urgent) {", "            if now_ms.saturating_sub(start) > d.handover(c.assessment.urgent) {"),
+     "            let age = crate::fields::age_ms(stored_at, now_ms).min(crate::fields::age_ms(ready_at, now_ms));",
+     "            let age = now_ms.saturating_sub(stored_at.max(ready_at));"),
+    ("m5d-deliver-orders-wall-stamps", "r2 MAJOR 2: the later of storing and readiness is picked by wall value", "crates/termlink-sidecar/src/deliver.rs",
+     "            let age = crate::fields::age_ms(stored_at, now_ms).min(crate::fields::age_ms(ready_at, now_ms));",
+     "            let age = crate::fields::age_ms(stored_at.max(ready_at), now_ms);"),
+    ("m5e-stamps-not-registered", "r2 MAJOR 1: chain stamps are not registered when written", S,
+     "            ts_ms: Some(crate::fields::stamp_now()),", "            ts_ms: Some(now_ms()),"),
     ("m6-unknown-counts-fresh", "FCW-121: an unknown field does not hold CLEAR", F,
      "        if f[\"state\"] != \"fresh\" {", "        if false {"),
     ("m7-failed-pass-stamps-hub", "FCW-120: a pass that could not reach the hub stamps `hub` fresh", P,
@@ -55,7 +61,7 @@ MUTANTS = [
     ("m11-v8-from-ready-only", "V-8: a message stored after READY is overdue counted from READY", F,
      "        let by_ready = ready_since.map(|r| age(*stored).min(age(r)))", "        let by_ready = ready_since.map(|r| age(r))"),
     ("m12-hook-time-overwritten", "V-8: a later hook call resets the first missed time", F,
-     "        m.entry(id.clone()).or_insert(now_wall);", "        m.insert(id.clone(), now_wall);"),
+     "        m.entry(id.clone()).or_insert_with(|| {", "        m.insert(id.clone(), {"),
     ("m27-pending-window-one-hour", "r1 MAJOR 2: mail pending for more than an hour drops out of CLEAR", F,
      "    let earliest = pending_now.iter().map(|(_, t)| *t).chain(handed_in_window).min();",
      "    let earliest = pending_now.iter().map(|(_, t)| *t).filter(|t| *t >= since).chain(handed_in_window).min();"),
@@ -108,6 +114,13 @@ MUTANTS = [
     ("m26-invariant-ignored", "a broken revocation invariant does not hold CLEAR", F,
      "            \"revocation_invariants\" if v[\"broken\"].as_array().is_some_and(|a| !a.is_empty()) => {",
      "            \"revocation_invariants\" if false => {"),
+    ("m10b-status-calls-the-hub", "design mutant 10 (r2 MAJOR 5): status makes a hub call (blocks on a silent hub)", A,
+     "                    let deliverable = ctx.deliverer.map(|d| d.pending_ids());",
+     "                    if let Some(s) = sender {\n                        let _ = s.peek_inbox(0, 1);\n                    }\n                    let deliverable = ctx.deliverer.map(|d| d.pending_ids());"),
+    ("m34-unanchored-pending-ignored", "r2 MAJOR 4: pending mail with nothing to measure from does not hold CLEAR", F,
+     "            unanchored.push(json!(id));", "            let _ = id;"),
+    # m35 (a failed held-since write is not reported) is not in the list: the tests run as root, so a store
+    # write cannot be made to fail here; the branch is covered by review only (r2 MINOR 8 disposition).
 ]
 
 CMDS = [

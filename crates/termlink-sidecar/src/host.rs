@@ -78,7 +78,7 @@ pub fn strength(procs: Option<&[Proc]>, own_uid: u32) -> Value {
             }
             let uids: BTreeSet<u32> = ps.iter().map(|p| p.uid).collect();
             if by_agent.len() < 2 {
-                ("no (one agent on this host: nothing to separate)".to_string(), None)
+                ("no (fewer than two sidecars visible: nothing to compare)".to_string(), None)
             } else if uids.len() < by_agent.len() || uids.contains(&0) {
                 (format!("no: {} agents run under {} account(s)", by_agent.len(), uids.len()), Some(true))
             } else {

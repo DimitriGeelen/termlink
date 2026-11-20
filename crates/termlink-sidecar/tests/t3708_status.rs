@@ -15,7 +15,9 @@ const PRE_P24_KEYS: &[&str] = &[
     "delivery", "mode", "receiving", "strength", "missing_strength", "notes", "outbox", "supervision", "activity_veto",
     "binary", "main", "keys", "vendor_log", "vendor_log_detail",
 ];
-const P24_KEYS: &[&str] = &["fields", "clear", "strength_host", "latency_log"];
+const P24_KEYS: &[&str] = &["fields", "clear", "strength_host", "latency_log", "fields_other_agents"];
+/// Old keys whose values must be the same with the switch on and off (r2 MINOR 10).
+const SAME_ON_OFF: &[&str] = &["hub_id", "hub", "hub_signing_key", "revocation", "consumers", "strength", "missing_strength", "mode", "delivery", "receiving", "stages", "rows", "messages", "chains"];
 const FIELD_NAMES: &[&str] =
     &["mode", "binary", "hub", "revocation", "consumers", "supervision", "quota", "strength", "skew", "ntp", "last_surface"];
 
@@ -85,5 +87,14 @@ fn t3708_status_is_additive_stamped_and_switchable() {
     }
     for k in PRE_P24_KEYS {
         assert!(off.get(*k).is_some(), "pre-P-24 key {k} missing with the switch off");
+    }
+    for k in SAME_ON_OFF {
+        assert_eq!(v[*k], off[*k], "old key {k} differs between switch on and off");
+    }
+    for word in ["OFF", "0", "false", "No"] {
+        unsafe { std::env::set_var("TERMLINK_SIDECAR_P24", word) };
+        let o = status(&e, &store);
+        unsafe { std::env::remove_var("TERMLINK_SIDECAR_P24") };
+        assert!(o.get("fields").is_none(), "switch value {word:?} did not hide the keys");
     }
 }
