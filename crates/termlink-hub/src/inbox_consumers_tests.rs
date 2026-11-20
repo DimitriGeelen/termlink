@@ -421,3 +421,18 @@ fn a_corrupt_table_is_moved_aside_and_reported_incomplete() {
     // once the window no longer reaches back before the reset, the list is served again
     assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, now + DEFAULT_WINDOW_S * 1000 + 60_000).is_ok());
 }
+
+#[test]
+fn a_failed_save_makes_the_list_an_error_never_a_list() {
+    // E-169 / FCW-125 (m4 survived the first round-2 mutant run: nothing made a SAVE fail after load)
+    let d = dir();
+    let (_, mut log) = rows();
+    let n = now_wall_ms();
+    record(d.path(), T, &proven("fx-a", "w1", 1), Action::Read, n, &mut log).unwrap();
+    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, n).is_ok());
+    // the table path becomes a directory: the next save fails
+    std::fs::remove_file(consumers_path(d.path())).unwrap();
+    std::fs::create_dir(consumers_path(d.path())).unwrap();
+    record(d.path(), T, &claimed_r("fx-z"), Action::Read, n, &mut log).unwrap();
+    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, n).is_err(), "a list that could not be saved is not served");
+}
