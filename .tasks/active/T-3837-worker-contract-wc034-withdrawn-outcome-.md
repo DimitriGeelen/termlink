@@ -7,7 +7,7 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T16:10:03Z
-last_update: 2026-11-20T16:10:03Z
+last_update: 2026-11-20T16:45:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -348,6 +348,19 @@ date_finished: null
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-20 — Adopt shared worker contract v0.3.4 item 3 ("withdrawn", T3w)? (operator ruling: "A")
+- **Chose:** A — TermLink adopts item 3 as drafted by AEF (T-5311, commit 90202e700 on AEF bleeding-edge): T3w =
+  dispatched -> done{withdrawn}, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown ->
+  forbidden_transition; same withdrawal repeated = T8 dedupe; different-reason withdrawal = forbidden_transition; late
+  real completion = done_conflict; only the holder of the nonce + supervisor_token from dispatch.allocate (Execute
+  scope); hub sweep never withdraws; evidence_digest = sha256(reason), result_kind none; closes open questions; T2 rule:
+  launch only after T2 accepted (a launch failure after T2 ends through T3 as failed); vectors CC-26..CC-29; reader rule:
+  an unknown outcome is terminal, not finished work.
+- **Why:** our own proposal (T-3836), checked against `worker_contract.rs`; the race is settled by the existing CAS;
+  ring20 needs it this week. Brief scores: A +26, B +16, D -5, C -17.
+- **Rejected:** B (wait for items 1 and 2: delays a self-contained change), C (no withdrawal), D (defer).
+- **Left open:** v0.3.4 items 1 and 2 are separate decisions, not yet read.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -364,3 +377,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3837-worker-contract-wc034-withdrawn-outcome-.md
 - **Context:** Initial task creation
+
+### 2026-11-20T16:45:33Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
