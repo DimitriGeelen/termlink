@@ -18,7 +18,7 @@ use termlink_bus::worker_contract::answer::{
     resolve_at, AckRequest, AnswerRequest, AskRequest, ResolveRequest,
 };
 use termlink_bus::worker_contract::{
-    AllocateRequest, Handback, StopRequest, TransitionRequest, WcError,
+    AllocateRequest, Handback, StopRequest, TransitionRequest, WcError, Withdrawal,
 };
 use termlink_protocol::control::error_code;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
@@ -364,7 +364,25 @@ pub(crate) fn allocate_with(bus: &Bus, id: Value, params: &Value, now: i64) -> R
     }
 }
 
+/// T-3837: whether `dispatch.transition` accepts `withdraw` (wc v0.3.4 T3w). The spec says no
+/// backend emits `withdrawn` before all three owners (AEF, ring20, TermLink) adopt v0.3.4, so it
+/// stays `false` until then; the store implements and tests T3w regardless. Flip it, with the
+/// adoption recorded in the task's Decisions, once all three have adopted.
+pub(crate) const WITHDRAW_LIVE: bool = false;
+
 pub(crate) fn transition_with(bus: &Bus, id: Value, params: &Value, now: i64) -> RpcResponse {
+    transition_gated(bus, id, params, now, WITHDRAW_LIVE)
+}
+
+fn transition_gated(bus: &Bus, id: Value, params: &Value, now: i64, withdraw_live: bool) -> RpcResponse {
+    if params.get("withdraw").is_some() && !withdraw_live {
+        return ErrorResponse::new(
+            id,
+            -32602,
+            "dispatch.transition withdraw (wc v0.3.4 T3w) is not served yet: v0.3.4 is not adopted by all three owners",
+        )
+        .into();
+    }
     let need = |k: &str| s(params, k);
     let (Some(dispatch_id), Some(nonce), Some(expected_prior), Some(to)) =
         (need("dispatch_id"), need("nonce"), need("expected_prior"), need("to"))
@@ -404,6 +422,11 @@ pub(crate) fn transition_with(bus: &Bus, id: Value, params: &Value, now: i64) ->
         handback: hb,
         worker_timeout_ms: i(params, "worker_timeout_ms"),
         cause: s(params, "cause"),
+        // T-3837 (wc v0.3.4 T3w): `withdraw: {actor, reason}` with `to: done`.
+        withdraw: params.get("withdraw").filter(|w| w.is_object()).map(|w| Withdrawal {
+            actor: w.get("actor").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            reason: w.get("reason").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        }),
     };
     match bus.wc_transition(&req, now) {
         Ok(o) => Response::success(id, json!({"record": o.record, "deduped": o.deduped})).into(),
@@ -483,6 +506,29 @@ mod tests {
         let got = ok(get_with(&b, json!(5), &json!({"dispatch_id": a["dispatch_id"]})));
         assert_eq!(got["attempts"][0]["state"], "done");
         assert_eq!(got["dispatcher"]["session"], "claude-master-1");
+    }
+
+    /// T-3837 (wc v0.3.4 T3w): until all three owners adopt v0.3.4 the RPC refuses `withdraw`
+    /// and writes nothing. Once live, it writes done{withdrawn} with the actor and reason on its
+    /// history entry, and the same withdrawal again is a T8 replay.
+    #[test]
+    fn dispatch_transition_withdraw_over_rpc() {
+        let (_d, bus) = bus();
+        let a = ok(allocate_with(&bus, json!(1), &json!({}), 1_000));
+        let mut req = lifecycle(&a, "done", "dispatched");
+        req["withdraw"] = json!({"actor": "a", "reason": "superseded by D2"});
+        // Pins WITHDRAW_LIVE = false: flipping it (after all three adopt v0.3.4) updates this line.
+        let (code, _) = fail(transition_with(&bus, json!(2), &req, 1_500));
+        assert_eq!(code, -32602);
+        let got = ok(get_with(&bus, json!(9), &json!({"dispatch_id": a["dispatch_id"]})));
+        assert_eq!(got["attempts"][0]["state"], "dispatched", "a refused withdraw writes nothing");
+        let r = ok(transition_gated(&bus, json!(2), &req, 2_000, true));
+        assert_eq!((r["record"]["outcome"].as_str(), r["deduped"].as_bool()), (Some("withdrawn"), Some(false)));
+        assert_eq!(r["record"]["exit_code"], Value::Null, "a withdrawal writes no worker field");
+        let last = r["record"]["history"].as_array().unwrap().last().cloned().unwrap();
+        assert_eq!((last["writer"].as_str(), last["actor"].as_str(), last["reason"].as_str()), (Some("submitter"), Some("a"), Some("superseded by D2")));
+        let again = ok(transition_gated(&bus, json!(3), &req, 3_000, true));
+        assert_eq!(again["deduped"].as_bool(), Some(true));
     }
 
     /// T-3523 (CC-25): `dispatch.stop` records the cause without a state change; the T3 that

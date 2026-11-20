@@ -1,4 +1,4 @@
-//! Runs AEF's shared worker-contract conformance vectors (wc/0.3, CC-01..CC-25) against the hub
+//! Runs AEF's shared worker-contract conformance vectors (wc/0.3, v0.3.4: CC-01..CC-29) against the hub
 //! backend (T-3517). The vector file is AEF's and is never committed here: set
 //! `TERMLINK_WC_VECTORS` to its path, or run `scripts/run-wc-vectors.sh`, which fetches it into a
 //! temp dir at a pinned AEF commit.
@@ -179,7 +179,12 @@ fn check_then(before: &Value, after: &Value, then: &Value) -> Result<(), Fail> {
     if then.get("record_unchanged").and_then(Value::as_bool) == Some(true) && before_attempts != attempts {
         return Err(Fail::Mismatch("record changed".into()));
     }
-    const HANDLED: [&str; 7] = ["final", "admissible_histories", "history_unchanged", "fields_unchanged", "record_unchanged", "judged_by", "variants"];
+    // T-3837: `*_equivalent` keys are read only on a route a backend declares (v0.3.4: one that
+    // closes a dispatch, §4.7). This hub keeps dispatches open, so it is judged on the plain path.
+    const HANDLED: [&str; 9] = [
+        "final", "admissible_histories", "history_unchanged", "fields_unchanged", "record_unchanged", "judged_by", "variants",
+        "final_equivalent", "admissible_histories_equivalent",
+    ];
     for (key, value) in then.as_object().cloned().unwrap_or_default() {
         if HANDLED.contains(&key.as_str()) {
             continue;
@@ -331,7 +336,9 @@ fn wc_vectors_against_hub_backend() {
     let yaml: serde_yaml::Value = serde_yaml::from_str(&text).unwrap_or_else(|e| panic!("parse {path}: {e}"));
     let doc: Value = serde_json::to_value(yaml).expect("vectors as JSON");
     let vectors = doc["vectors"].as_array().cloned().unwrap_or_default();
-    assert_eq!(vectors.len(), 25, "fail-closed: expected the 25 wc/0.3 cases, found {}", vectors.len());
+    // T-3837: wc v0.3.4 added CC-26..CC-29 (withdrawn); a v0.3.3 file has the 25. Anything else is
+    // refused, not half-judged.
+    assert!(matches!(vectors.len(), 25 | 29), "fail-closed: expected 25 (v0.3.3) or 29 (v0.3.4) cases, found {}", vectors.len());
 
     // TERMLINK_WC_CASE=CC-NN runs one case (reproducing a finding); the summary then covers that case only.
     let only = std::env::var("TERMLINK_WC_CASE").ok();

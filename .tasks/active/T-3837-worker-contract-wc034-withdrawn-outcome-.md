@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T16:10:03Z
-last_update: 2026-11-20T17:33:53Z
+last_update: 2026-11-20T19:44:09Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -95,7 +95,7 @@ recovery and conformance to each backend.
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Item-2 reviews saved under `docs/reports/T-3837-reviews/`, and TermLink's amendment set (fenced close CAS; closure fences T1 only; declared `closure` capability with split CC-15/CC-19; credentialed close; terminal closure + `retry_of_dispatch_id`; first close wins + history) sent to AEF and ring20 with the operator's adoption of items 1 and 3.
-- [ ] T3w built in `worker_contract.rs`: dispatched -> done{withdrawn} only from dispatched, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden_transition; repeat -> T8 dedupe; different-reason withdrawal -> forbidden_transition; late real completion -> done_conflict; closes open answers.
+- [x] T3w built in `worker_contract.rs`: dispatched -> done{withdrawn} only from dispatched, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden_transition; repeat -> T8 dedupe; different-reason withdrawal -> forbidden_transition; late real completion -> done_conflict; closes open answers.
 - [ ] Conformance vectors CC-26..CC-29 pass on our backend, plus the reader rule (unknown outcome = terminal, not finished).
 
 ### Human
@@ -171,6 +171,10 @@ recovery and conformance to each backend.
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-bus worker_contract::tests::t3w > /tmp/t3837-bus.out 2>&1 && grep -q "test result: ok. 6 passed" /tmp/t3837-bus.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-bus worker_contract::tests::reader_rule > /tmp/t3837-rr.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3837-rr.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-hub dispatch_transition_withdraw_over_rpc > /tmp/t3837-hub.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3837-hub.out
+bash scripts/run-wc-vectors.sh --ref ea8379a56 > /tmp/t3837-wc.out 2>&1 && grep -q "fail=0" /tmp/t3837-wc.out
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -418,6 +422,28 @@ recovery and conformance to each backend.
   disarming CC-15/CC-19, repeat/audit. All amendments are additive; our hub's cost is a typed refusal of close and
   tolerance of the new reason. Reviews: `docs/reports/T-3837-reviews/`.
 - **Rejected:** A (adopt as drafted: leaves every hard case to each backend), C (minimum 1-3 only), D (not adopt).
+
+### 2026-11-20 — T3w build choices (agent, within the operator's ruling A on item 3)
+- **Chose:**
+  1. The store implements T3w as a `withdraw: Option<Withdrawal{actor, reason}>` on `TransitionRequest` with
+     `to: done`. The digest is computed as sha256(reason); actor and reason go in two new `wc_history` columns,
+     shown on that row only.
+  2. The RPC (`dispatch.transition`) refuses `withdraw` while `WITHDRAW_LIVE = false`, because the spec says
+     no backend emits `withdrawn` before all three owners adopt v0.3.4. Flip it once AEF's operator adopts.
+  3. The reader rule is `finished_work()`: done, not attested, and outcome in {succeeded, failed, refused,
+     handback-malformed}. Anything else, including an outcome this reader does not know, is `not_finished_work`.
+     The adapter's `consume` op calls it, so CC-19 and CC-22 now pass too.
+  4. A start (T2) on `lost` is `forbidden_transition` whatever prior it expected (CC-20). Otherwise a CAS miss is
+     `cas_mismatch` (CC-27). The adapter's start now always expects `dispatched`.
+  5. `run-wc-vectors.sh` keeps v0.3.3 (18c6e0042) as its default until adoption; v0.3.4 runs with `--ref ea8379a56`.
+- **Why:** each choice follows the spec text at ea8379a56 (§3.3 T3w, §3.2 submitter, the v0.3.4 status line).
+- **Rejected:**
+  1. Serving withdraw over the RPC now. That breaks the spec's "no backend emits withdrawn before adoption".
+  2. Allowing a worker question while `dispatched` to fit CC-26 answer-channel (see the open finding below).
+- **Open finding (sent to AEF):** CC-26's answer-channel variant asks a question on a `dispatched` attempt. Our
+  store refuses it (`answer.rs:289`: only a running or unknown worker asks). The spec's own T2 rule says no agent
+  child runs before T2, so no worker can have asked. Result at ea8379a56: pass 23, fail 1 (that variant only),
+  not-implemented 4, n/a 1.
 
 ## Decision
 

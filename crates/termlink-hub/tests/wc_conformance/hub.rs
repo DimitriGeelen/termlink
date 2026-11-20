@@ -23,7 +23,9 @@ use serde_json::{Map, Value, json};
 use termlink_bus::Bus;
 use termlink_bus::worker_contract::answer::{AckRequest, AnswerRequest, AskRequest, ResolveMaterial, ResolveRequest, resolve_at};
 use termlink_bus::worker_contract::sweep::{SweepObservation, SweepReport};
-use termlink_bus::worker_contract::{AllocateRequest, Allocation, Handback, StopRequest, TransitionRequest, WcError};
+use termlink_bus::worker_contract::{
+    AllocateRequest, Allocation, Handback, StopRequest, TransitionRequest, WcError, Withdrawal, finished_work,
+};
 use termlink_hub::dispatch_contract::{AGENT_SESSION_REFUSAL, ResolveSession, resolve_gate};
 
 /// Capabilities this backend offers (vocabulary.capabilities). `lease` and `real_worker` are not.
@@ -452,7 +454,16 @@ impl Hub {
             "confirm_end" => self.confirm_end(n),
             "stop" => self.stop(step, n),
             "ask_wait" | "wait" => missing(&format!("op:{op} (no worker-side wait or collect surface)")),
-            "consume" => missing("op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store)"),
+            "withdraw" => self.withdraw(step, n),
+            // T-3837: the reader rule every consumer applies (`finished_work`), on the record as served.
+            "consume" => {
+                let d = self.dispatch_id()?;
+                let view = attempt_view(&self.bus, &d, n).ok_or_else(|| Fail::Missing(format!("attempt {n} to consume")))?;
+                Ok(match finished_work(&view) {
+                    Ok(()) => obj(json!({"ok": true})),
+                    Err(r) => obj(json!({"refused": r})),
+                })
+            }
             "adopt" => missing("op:adopt (no dispatcher-ownership transfer)"),
             "inspect" => missing(&format!("op:inspect surface {}", args["surface"].as_str().unwrap_or("?"))),
             other => missing(&format!("op:{other}")),
@@ -531,15 +542,42 @@ impl Hub {
         }
     }
 
+    /// T-3837 (T3w): the submitter's withdrawal, presenting the nonce, the supervisor credential and
+    /// supervisor_gen. The sweep writer (`writer: hub`) never holds the supervisor credential: the
+    /// store keeps only its sha256, so the hub has nothing to present and the store refuses it.
+    fn withdraw(&mut self, step: &Value, n: i64) -> Res<Map<String, Value>> {
+        let d = self.dispatch_id()?;
+        let token = if step["writer"].as_str() == Some("hub") { None } else { self.token_for(step, n) };
+        let req = TransitionRequest {
+            dispatch_id: d,
+            attempt: n,
+            nonce: self.nonce_for(step, n)?,
+            supervisor_token: token,
+            expected_prior: "dispatched".into(),
+            to: "done".into(),
+            supervisor_gen: step["supervisor_gen"].as_i64().unwrap_or(1),
+            withdraw: Some(Withdrawal {
+                actor: step["args"]["actor"].as_str().unwrap_or_default().to_string(),
+                reason: step["args"]["reason"].as_str().unwrap_or_default().to_string(),
+            }),
+            ..Default::default()
+        };
+        match self.bus.wc_transition(&req, self.clock) {
+            Ok(out) if out.deduped => Ok(obj(json!({"response": "T8"}))),
+            Ok(_) => Ok(obj(json!({"accepted": "T3w"}))),
+            Err(e) => Ok(error_map(&e)),
+        }
+    }
+
     fn start(&mut self, step: &Value, n: i64) -> Res<Map<String, Value>> {
         let d = self.dispatch_id()?;
-        let prior = self.state_of(n)?;
+        // T-3837: a start (T2) always expects `dispatched`; the store answers whatever it finds.
         let req = TransitionRequest {
             dispatch_id: d,
             attempt: n,
             nonce: self.nonce_for(step, n)?,
             supervisor_token: self.token_for(step, n),
-            expected_prior: prior,
+            expected_prior: "dispatched".into(),
             to: "running".into(),
             supervisor_gen: step["supervisor_gen"].as_i64().unwrap_or(1),
             ..Default::default()
@@ -804,10 +842,14 @@ impl Hub {
                 let (base_state, base_rows) = self.base.get(&n).cloned().unwrap_or(("dispatched".into(), 0));
                 let mut history = vec![Value::String(base_state)];
                 let mut last_cause = Value::Null;
+                let (mut last_actor, mut last_reason) = (Value::Null, Value::Null);
                 for row in a["history"].as_array().map(Vec::as_slice).unwrap_or_default().iter().skip(base_rows) {
                     if lifecycle_row(row) {
                         history.push(row["to"].clone());
                         last_cause = row["cause"].clone();
+                        // T-3837 (CC-26): who wrote the latest lifecycle entry and why, as recorded.
+                        last_actor = row.get("actor").cloned().unwrap_or(Value::Null);
+                        last_reason = row.get("reason").cloned().unwrap_or(Value::Null);
                     }
                 }
                 // T-3523 (CC-25): the cause on the attempt's latest lifecycle entry.
@@ -834,6 +876,8 @@ impl Hub {
                         "handback_status": a["handback_status"],
                         "questions": a["questions"].as_array().map_or(0, Vec::len),
                         "answers": answers,
+                        "last_actor": last_actor,
+                        "last_reason": last_reason,
                         "history": history,
                     }),
                 );

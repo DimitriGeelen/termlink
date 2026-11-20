@@ -415,3 +415,121 @@ fn cas_forbidden_and_unknown_cases() {
     s.conn.lock().unwrap().execute("UPDATE wc_attempts SET state='unknown' WHERE dispatch_id=?1", params![c.dispatch_id]).unwrap();
     assert_eq!(s.transition(&t3(&c, "Z"), 22).unwrap().record["state"], "done");
 }
+
+/// T-3837 (wc v0.3.4 T3w): a withdrawal of attempt `a` with `why` as its reason.
+fn t3w(a: &Allocation, why: &str) -> TransitionRequest {
+    TransitionRequest {
+        to: "done".into(),
+        withdraw: Some(Withdrawal { actor: "a".into(), reason: why.into() }),
+        ..t2(a)
+    }
+}
+
+#[test]
+fn t3w_withdraws_a_dispatched_attempt_and_records_who_and_why() {
+    let (_d, s) = store();
+    let a = alloc(&s, 10);
+    let out = s.transition(&t3w(&a, "superseded by D2"), 11).unwrap();
+    let r = &out.record;
+    assert!(!out.deduped);
+    assert_eq!((r["state"].as_str(), r["outcome"].as_str()), (Some("done"), Some(OUTCOME_WITHDRAWN)));
+    assert_eq!(r["evidence_digest"], "8ca243126e2fb57133532a71450fad6c48d76d1ee930a575ccd493903eb87a23", "sha256 of the reason");
+    assert_eq!((r["exit_code"].clone(), r["result"]["kind"].clone(), r["attested"].clone()), (Value::Null, json!("none"), json!(false)));
+    let last = r["history"].as_array().unwrap().last().unwrap();
+    assert_eq!((last["from"].as_str(), last["writer"].as_str()), (Some("dispatched"), Some("submitter")));
+    assert_eq!((last["actor"].as_str(), last["reason"].as_str()), (Some("a"), Some("superseded by D2")));
+    // Only a withdrawal row carries actor/reason; the T1 row is as before.
+    assert!(r["history"][0].get("actor").is_none());
+}
+
+#[test]
+fn t3w_fences_credential_cas_currency_and_gen() {
+    let (_d, s) = store();
+    let a = alloc(&s, 10);
+    let mut bad = t3w(&a, "r");
+    bad.supervisor_token = Some("s-wrong".into());
+    assert_eq!(reason(s.transition(&bad, 11).unwrap_err()), "bad_credential");
+    bad.supervisor_token = None;
+    assert_eq!(reason(s.transition(&bad, 11).unwrap_err()), "bad_credential");
+    let mut sgen = t3w(&a, "r");
+    sgen.supervisor_gen = 2;
+    assert_eq!(reason(s.transition(&sgen, 12).unwrap_err()), "stale_gen");
+    let mut prior = t3w(&a, "r");
+    prior.expected_prior = "running".into();
+    assert_eq!(reason(s.transition(&prior, 12).unwrap_err()), "cas_mismatch");
+    let empty = t3w(&a, " ");
+    assert!(matches!(s.transition(&empty, 12), Err(WcError::Invalid(_))));
+    assert_eq!(s.get(&a.dispatch_id).unwrap()["attempts"][0]["state"], "dispatched", "nothing refused was written");
+}
+
+#[test]
+fn t3w_loses_to_t2_and_t2_loses_to_t3w() {
+    let (_d, s) = store();
+    // start first: the withdrawal is cas_mismatch, the worker runs (CC-27, CC-28)
+    let a = alloc(&s, 10);
+    s.transition(&t2(&a), 11).unwrap();
+    assert_eq!(reason(s.transition(&t3w(&a, "r"), 12).unwrap_err()), "cas_mismatch");
+    // withdraw first: the start is cas_mismatch, nothing launches
+    let b = alloc(&s, 20);
+    s.transition(&t3w(&b, "r"), 21).unwrap();
+    assert_eq!(reason(s.transition(&t2(&b), 22).unwrap_err()), "cas_mismatch");
+    assert_eq!(s.get(&b.dispatch_id).unwrap()["attempts"][0]["outcome"], OUTCOME_WITHDRAWN);
+}
+
+#[test]
+fn t3w_from_lost_unknown_or_finished_is_forbidden() {
+    let (_d, s) = store();
+    let a = alloc(&s, 10);
+    s.transition(&t2(&a), 11).unwrap();
+    mark_lost(&s, &a.dispatch_id, 1, 12);
+    assert_eq!(reason(s.transition(&t3w(&a, "r"), 13).unwrap_err()), "forbidden_transition");
+    let b = alloc(&s, 20);
+    s.transition(&t2(&b), 21).unwrap();
+    s.conn.lock().unwrap().execute("UPDATE wc_attempts SET state='unknown' WHERE dispatch_id=?1", params![b.dispatch_id]).unwrap();
+    assert_eq!(reason(s.transition(&t3w(&b, "r"), 22).unwrap_err()), "forbidden_transition");
+    let c = alloc(&s, 30);
+    s.transition(&t2(&c), 31).unwrap();
+    s.transition(&t3(&c, "E1"), 32).unwrap();
+    assert_eq!(reason(s.transition(&t3w(&c, "r"), 33).unwrap_err()), "forbidden_transition", "a finished attempt is not withdrawn");
+}
+
+#[test]
+fn t3w_repeat_is_t8_other_reason_forbidden_late_completion_conflicts() {
+    let (_d, s) = store();
+    let a = alloc(&s, 10);
+    s.transition(&t3w(&a, "r"), 11).unwrap();
+    let rows = history_len(&s, &a.dispatch_id);
+    assert!(s.transition(&t3w(&a, "r"), 12).unwrap().deduped, "identical withdrawal is a T8 response");
+    assert_eq!(history_len(&s, &a.dispatch_id), rows, "a T8 response writes nothing");
+    assert_eq!(reason(s.transition(&t3w(&a, "r2"), 13).unwrap_err()), "forbidden_transition");
+    // A real completion arriving later: done_conflict, as for any done (CC-29 later-handback).
+    let mut late = t3(&a, "E1");
+    late.expected_prior = "dispatched".into();
+    assert_eq!(reason(s.transition(&late, 14).unwrap_err()), "done_conflict");
+    let r = &s.get(&a.dispatch_id).unwrap()["attempts"][0];
+    assert_eq!((r["outcome"].as_str(), r["exit_code"].clone()), (Some(OUTCOME_WITHDRAWN), Value::Null));
+}
+
+#[test]
+fn t3w_of_an_old_attempt_is_stale_and_a_new_attempt_may_follow() {
+    let (_d, s) = store();
+    let a = alloc(&s, 10);
+    s.transition(&t3w(&a, "r"), 11).unwrap();
+    // withdrawn is terminal: T1 may allocate A2 (§4.3)
+    let b = s.allocate(&AllocateRequest { attempt_of: Some(a.dispatch_id.clone()), ..Default::default() }, 12).unwrap();
+    assert_eq!(b.attempt, 2);
+}
+
+#[test]
+fn reader_rule_finished_work_refuses_paused_attested_withdrawn_and_unknown_outcomes() {
+    let done = |outcome: &str, attested: bool| json!({"state": "done", "outcome": outcome, "attested": attested});
+    for o in ["succeeded", "failed", "refused", "handback-malformed"] {
+        assert_eq!(finished_work(&done(o, false)), Ok(()), "{o}");
+    }
+    for o in ["paused", "withdrawn", "a-future-outcome"] {
+        assert_eq!(finished_work(&done(o, false)), Err(NOT_FINISHED_WORK), "{o}");
+    }
+    assert_eq!(finished_work(&done("succeeded", true)), Err(NOT_FINISHED_WORK), "attested");
+    assert_eq!(finished_work(&json!({"state": "running", "outcome": null})), Err(NOT_FINISHED_WORK));
+    assert_eq!(finished_work(&json!({"state": "unknown", "outcome": null})), Err(NOT_FINISHED_WORK));
+}

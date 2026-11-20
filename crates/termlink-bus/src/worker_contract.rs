@@ -10,7 +10,7 @@
 //! same step as the write (I3, §4.2).
 //!
 //! Only the writes reachable through `dispatch.transition` live here: T1 (allocate),
-//! T2, T3, T3b, T-RECLAIM, T5, T7b and the T8 response. T4/T6/T6b/T7a/T7c belong to the
+//! T2, T3, T3b, T3w (wc v0.3.4 withdrawal, T-3837), T-RECLAIM, T5, T7b and the T8 response. T4/T6/T6b/T7a/T7c belong to the
 //! sweep (S2) and T7d to the operator CLI (S3, `answer::resolve_at`); asking for them here is
 //! `forbidden_transition`.
 //!
@@ -147,6 +147,38 @@ pub struct TransitionRequest {
     pub worker_timeout_ms: Option<i64>,
     /// `deadline_stop` / `revoked` / `operator_stop`, recorded on the history entry.
     pub cause: Option<String>,
+    /// T-3837 (wc v0.3.4 T3w): the submitter takes back an attempt that never started.
+    /// With `to: done` this is a withdrawal, not a completion: `evidence_digest` is
+    /// `sha256(reason)` (any given digest is ignored), and no worker field is written.
+    pub withdraw: Option<Withdrawal>,
+}
+
+/// T-3837: who withdrew the attempt and why, recorded on its history entry.
+#[derive(Debug, Clone, Default)]
+pub struct Withdrawal {
+    pub actor: String,
+    pub reason: String,
+}
+
+/// The outcome a withdrawal writes (wc v0.3.4 §3.3 T3w).
+pub const OUTCOME_WITHDRAWN: &str = "withdrawn";
+
+/// Outcomes that count as finished work for a consumer (review verdict, pass-rate, landing).
+const FINISHED_OUTCOMES: [&str; 4] = ["succeeded", "failed", "refused", "handback-malformed"];
+
+/// The consumer refusal for anything that is not finished work (§3.3, vocabulary `refusals`).
+pub const NOT_FINISHED_WORK: &str = "not_finished_work";
+
+/// T-3837: the reader rule (§3.3). A consumer may treat an attempt as finished work only
+/// when it is `done`, not attested, and its outcome is one this reader knows as finished.
+/// `paused` and `withdrawn` are terminal but not finished. An outcome this reader does not
+/// know (a later contract version may add one) is also terminal and not finished, so an
+/// old reader refuses it rather than counting it. Takes an attempt as `dispatch.get` shows it.
+pub fn finished_work(attempt: &Value) -> std::result::Result<(), &'static str> {
+    let done = attempt["state"].as_str() == Some("done");
+    let attested = attempt["attested"].as_bool().unwrap_or(false);
+    let known = attempt["outcome"].as_str().is_some_and(|o| FINISHED_OUTCOMES.contains(&o));
+    if done && !attested && known { Ok(()) } else { Err(NOT_FINISHED_WORK) }
 }
 
 /// The causes a backend may stop an attempt for (§3.3).
@@ -403,12 +435,12 @@ fn attempt_json(r: &rusqlite::Row) -> rusqlite::Result<Value> {
 
 fn history_json(conn: &Connection, dispatch_id: &str, attempt: i64) -> WcResult<Value> {
     let mut st = conn.prepare(
-        "SELECT from_state, to_state, writer, ts, evidence_digest, cause, fence_reason
+        "SELECT from_state, to_state, writer, ts, evidence_digest, cause, fence_reason, actor, reason
          FROM wc_history WHERE dispatch_id=?1 AND attempt=?2 ORDER BY id",
     )?;
     let rows: Vec<Value> = st
         .query_map(params![dispatch_id, attempt], |r| {
-            Ok(json!({
+            let mut row = json!({
                 "from": r.get::<_, Option<String>>(0)?,
                 "to": r.get::<_, String>(1)?,
                 "writer": r.get::<_, String>(2)?,
@@ -416,7 +448,13 @@ fn history_json(conn: &Connection, dispatch_id: &str, attempt: i64) -> WcResult<
                 "evidence_digest": r.get::<_, Option<String>>(4)?,
                 "cause": r.get::<_, Option<String>>(5)?,
                 "fence_reason": r.get::<_, Option<String>>(6)?,
-            }))
+            });
+            // T-3837: only a withdrawal names an actor and a reason; other rows stay as they were.
+            if let Some(actor) = r.get::<_, Option<String>>(7)? {
+                row["actor"] = json!(actor);
+                row["reason"] = json!(r.get::<_, Option<String>>(8)?);
+            }
+            Ok(row)
         })?
         .collect::<std::result::Result<_, _>>()?;
     Ok(Value::Array(rows))
@@ -429,13 +467,14 @@ struct Row {
     sgen: i64,
     evidence_digest: Option<String>,
     stop_cause: Option<String>,
+    outcome: Option<String>,
 }
 
 fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcResult<TransitionOutcome> {
     let id = &req.dispatch_id;
     let row: Option<Row> = tx
         .query_row(
-            "SELECT state, nonce_sha256, supervisor_token_sha256, supervisor_gen, evidence_digest, stop_cause
+            "SELECT state, nonce_sha256, supervisor_token_sha256, supervisor_gen, evidence_digest, stop_cause, outcome
              FROM wc_attempts WHERE dispatch_id=?1 AND attempt=?2",
             params![id, req.attempt],
             |r| {
@@ -446,6 +485,7 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
                     sgen: r.get(3)?,
                     evidence_digest: r.get(4)?,
                     stop_cause: r.get(5)?,
+                    outcome: r.get(6)?,
                 })
             },
         )
@@ -474,6 +514,55 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
         append_history(tx, id, current, Some(actual), actual, "supervisor", now_ms, None, None, Some(reason.as_str()))?;
         fence(reason, detail)
     };
+
+    if let Some(w) = &req.withdraw {
+        // T-3837 (T3w): dispatched -> done{withdrawn}, the same fence as T3b (CAS on the
+        // state found, current attempt, matching sgen). Credential and nonce were checked above.
+        if req.to != "done" {
+            return Err(WcError::Invalid("a withdrawal goes to done".into()));
+        }
+        if w.actor.trim().is_empty() || w.reason.trim().is_empty() {
+            return Err(WcError::Invalid("a withdrawal needs an actor and a reason".into()));
+        }
+        let digest = sha256_hex(&w.reason);
+        match actual {
+            "dispatched" => {
+                if req.expected_prior != actual {
+                    return refuse(FenceReason::CasMismatch, format!("expected {}, state is {actual}", req.expected_prior));
+                }
+                if !is_current {
+                    return refuse(FenceReason::StaleAttempt, format!("attempt {} is not current", req.attempt));
+                }
+                if req.supervisor_gen != row.sgen {
+                    return refuse(FenceReason::StaleGen, format!("sgen {} != {}", req.supervisor_gen, row.sgen));
+                }
+            }
+            // The start won the race (CC-27, CC-28): the agent child may be running.
+            "running" => return refuse(FenceReason::CasMismatch, "attempt is running; only a dispatched attempt can be withdrawn".into()),
+            // T8: the identical withdrawal again is a response, not a transition (CC-29).
+            "done" if row.outcome.as_deref() == Some(OUTCOME_WITHDRAWN) && row.evidence_digest.as_deref() == Some(digest.as_str()) => {
+                return Ok(TransitionOutcome { record: attempt_record(tx, id, req.attempt)?, deduped: true });
+            }
+            // A different reason, a withdrawal of a finished attempt, or of a lost or unknown
+            // one: T3w exists only from dispatched (CC-28, CC-29).
+            other => return refuse(FenceReason::ForbiddenTransition, format!("{other} -> done{{withdrawn}}")),
+        }
+        tx.execute(
+            "UPDATE wc_attempts SET state='done', outcome=?3, exit_code=NULL, result_kind='none',
+                result_value=NULL, persisted_at=NULL, evidence_digest=?4, handback_status=NULL
+             WHERE dispatch_id=?1 AND attempt=?2",
+            params![id, req.attempt, OUTCOME_WITHDRAWN, digest],
+        )?;
+        tx.execute(
+            "INSERT INTO wc_history (dispatch_id, attempt, from_state, to_state, writer, ts,
+                evidence_digest, cause, fence_reason, actor, reason)
+             VALUES (?1, ?2, 'dispatched', 'done', 'submitter', ?3, ?4, 'withdrawn', NULL, ?5, ?6)",
+            params![id, req.attempt, now_ms, digest, w.actor, w.reason],
+        )?;
+        // The withdrawal ends the attempt: open questions close and un-acked answers bounce (§5.5).
+        answer::close_ended_answers_tx(tx, id, req.attempt, "done", now_ms)?;
+        return Ok(TransitionOutcome { record: attempt_record(tx, id, req.attempt)?, deduped: false });
+    }
 
     match req.to.as_str() {
         "running" => {
@@ -509,7 +598,11 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
                     params![id, req.attempt, req.supervisor_gen],
                 )?;
                 append_history(tx, id, req.attempt, Some("running"), "running", "supervisor", now_ms, None, req.cause.as_deref(), None)?;
+            } else if actual == "lost" {
+                // A lost attempt stays lost, whatever prior the writer expected (CC-20).
+                return refuse(FenceReason::ForbiddenTransition, "lost -> running".into());
             } else if req.expected_prior != actual {
+                // e.g. a T2 that lost the race to a withdrawal (CC-27).
                 return refuse(FenceReason::CasMismatch, format!("expected {}, state is {actual}", req.expected_prior));
             } else {
                 return refuse(FenceReason::ForbiddenTransition, format!("{actual} -> running"));
@@ -779,6 +872,9 @@ fn init_schema(conn: &Connection) -> Result<()> {
     ensure_column(conn, "wc_attempts", "absent_sweeps", "INTEGER NOT NULL DEFAULT 0")?;
     // T-3523: a backend-initiated stop's cause, carried onto the confirmed end's history.
     ensure_column(conn, "wc_attempts", "stop_cause", "TEXT")?;
+    // T-3837: a withdrawal's actor and reason, on its history entry (wc v0.3.4 T3w).
+    ensure_column(conn, "wc_history", "actor", "TEXT")?;
+    ensure_column(conn, "wc_history", "reason", "TEXT")?;
     // T-3503 (S3): the answer path.
     answer::init_schema(conn)?;
     // T-3521: durable operator notices (triggers on wc_history).
