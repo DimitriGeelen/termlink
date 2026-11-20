@@ -1,10 +1,19 @@
 ---
 id: T-3837
-name: "Worker contract wc/0.3.4: 'withdrawn' outcome (dispatched -> done) in the TermLink backend + conformance vectors"
+name: "Worker contract wc/0.3.4: 'withdrawn' outcome (dispatched -> done) in the TermLink
+  backend + conformance vectors"
 description: >
-  From T-3836 (AEF T-5300 consult, ring20 T-2790). Build when AEF publishes shared-worker-contract v0.3.4: T3b variant to=done from expected_prior=dispatched with a withdrawn flag -> outcome 'withdrawn'; only from actual dispatched, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden (repeat = T8 dedupe); credential = the attempt's nonce + supervisor token from dispatch.allocate; evidence_digest per v0.3.4 (we proposed sha256 of the reason, result_kind none); closes open answers. Vectors: withdraw from dispatched; withdraw vs T2 race (one wins, loser cas_mismatch); withdraw from running; repeat deduped. Files: crates/termlink-bus/src/worker_contract.rs, crates/termlink-hub/src/dispatch_contract.rs, crates/termlink-hub/tests/wc_conformance.
+  From T-3836 (AEF T-5300 consult, ring20 T-2790). Build when AEF publishes shared-worker-contract
+  v0.3.4: T3b variant to=done from expected_prior=dispatched with a withdrawn flag
+  -> outcome 'withdrawn'; only from actual dispatched, current attempt, matching sgen;
+  running -> cas_mismatch; done/lost/unknown -> forbidden (repeat = T8 dedupe); credential
+  = the attempt's nonce + supervisor token from dispatch.allocate; evidence_digest
+  per v0.3.4 (we proposed sha256 of the reason, result_kind none); closes open answers.
+  Vectors: withdraw from dispatched; withdraw vs T2 race (one wins, loser cas_mismatch);
+  withdraw from running; repeat deduped. Files: crates/termlink-bus/src/worker_contract.rs,
+  crates/termlink-hub/src/dispatch_contract.rs, crates/termlink-hub/tests/wc_conformance.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T16:10:03Z
-last_update: 2026-11-20T17:05:35Z
-date_finished: null
+last_update: 2026-11-20T17:33:25Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +59,44 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-20T17:32:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3837: Worker contract wc/0.3.4: 'withdrawn' outcome (dispatched -> done) in the TermLink backend + conformance vectors
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** shared worker contract v0.3.4 (DRAFT, AEF T-5311) carries three items; the operator ruled on
+2026-11-20: item 3 (withdrawn, T3w) A = adopt; item 1 (refusal before rule 1) A = adopt; item 2 (optional dispatch
+closure) B = adopt only with TermLink's amendments, after an external review (claude-code + opencode, both "adopt with
+amendments").
+
+**Problem / hypothesis:** TermLink's backend (`crates/termlink-bus/src/worker_contract.rs`, hub
+`dispatch_contract.rs`) must implement T3w and stay conformant; item 2 as drafted leaves races, authentication,
+recovery and conformance to each backend.
+
+**Goal:** build T3w with CC-26..CC-29; put TermLink's item-2 amendment set to AEF and ring20; record the reviews.
+
+**Expected outcome:** our backend passes the v0.3.4 vectors; item 2 is adopted only in its amended form.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Item-2 reviews saved under `docs/reports/T-3837-reviews/`, and TermLink's amendment set (fenced close CAS; closure fences T1 only; declared `closure` capability with split CC-15/CC-19; credentialed close; terminal closure + `retry_of_dispatch_id`; first close wins + history) sent to AEF and ring20 with the operator's adoption of items 1 and 3.
+- [ ] T3w built in `worker_contract.rs`: dispatched -> done{withdrawn} only from dispatched, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden_transition; repeat -> T8 dedupe; different-reason withdrawal -> forbidden_transition; late real completion -> done_conflict; closes open answers.
+- [ ] Conformance vectors CC-26..CC-29 pass on our backend, plus the reader rule (unknown outcome = terminal, not finished).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -370,6 +403,22 @@ date_finished: null
 - **Rejected:** B (tie to item 2), C (spec stays ambiguous), D (defer).
 - **Left open:** item 2 (optional dispatch closure), next.
 
+### 2026-11-20 — Adopt v0.3.4 item 2 (optional dispatch closure)? (operator ruling: "B")
+- **Chose:** B — adopt only with TermLink's amendments, as our condition: (1) close is one fenced transaction with CAS
+  on (last attempt, last state ∈ {done, lost}); commit order decides close vs T1; (2) closure fences T1 only, every
+  attempt-level transition stays legal, finishedness computed from attempts; (3) a declared `closure: never|supported`
+  capability, `dispatch_closed` only with a readable closure record, CC-15/CC-19 split per arrangement (no "accept
+  either"), clients treat an unknown fence reason as a non-retryable refusal; (4) close authenticated by the last
+  attempt's supervisor credential or a declared backend policy, actor derived from the credential; (5) closure terminal,
+  recovery = new dispatch with `retry_of_dispatch_id`, readers expose closed / finished / last outcome separately;
+  (6) first close wins, repeats return the stored record, every close and `dispatch_closed` refusal writes history.
+  Proposed vectors CC-30..CC-43 (reviewers' numbering).
+- **Why:** an external review (claude-code and opencode, independently) found the same six weaknesses, five high:
+  close vs T1 race, late lost->done after close, unauthenticated actor, no recovery from a wrong close, "accept either"
+  disarming CC-15/CC-19, repeat/audit. All amendments are additive; our hub's cost is a typed refusal of close and
+  tolerance of the new reason. Reviews: `docs/reports/T-3837-reviews/`.
+- **Rejected:** A (adopt as drafted: leaves every hard case to each backend), C (minimum 1-3 only), D (not adopt).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -389,3 +438,6 @@ date_finished: null
 
 ### 2026-11-20T16:45:33Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-11-20T17:32:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
