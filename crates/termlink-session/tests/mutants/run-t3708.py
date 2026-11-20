@@ -118,7 +118,7 @@ MUTANTS = [
      "                    let deliverable = ctx.deliverer.map(|d| d.pending_ids());",
      "                    if let Some(s) = sender {\n                        let _ = s.peek_inbox(0, 1);\n                    }\n                    let deliverable = ctx.deliverer.map(|d| d.pending_ids());"),
     ("m34-unanchored-pending-ignored", "r2 MAJOR 4: pending mail with nothing to measure from does not hold CLEAR", F,
-     "            unanchored.push(json!(id));", "            let _ = id;"),
+     "            unanchored.push(json!(id));", "            if false {\n                unanchored.push(json!(id));\n            }"),
     # m35 (a failed held-since write is not reported) is not in the list: the tests run as root, so a store
     # write cannot be made to fail here; the branch is covered by review only (r2 MINOR 8 disposition).
 ]

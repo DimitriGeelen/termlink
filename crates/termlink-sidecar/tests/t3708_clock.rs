@@ -103,4 +103,15 @@ fn receiver_deadline_ignores_a_forward_jump() {
     store::test_shift_wall_ms(3_600_000);
     fields::look();
     assert_eq!(fired2, 0, "after a -1 h jump the hand-over deadline fired 30 s after readiness");
+
+    // r2 MAJOR 1 (mutant m5e): a chain event written AFTER a backward jump is registered with that jump, so its
+    // age is plain; an unregistered stamp would be "corrected" by the jump and read an hour old
+    store::test_shift_wall_ms(-3_600_000);
+    fields::look();
+    st.append_event("c", "NOTE", "h3", &ka.fingerprint().to_owned(), "d").unwrap();
+    let ts = st.chain_lines("c").unwrap().into_iter().rev().find(|l| l.msg_id == "h3").and_then(|l| l.ts_ms).unwrap();
+    let a = fields::age_ms(ts, store::now_ms());
+    store::test_shift_wall_ms(3_600_000);
+    fields::look();
+    assert!(a < 5_000, "a stamp written after a jump was aged as if before it: {a} ms");
 }
