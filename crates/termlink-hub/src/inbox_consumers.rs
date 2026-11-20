@@ -264,6 +264,13 @@ struct ConsumersFile {
     /// Last time a new inbox went unrecorded because the table was full (r2 CC N1).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     dropped_since_ms: Option<u64>,
+    /// First drop of the current run of drops, kept while it is inside the 24 h window (r3 CC 1): an inbox that
+    /// entered the table before it was there through every drop since.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    dropped_first_ms: Option<u64>,
+    /// When each inbox entered the table (r3 CC 1): one entering after a drop may be the dropped one.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    topic_since: BTreeMap<String, u64>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -289,6 +296,8 @@ struct State {
     topics: BTreeMap<String, Vec<Entry>>,
     incomplete_since_ms: Option<u64>,
     dropped_since_ms: Option<u64>,
+    dropped_first_ms: Option<u64>,
+    topic_since: BTreeMap<String, u64>,
     /// The last persist of the consumer table failed: `inbox.consumers` answers an error (FCW-125).
     persist_error: Option<String>,
     /// The consumer file could not be read nor moved aside: nothing is saved over it, and
@@ -328,6 +337,8 @@ fn load_state(dir: &Path) -> State {
                     topics,
                     incomplete_since_ms: f.incomplete_since_ms,
                     dropped_since_ms: f.dropped_since_ms,
+                    dropped_first_ms: f.dropped_first_ms,
+                    topic_since: f.topic_since,
                     ..Default::default()
                 };
             }
@@ -379,6 +390,8 @@ fn save_consumers(dir: &Path, st: &State) -> Result<(), String> {
         topics: st.topics.clone(),
         incomplete_since_ms: st.incomplete_since_ms,
         dropped_since_ms: st.dropped_since_ms,
+        dropped_first_ms: st.dropped_first_ms,
+        topic_since: st.topic_since.clone(),
     };
     let text = serde_json::to_vec_pretty(&f).map_err(|e| e.to_string())?;
     crate::key_card::atomic_write(&consumers_path(dir), &text, 0o600).map_err(|e| e.to_string())
@@ -485,6 +498,7 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
         match oldest {
             Some((old, last)) if last < window_start => {
                 st.topics.remove(&old);
+                st.topic_since.remove(&old);
                 capped_row("inbox-consumer-topic-evicted", serde_json::json!({"event": "inbox-consumer-topic-evicted", "topic": old}), now_ms, log);
                 dirty = true;
             }
@@ -495,16 +509,24 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
                     now_ms,
                     log,
                 );
-                // r2 CC N1: an inbox missing from a full table is answered as an error, never a clean list
-                if st.dropped_since_ms.is_none_or(|t| now_ms >= t + PERSIST_EVERY_MS) {
-                    st.dropped_since_ms = Some(now_ms);
-                    if let Err(e) = save_consumers(dir, st) {
-                        st.persist_error = Some(format!("consumer list not persisted: {e}"));
-                    }
+                // r2 CC N1: an inbox missing from a full table is answered as an error, never a clean list.
+                // r3 CC 2 / OC 1: the marker moves on every drop; only the save is rate-limited.
+                let saved = st.dropped_since_ms;
+                if st.dropped_since_ms.is_none_or(|t| t < window_start) {
+                    st.dropped_first_ms = Some(now_ms); // a new run of drops
+                }
+                st.dropped_since_ms = Some(now_ms);
+                if saved.is_none_or(|t| now_ms >= t + PERSIST_EVERY_MS)
+                    && let Err(e) = save_consumers(dir, st)
+                {
+                    st.persist_error = Some(format!("consumer list not persisted: {e}"));
                 }
                 return Ok(());
             }
         }
+    }
+    if !st.topics.contains_key(topic) {
+        st.topic_since.insert(topic.to_string(), now_ms);
     }
     let list = st.topics.entry(topic.to_string()).or_default();
     // r1 CC 1 / OC 4: keyed by strength and key too, so a claimed reader never merges into a proven entry
@@ -584,9 +606,13 @@ pub fn consumers(dir: &Path, topic: &str, window_s: u64, now_ms: u64) -> Result<
         {
             return Err(format!("consumer history incomplete since {t} (an unreadable table was moved aside)"));
         }
+        // r3 CC 1: an inbox absent from the table, or one that entered it after a drop inside the window (it may be
+        // the one whose reader was dropped), is answered as an error, never as a clean list
+        let first = st.dropped_first_ms.unwrap_or(0);
+        let entered_after_first_drop = st.topic_since.get(topic).is_some_and(|entered| *entered >= first);
         if let Some(t) = st.dropped_since_ms
             && t > since
-            && !st.topics.contains_key(topic)
+            && (!st.topics.contains_key(topic) || entered_after_first_drop)
         {
             return Err(format!("consumer table full since {t}: this inbox's readers are not recorded"));
         }

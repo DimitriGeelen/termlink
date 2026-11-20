@@ -478,3 +478,27 @@ fn the_reset_marker_survives_a_restart_before_any_record() {
     reset(d.path()); // a hub restart
     assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, now).is_err(), "still incomplete after the restart");
 }
+
+#[test]
+fn an_inbox_entering_after_a_drop_is_not_served_clean_inside_the_window() {
+    // r3 CC 1: the dropped inbox later enters the table; its list stays an error while the drop is in the window
+    let d = dir();
+    let (_, mut log) = rows();
+    let n = NOW as u64;
+    // t0 read 23 h ago, the rest now: the table is full of in-window inboxes
+    record(d.path(), "inbox:h/t0", &claimed_r("fx-z"), Action::Read, n - 23 * 3_600_000, &mut log).unwrap();
+    for i in 1..MAX_TOPICS {
+        record(d.path(), &format!("inbox:h/t{i}"), &claimed_r("fx-z"), Action::Read, n, &mut log).unwrap();
+    }
+    // X's read of `new` is dropped
+    record(d.path(), "inbox:h/new", &claimed_r("fx-x"), Action::Read, n + 1_000, &mut log).unwrap();
+    // two hours later t0 is out of the window; the owner reads `new`, which now enters the table
+    let later = n + 2 * 3_600_000;
+    record(d.path(), "inbox:h/new", &proven("fx-a", "w1", 1), Action::Read, later, &mut log).unwrap();
+    let e = consumers(d.path(), "inbox:h/new", DEFAULT_WINDOW_S, later + 3_600_000).unwrap_err();
+    assert!(e.contains("table full"), "{e}");
+    // an inbox that was in the table the whole window is served
+    assert!(consumers(d.path(), "inbox:h/t5", DEFAULT_WINDOW_S, later).is_ok());
+    // once the drop leaves the window, `new` is served again
+    assert!(consumers(d.path(), "inbox:h/new", DEFAULT_WINDOW_S, n + 1_000 + DEFAULT_WINDOW_S * 1000 + 1).is_ok());
+}

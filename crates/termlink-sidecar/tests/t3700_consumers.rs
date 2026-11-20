@@ -366,3 +366,22 @@ fn a_read_of_a_topic_that_does_not_exist_records_nothing() {
     assert!(r.get("error").is_some(), "{r}");
     assert!(consumers(&e, &ghost).is_empty());
 }
+
+#[test]
+fn a_bound_inbox_is_gated_before_its_topic_exists() {
+    // r2 N2 / r3 CC 4: read, claim and ack on a bound inbox whose topic is not created yet
+    let e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let topic = format!("inbox:{id}/fx-late");
+    put_card(&e, "fx-late", "a");
+    let b = rpc(&e, "hub.inbox_bind", json!({"topic": topic, "agent": "fx-late"}));
+    assert_eq!(b["result"]["ok"], true, "{b}");
+    let r = raw_read(&e, &topic, Some(json!({"agent": "fx-z", "instance": "raw"})));
+    assert_eq!(r["error"]["code"], INBOX_BOUND, "read: {r}");
+    let c = rpc(&e, "channel.claim", json!({"topic": topic, "offset": 0, "claimer": "fx-z", "reader": {"agent": "fx-z", "instance": "raw"}}));
+    assert_eq!(c["error"]["code"], INBOX_BOUND, "claim: {c}");
+    let z = e.identity("z").unwrap();
+    let p = post_receipt(&e, &topic, &z, "fx-z", now_ms());
+    assert_eq!(p["error"]["code"], INBOX_BOUND, "ack: {p}");
+    println!("E-66 PASS (a bound inbox is gated before its topic exists)");
+}

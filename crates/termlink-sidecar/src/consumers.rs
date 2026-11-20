@@ -56,10 +56,6 @@ pub struct Verdict {
 /// instance or the ack sentinel alone never is.
 pub fn verdict(me_agent: &str, me_instance: &str, me_fp: &str, answer: Result<&Value, (i64, &str)>) -> Verdict {
     let unknown = |why: String| Verdict { line: format!("unknown ({why})"), others: vec![], bound: None };
-    if me_fp.is_empty() {
-        // r2 OC 2: without its own fingerprint the sidecar cannot recognise itself; never guess
-        return unknown("this sidecar's own key fingerprint is unavailable".into());
-    }
     let v = match answer {
         Ok(v) => v,
         Err((METHOD_NOT_FOUND, _)) => return unknown("hub predates the consumer list".into()),
@@ -70,6 +66,19 @@ pub fn verdict(me_agent: &str, me_instance: &str, me_fp: &str, answer: Result<&V
         return unknown("the hub's answer holds no consumer list".into());
     };
     let bound = v.get("bound").and_then(|b| b.get("agent")).and_then(Value::as_str).map(str::to_string);
+    // r2 OC 2 / r3 CC 5, OC 2: without its own fingerprint the sidecar cannot recognise itself. Hub errors are
+    // reported first (above); readers under another agent's name are still flagged; the line is unknown.
+    if me_fp.is_empty() {
+        let others: Vec<Seen> = list
+            .iter()
+            .filter(|e| e.get("agent").and_then(Value::as_str) != Some(me_agent))
+            .map(|e| {
+                let s = |k: &str| e.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+                Seen { agent: s("agent"), instance: s("instance"), strength: s("strength"), why: s("why"), key_fp: s("key_fp") }
+            })
+            .collect();
+        return Verdict { line: "unknown (this sidecar's own key fingerprint is unavailable)".into(), others, bound };
+    }
     let mut mine: Vec<Seen> = Vec::new();
     let mut others: Vec<Seen> = Vec::new();
     for e in list {
@@ -192,7 +201,11 @@ mod tests {
         assert!(verdict("fx-a", "w1", FP, Err((-32049, "consumer list unreadable"))).line.starts_with("unknown ("));
         assert_eq!(verdict("fx-a", "w1", FP, Err((-32601, "no such method"))).line, "unknown (hub predates the consumer list)");
         assert!(verdict("fx-a", "w1", FP, Ok(&json!({"bound": null}))).line.starts_with("unknown ("));
-        assert!(verdict("fx-a", "w1", "", Ok(&v(vec![e("fx-a", "w1", "proven", "")]))).line.starts_with("unknown ("));
+        let r = verdict("fx-a", "w1", "", Ok(&v(vec![e("fx-a", "w1", "proven", ""), e("fx-evil", "x", "claimed", "unsigned")])));
+        assert!(r.line.starts_with("unknown ("), "{}", r.line);
+        assert_eq!(r.others.len(), 1, "another agent is still flagged (r3 CC 5)");
+        // a hub error is reported as itself, not masked by the missing fingerprint (r3 OC 2)
+        assert_eq!(verdict("fx-a", "w1", "", Err((-32601, "x"))).line, "unknown (hub predates the consumer list)");
     }
 
     #[test]
