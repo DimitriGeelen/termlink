@@ -432,7 +432,8 @@ pub(crate) enum Command {
     Stream {
         /// Session ID or display name (omit to pick interactively)
         target: Option<String>,
-        /// T-3833: watch only, never forward input (same as `termlink pty mirror`)
+        /// T-3833: watch only, never forward input. Replays recent output, then the live byte stream
+        /// (= `termlink pty mirror --raw`; plain `pty mirror` renders through a terminal grid, T-3838)
         #[arg(long)]
         read_only: bool,
     },
@@ -7292,7 +7293,8 @@ pub(crate) enum PtyCommand {
     Stream {
         /// Session ID or display name (omit to pick interactively)
         target: Option<String>,
-        /// T-3833: watch only, never forward input (same as `termlink pty mirror`)
+        /// T-3833: watch only, never forward input. Replays recent output, then the live byte stream
+        /// (= `termlink pty mirror --raw`; plain `pty mirror` renders through a terminal grid, T-3838)
         #[arg(long)]
         read_only: bool,
     },
