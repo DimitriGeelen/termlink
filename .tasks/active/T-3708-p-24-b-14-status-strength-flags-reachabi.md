@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T11:54:28Z
+last_update: 2026-11-20T11:55:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -116,7 +116,7 @@ Scope is slice (a) per D-1 (card + GP-4 lines moved to T-3832). Design: `docs/re
 - [ ] Quota (D-2 A): `quota` reads `absent: receiver quotas not built (P-17)`, and a test shows CLEAR does not wait on it.
 - [ ] Latency (3.9): status makes no blocking hub call; per-call latency log, bounded; E-55 p95 ≤ 5 s over 100 calls under the available fault seams; E-134 log present.
 - [ ] The unit's fixture suite exits 0 with a PASS line per slice-(a) E-n, and the design section 5 mutants for slice (a) are all killed (FP 3.1.b)
-- [ ] (from T-3703 r2 CC 4 / OC 3, deferred) A sender whose recipient's current key is on the hub's revocation list shows that message as WAITING FOR RECIPIENT with the reason "key revoked, operator action needed" and raises one needs-attention entry (RK-1); the sender learns the recipient's key from its hub key card (B-6). Test: revoke fx-a, fx-b sends to fx-a, fx-b's status names the reason.
+- [x] MOVED to T-3834 on 2026-11-20 (sender-side delivery label, own build; design 8.4) — was: (from T-3703 r2 CC 4 / OC 3, deferred) A sender whose recipient's current key is on the hub's revocation list shows that message as WAITING FOR RECIPIENT with the reason "key revoked, operator action needed" and raises one needs-attention entry (RK-1); the sender learns the recipient's key from its hub key card (B-6). Test: revoke fx-a, fx-b sends to fx-a, fx-b's status names the reason.
 - [ ] (from T-3703 r1 finding 17) E-127's reader: count `refused_revoked` in the sidecar status after each revocation row and fire when `unverified` is older than PN-13 without the narrowing applied, or a message from a revoked key is STORED.
 - [ ] (from T-3703 r1 finding 5) Status vocabulary binds: `revocation` = `verified seq N at T` | `unverified since T (<why>)` | `stale since T (<why>)` | `ROLLBACK refused, kept seq N` | `hub predates revocation list` | `off (PH-1 trust)` (T-3703 design 5.5).
 - [ ] (from T-3703 r3 CC N4) when the urgent allow-list is widened beyond the roster, the DOWNGRADED line names `revocation list stale` for a stale-gate downgrade, and E-41.3 runs through `assess`: an admitted sender's urgent is kept at 59:59 and downgraded at 60:01 without a verified pull
