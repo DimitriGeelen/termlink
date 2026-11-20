@@ -985,7 +985,10 @@ pub(crate) async fn handle_channel_post_with_peer(
 
     // T-3700 (AL-30, FCW-209): an ack (receipt) on an inbox records its poster as a consumer and is
     // refused on a bound inbox unless it is the bound agent's bound key.
-    if msg_type == "receipt" && crate::inbox_consumers::applies(&topic) && topic_exists(&topic) {
+    if msg_type == "receipt"
+        && crate::inbox_consumers::applies(&topic)
+        && (topic_exists(&topic) || crate::inbox_consumers::is_bound(&termlink_session::discovery::runtime_dir(), &topic))
+    {
         use crate::inbox_consumers as ic;
         let dir = termlink_session::discovery::runtime_dir();
         let reader = {
@@ -1515,9 +1518,9 @@ pub async fn handle_channel_subscribe(id: Value, params: &Value, peer_addr: Opti
         Err(r) => return r,
     };
     let resp = handle_channel_subscribe_with(bus, id.clone(), params).await;
-    // r1 CC 6: a long-poll that waited across a bind does not deliver what was posted after it
-    let waited = params.get("timeout_ms").and_then(|v| v.as_u64()).unwrap_or(0) > 0;
-    if let (true, Some(r), Some(topic)) = (waited, reader.as_ref(), param_str(params, "topic")) {
+    // r1 CC 6 / r2 CC N7, OC 1: every gated read re-checks the binding before delivering, so a read that
+    // waited across a bind (however its timeout was given) does not deliver what was posted after it
+    if let (Some(r), Some(topic)) = (reader.as_ref(), param_str(params, "topic")) {
         let dir = termlink_session::discovery::runtime_dir();
         let mut log = |row: Value| crate::rpc_audit::admin_note(row).map_err(|e| e.to_string());
         if let Err(f) = crate::inbox_consumers::check_bound(&dir, topic, r, crate::inbox_consumers::Action::Read, now_unix_ms().max(0) as u64, &mut log) {
@@ -1566,7 +1569,8 @@ pub(crate) fn consumer_gate(
 ) -> Result<Option<crate::inbox_consumers::Reader>, RpcResponse> {
     use crate::inbox_consumers as ic;
     let Some(topic) = param_str(params, "topic") else { return Ok(None) };
-    if !ic::applies(topic) || !topic_exists(topic) {
+    // r2 CC N2: a bound inbox is gated even before its topic exists
+    if !ic::applies(topic) || (!topic_exists(topic) && !ic::is_bound(&termlink_session::discovery::runtime_dir(), topic)) {
         return Ok(None);
     }
     let position = params.get(position_key).and_then(|v| v.as_u64()).unwrap_or(0);

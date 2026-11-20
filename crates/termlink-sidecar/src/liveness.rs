@@ -218,7 +218,8 @@ pub fn read(hub: &dyn Hub, topic: &str, inbox: &str) -> Read {
             // r1 CC 9 / OC 3: only a hub that predates channel.first_at falls back to the one-message read. A
             // T-3700 hub's own errors name the method; an old hub routes the unknown method to a session
             // (-32001 "Missing 'target'"). A transport error (no code) is Unreadable, never a content read.
-            Err((Some(_), m)) if !m.contains("channel.first_at") => match oldest_by_subscribe(hub, inbox, n.drained_up_to) {
+            // r2 CC N3: exactly the old hub's answer (the unknown method routed to a session), nothing looser
+            Err((Some(code), m)) if code == error_code::SESSION_NOT_FOUND && m.contains("Missing 'target'") => match oldest_by_subscribe(hub, inbox, n.drained_up_to) {
                 Ok(t) => t,
                 Err(e) => return Read::Unreadable(e),
             },
@@ -519,7 +520,7 @@ mod tests {
         let mut f = fake(&n, Ok(json!({"messages": [envelope(2, "sidecar.msg.v1", b"x", 1234)]})));
         f.replies.insert(("channel.first_at".into(), "I".into()), Err((Some(-32001), "Missing 'target' in params".into())));
         assert!(matches!(read(&f, "L", "I"), Read::Note { oldest_waiting_ms: Some(1234), .. }));
-        for err in [(None, "connection reset".to_string()), (Some(-32603), "channel.first_at: io".to_string())] {
+        for err in [(None, "connection reset".to_string()), (Some(-32603), "channel.first_at: io".to_string()), (Some(-32603), "bus unavailable".to_string())] {
             let mut f = fake(&n, Ok(json!({"messages": [envelope(2, "sidecar.msg.v1", b"x", 1234)]})));
             f.replies.insert(("channel.first_at".into(), "I".into()), Err(err.clone()));
             assert!(matches!(read(&f, "L", "I"), Read::Unreadable(_)), "{err:?}");

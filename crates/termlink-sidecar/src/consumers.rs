@@ -56,6 +56,10 @@ pub struct Verdict {
 /// instance or the ack sentinel alone never is.
 pub fn verdict(me_agent: &str, me_instance: &str, me_fp: &str, answer: Result<&Value, (i64, &str)>) -> Verdict {
     let unknown = |why: String| Verdict { line: format!("unknown ({why})"), others: vec![], bound: None };
+    if me_fp.is_empty() {
+        // r2 OC 2: without its own fingerprint the sidecar cannot recognise itself; never guess
+        return unknown("this sidecar's own key fingerprint is unavailable".into());
+    }
     let v = match answer {
         Ok(v) => v,
         Err((METHOD_NOT_FOUND, _)) => return unknown("hub predates the consumer list".into()),
@@ -188,6 +192,7 @@ mod tests {
         assert!(verdict("fx-a", "w1", FP, Err((-32049, "consumer list unreadable"))).line.starts_with("unknown ("));
         assert_eq!(verdict("fx-a", "w1", FP, Err((-32601, "no such method"))).line, "unknown (hub predates the consumer list)");
         assert!(verdict("fx-a", "w1", FP, Ok(&json!({"bound": null}))).line.starts_with("unknown ("));
+        assert!(verdict("fx-a", "w1", "", Ok(&v(vec![e("fx-a", "w1", "proven", "")]))).line.starts_with("unknown ("));
     }
 
     #[test]

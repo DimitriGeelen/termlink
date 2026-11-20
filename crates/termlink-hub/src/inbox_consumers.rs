@@ -261,6 +261,9 @@ struct ConsumersFile {
     /// Set when an unreadable table was moved aside: readers before this time are lost (r1 CC 4).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     incomplete_since_ms: Option<u64>,
+    /// Last time a new inbox went unrecorded because the table was full (r2 CC N1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    dropped_since_ms: Option<u64>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -285,6 +288,7 @@ pub fn bindings_path(dir: &Path) -> PathBuf {
 struct State {
     topics: BTreeMap<String, Vec<Entry>>,
     incomplete_since_ms: Option<u64>,
+    dropped_since_ms: Option<u64>,
     /// The last persist of the consumer table failed: `inbox.consumers` answers an error (FCW-125).
     persist_error: Option<String>,
     /// The consumer file could not be read nor moved aside: nothing is saved over it, and
@@ -320,7 +324,12 @@ fn load_state(dir: &Path) -> State {
                         e.persisted_last_ms = e.last_ms;
                     }
                 }
-                return State { topics, incomplete_since_ms: f.incomplete_since_ms, ..Default::default() };
+                return State {
+                    topics,
+                    incomplete_since_ms: f.incomplete_since_ms,
+                    dropped_since_ms: f.dropped_since_ms,
+                    ..Default::default()
+                };
             }
             Ok(f) => format!("unknown schema {:?}", f.schema),
             Err(e) => format!("unparseable: {e}"),
@@ -332,13 +341,20 @@ fn load_state(dir: &Path) -> State {
     let aside = path.with_file_name(format!("inbox-consumers.json.corrupt-{now}"));
     crate::key_card::guard_test_write(dir);
     match std::fs::rename(&path, &aside) {
-        Ok(()) => State {
-            incomplete_since_ms: Some(now),
-            pending_rows: vec![serde_json::json!({
-                "event": "inbox-consumers-reset", "attention": true, "why": why, "moved_to": aside.display().to_string(),
-            })],
-            ..Default::default()
-        },
+        Ok(()) => {
+            let mut st = State {
+                incomplete_since_ms: Some(now),
+                pending_rows: vec![serde_json::json!({
+                    "event": "inbox-consumers-reset", "attention": true, "why": why, "moved_to": aside.display().to_string(),
+                })],
+                ..Default::default()
+            };
+            // r2 CC N4: the marker reaches disk at once, so a restart before any record keeps it
+            if let Err(e) = save_consumers(dir, &st) {
+                st.persist_error = Some(format!("consumer list not persisted: {e}"));
+            }
+            st
+        }
         Err(e) => State { load_error: Some(format!("consumer table {why}; not moved aside: {e}")), ..Default::default() },
     }
 }
@@ -358,7 +374,12 @@ fn load_bindings(dir: &Path) -> Result<BTreeMap<String, Binding>, String> {
 }
 
 fn save_consumers(dir: &Path, st: &State) -> Result<(), String> {
-    let f = ConsumersFile { schema: CONSUMERS_SCHEMA.into(), topics: st.topics.clone(), incomplete_since_ms: st.incomplete_since_ms };
+    let f = ConsumersFile {
+        schema: CONSUMERS_SCHEMA.into(),
+        topics: st.topics.clone(),
+        incomplete_since_ms: st.incomplete_since_ms,
+        dropped_since_ms: st.dropped_since_ms,
+    };
     let text = serde_json::to_vec_pretty(&f).map_err(|e| e.to_string())?;
     crate::key_card::atomic_write(&consumers_path(dir), &text, 0o600).map_err(|e| e.to_string())
 }
@@ -384,9 +405,11 @@ fn capped_row(kind: &'static str, mut row: serde_json::Value, now_ms: u64, log: 
     }
     if w.2 > 0 {
         row["suppressed"] = serde_json::json!(w.2);
+    }
+    // r2 CC N5: the suppressed count is cleared only once a row carrying it is written
+    if log(row).is_ok() {
         w.2 = 0;
     }
-    let _ = log(row);
 }
 
 /// Whether `reader` passes the binding of `topic` (proven, the bound agent, the bound key).
@@ -416,6 +439,11 @@ fn bindings_refusal(e: String) -> Refusal {
     Refusal { code: error_code::INBOX_BOUND, fcw: "FCW-124", reason: format!("{e}; inbox reads are refused until it is repaired") }
 }
 
+/// Whether `topic` has a binding; unreadable bindings count as bound (fail closed, FCW-124).
+pub fn is_bound(dir: &Path, topic: &str) -> bool {
+    load_bindings(dir).map(|b| b.contains_key(topic)).unwrap_or(true)
+}
+
 /// Re-check only the binding (no recording): a long-poll that waited across a bind must not deliver (r1 CC 6).
 pub fn check_bound(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: u64, log: AdminLog<'_>) -> Result<(), Refusal> {
     let _g = STATES.lock().unwrap_or_else(|p| p.into_inner());
@@ -432,9 +460,8 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
     let mut g = STATES.lock().unwrap_or_else(|p| p.into_inner());
     let map = g.get_or_insert_with(HashMap::new);
     let st = map.entry(dir.to_path_buf()).or_insert_with(|| load_state(dir));
-    for row in std::mem::take(&mut st.pending_rows) {
-        let _ = log(row);
-    }
+    // r2 CC N4: a load-time row stays queued until it is written
+    st.pending_rows.retain(|row| log(row.clone()).is_err());
     // the bind is read under the same lock the bind verb writes under
     let bindings = load_bindings(dir).map_err(bindings_refusal)?;
     if let Some(b) = bindings.get(topic)
@@ -468,6 +495,13 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
                     now_ms,
                     log,
                 );
+                // r2 CC N1: an inbox missing from a full table is answered as an error, never a clean list
+                if st.dropped_since_ms.is_none_or(|t| now_ms >= t + PERSIST_EVERY_MS) {
+                    st.dropped_since_ms = Some(now_ms);
+                    if let Err(e) = save_consumers(dir, st) {
+                        st.persist_error = Some(format!("consumer list not persisted: {e}"));
+                    }
+                }
                 return Ok(());
             }
         }
@@ -479,10 +513,8 @@ pub fn record(dir: &Path, topic: &str, reader: &Reader, action: Action, now_ms: 
         .find(|e| e.agent == reader.agent && e.instance == reader.instance && e.strength == reader.strength && e.key_fp == reader.key_fp)
     {
         Some(e) => {
-            if e.why != reader.why {
-                e.why = reader.why.clone();
-                dirty = true;
-            }
+            // r2 CC N6: a changed reason alone is persisted on the PERSIST_EVERY_MS cadence, not per call
+            e.why.clone_from(&reader.why);
             if e.actions.insert(action.name().to_string()) {
                 dirty = true;
             }
@@ -551,6 +583,12 @@ pub fn consumers(dir: &Path, topic: &str, window_s: u64, now_ms: u64) -> Result<
             && t > since
         {
             return Err(format!("consumer history incomplete since {t} (an unreadable table was moved aside)"));
+        }
+        if let Some(t) = st.dropped_since_ms
+            && t > since
+            && !st.topics.contains_key(topic)
+        {
+            return Err(format!("consumer table full since {t}: this inbox's readers are not recorded"));
         }
         let list: Vec<&Entry> = st.topics.get(topic).map(|v| v.iter().filter(|e| e.last_ms >= since).collect()).unwrap_or_default();
         Ok(serde_json::json!({"topic": topic, "window_s": window_s, "consumers": list, "bound": bound}))

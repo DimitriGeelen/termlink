@@ -392,7 +392,9 @@ fn a_full_table_never_evicts_an_inbox_read_inside_the_window() {
         record(d.path(), &format!("inbox:h/t{i}"), &claimed_r("fx-z"), Action::Read, n, &mut log).unwrap();
     }
     record(d.path(), "inbox:h/new", &claimed_r("fx-z"), Action::Read, n + 1, &mut log).unwrap();
-    assert!(listed(d.path(), "inbox:h/new", n + 1).is_empty(), "not recorded");
+    // r2 CC N1: the unrecorded inbox is answered as an error, never a clean empty list
+    let e = consumers(d.path(), "inbox:h/new", DEFAULT_WINDOW_S, n + 1).unwrap_err();
+    assert!(e.contains("table full"), "{e}");
     assert_eq!(listed(d.path(), "inbox:h/t0", n + 1).len(), 1, "the oldest active inbox kept");
     assert!(logged.borrow().iter().any(|r| r["event"] == "inbox-consumer-table-full"));
     // a day later the oldest inbox is out of the window and may be evicted
@@ -435,4 +437,44 @@ fn a_failed_save_makes_the_list_an_error_never_a_list() {
     std::fs::create_dir(consumers_path(d.path())).unwrap();
     record(d.path(), T, &claimed_r("fx-z"), Action::Read, n, &mut log).unwrap();
     assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, n).is_err(), "a list that could not be saved is not served");
+}
+
+#[test]
+fn capped_rows_keep_the_suppressed_count_until_written() {
+    // r2 CC N5
+    let minute = 1_800_000_000_000u64 / 60_000 * 60_000;
+    let mut rows_written: Vec<serde_json::Value> = Vec::new();
+    let mut ok = |r: serde_json::Value| {
+        rows_written.push(r);
+        Ok(())
+    };
+    for _ in 0..12 {
+        capped_row("t3700-test-kind", serde_json::json!({"event": "x"}), minute, &mut ok);
+    }
+    let mut fail = |_r: serde_json::Value| Err("log full".to_string());
+    capped_row("t3700-test-kind", serde_json::json!({"event": "x"}), minute + 60_000, &mut fail);
+    capped_row("t3700-test-kind", serde_json::json!({"event": "x"}), minute + 60_000, &mut ok);
+    assert_eq!(rows_written.len(), ROWS_PER_MINUTE as usize + 1);
+    assert_eq!(rows_written.last().unwrap()["suppressed"], 2, "{:?}", rows_written.last());
+}
+
+#[test]
+fn unreadable_bindings_count_as_bound() {
+    // r2 CC N2: the gate still applies to a missing topic when it is bound, and fails closed
+    let d = dir();
+    assert!(!is_bound(d.path(), T));
+    std::fs::write(bindings_path(d.path()), b"garbage").unwrap();
+    assert!(is_bound(d.path(), T));
+}
+
+#[test]
+fn the_reset_marker_survives_a_restart_before_any_record() {
+    // r2 CC N4
+    let d = dir();
+    std::fs::write(consumers_path(d.path()), b"{not json").unwrap();
+    reset(d.path());
+    let now = now_wall_ms();
+    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, now).is_err());
+    reset(d.path()); // a hub restart
+    assert!(consumers(d.path(), T, DEFAULT_WINDOW_S, now).is_err(), "still incomplete after the restart");
 }
