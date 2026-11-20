@@ -1,6 +1,6 @@
 # T-3708 mutants (P-24 slice a)
 
-Runner: `python3 crates/termlink-session/tests/mutants/run-t3708.py`. Full run after review round 2 fixes: 38/40 killed; m5e survived (test gap: the clock test's earlier jumps summed to zero) and m34 did not compile (an invalid mutant). Fixed (a direct registration check in t3708_clock; m34 rewritten) and rerun: 2/2 killed. Total 40/40. Not in the list: m35 (a failed held-since write is reported), which cannot be triggered while the tests run as root.
+Runner: `python3 crates/termlink-session/tests/mutants/run-t3708.py` — final run after review round 3, HEAD f1a2e8c0d: **45/45 killed**. Not in the list: a failed held-since write being reported (cannot be triggered while tests run as root; r2/r3 dispositions).
 
 | mutant | what | verdict |
 |---|---|---|
@@ -9,10 +9,12 @@ Runner: `python3 crates/termlink-session/tests/mutants/run-t3708.py`. Full run a
 | m3-idle-age-threshold | E-57 control: an idle agent turns bad by age alone | killed |
 | m4-per-agent-yes | E-58 control (r1 MAJOR 3): per_agent_accounts claims yes | killed |
 | m4b-root-host-separated | E-58 control: a root host reads as separated | killed |
-| m5-wall-time-deadlines | E-59 control (r1 BLOCKER/MAJOR 9): deadline ages follow the wall clock | killed |
-| m5b-jumps-by-wall-range | E-59: a stamp's side of a jump is guessed from wall values (fails after a backward jump) | killed |
+| m4c-shared-uid-separated | r3 MINOR 13: a uid shared between agents reads as separate accounts | killed |
+| m5-wall-time-deadlines | E-59 control: deadline ages follow the wall clock (no jump correction) | killed |
+| m5b-written-total-ignored | r3 MINOR 15/r2 MAJOR 1: every stamp is corrected by every jump, also those before it | killed |
 | m5c-deliver-wall-deadline | E-59: the receiver's hand-over deadline uses plain wall age | killed |
 | m5d-deliver-orders-wall-stamps | r2 MAJOR 2: the later of storing and readiness is picked by wall value | killed |
+| m5e-stamps-not-registered | r2 MAJOR 1: chain stamps are not registered when written | killed |
 | m6-unknown-counts-fresh | FCW-121: an unknown field does not hold CLEAR | killed |
 | m7-failed-pass-stamps-hub | FCW-120: a pass that could not reach the hub stamps `hub` fresh | killed |
 | m8-restart-is-fresh | 06a 2.13.f: a field never measured since start reads fresh | killed |
@@ -21,6 +23,8 @@ Runner: `python3 crates/termlink-session/tests/mutants/run-t3708.py`. Full run a
 | m11-v8-from-ready-only | V-8: a message stored after READY is overdue counted from READY | killed |
 | m12-hook-time-overwritten | V-8: a later hook call resets the first missed time | killed |
 | m27-pending-window-one-hour | r1 MAJOR 2: mail pending for more than an hour drops out of CLEAR | killed |
+| m36-clear-wall-order | r3 MINOR 7: CLEAR orders hand-overs and mail by raw wall value | killed |
+| m37-held-mail-pending | r3 finding 2: mail held for the operator counts as pending surfacing | killed |
 | m28-unknown-revocation-ok | r1 MAJOR 5: an unknown revocation line reads fine | killed |
 | m29-heartbeat-age-ignored | r1 MAJOR 5: an old heartbeat file with fresh component ages reads fine | killed |
 | m30-consumers-stamped-on-error | r1 MAJOR 4: a consumers check the hub did not answer stamps the field | killed |
@@ -29,6 +33,7 @@ Runner: `python3 crates/termlink-session/tests/mutants/run-t3708.py`. Full run a
 | m33-hook-miss-in-memory | r1 MAJOR 7: the hook-miss record is not kept | killed |
 | m13-e127-ignores-narrowing | E-127 reader: an unverified list past PN-13 fires even while narrowing | killed |
 | m14-e127-ignores-held-time | E-127 reader: a message stored before the key was held is flagged | killed |
+| m39-e127-wall-order | r3 MINOR 4: E-127 compares raw wall stamps | killed |
 | m15-skew-last-not-median | V-5: one slow round trip flags clock skew | killed |
 | m16-skew-threshold-30s | V-5: clock skew flagged only past 30 s | killed |
 | m17-ntp-guess | V-5: with no tools the NTP state is claimed synchronised | killed |
@@ -42,5 +47,7 @@ Runner: `python3 crates/termlink-session/tests/mutants/run-t3708.py`. Full run a
 | m25-hub-predates-is-fine | no verified list (`hub predates`) does not hold CLEAR | killed |
 | m26-invariant-ignored | a broken revocation invariant does not hold CLEAR | killed |
 | m10b-status-calls-the-hub | design mutant 10 (r2 MAJOR 5): status makes a hub call (blocks on a silent hub) | killed |
-| m5e-stamps-not-registered | r2 MAJOR 1: chain stamps are not registered when written | killed |
+| m38-filtered-rows | r3 finding 3: CLEAR over the rows a --conv request filtered | killed |
 | m34-unanchored-pending-ignored | r2 MAJOR 4: pending mail with nothing to measure from does not hold CLEAR | killed |
+
+45/45 killed
