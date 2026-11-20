@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:45Z
-last_update: 2026-11-20T10:07:04Z
+last_update: 2026-11-20T10:20:26Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -399,6 +399,15 @@ Unblocks: P-25 (T-3709), P-33 (T-3714), P-38 (T-3717); part of gate G-2.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-20 — D-1: slicing P-24 (operator ruling: "A")
+- **Chose:** A, two slices. (a) honest status (design 3.1-3.5, 3.7, 3.9, 3.10; E-19, E-55..E-59, E-134) under
+  T-3708; (b) reachability card + GP-4 offline lines (design 3.6, 3.8; E-60, E-61) as its own task, after (a).
+- **Why:** each live change stays reviewable (lesson of the e15e4c380 regression); (b) needs (a)'s fields anyway.
+  Brief scores: A +37, C +25, B -2, D -28 (`docs/reports/T-3708-design.md` section 6).
+- **Rejected:** B one unit (largest live change); C three slices (extra rounds; the steady-clock change is already
+  targeted by (a)'s reviews and mutant 5); D defer.
+- **Left open:** D-2 (quota field before P-17), next in the queue.
 
 ## Decision
 
