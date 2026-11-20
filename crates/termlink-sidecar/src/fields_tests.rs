@@ -60,6 +60,13 @@ fn wall_age(now: u64) -> impl Fn(u64) -> u64 {
     move |t: u64| now.saturating_sub(t)
 }
 
+// r1 MAJOR 6: rows carry this side's own time, never the peer's.
+#[test]
+fn rows_use_the_local_stamp_not_the_peer_clock() {
+    let rows = rows_of(&json!([{"msg_id": "m1", "stage": "STORED", "ts_ms": 1_000, "peer_ts_ms": 9_000_000}]));
+    assert_eq!(rows[0].ts_ms, 1_000);
+}
+
 // E-19 / E-55 (FCW-120): a field past its bound reads unknown, never its last value.
 #[test]
 fn e19_frozen_field_turns_unknown_after_its_bound() {

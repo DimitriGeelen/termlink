@@ -292,6 +292,8 @@ mod tests {
             assert!(v["same_user_separation"].as_str().unwrap().starts_with("absent"), "{v}");
         }
         assert_eq!(strength(None, 1001)["same_user_separation"], "absent (could not check)");
+        // a root sidecar among separated ones is shared, not separated
+        assert_eq!(strength(Some(&[p("a", 0), p("b", 1001)]), 1001)["per_agent_accounts"], "no: 2 agents run under 2 account(s)");
     }
 
     #[test]

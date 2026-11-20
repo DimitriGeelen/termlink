@@ -158,8 +158,29 @@ pub fn status(store: &Store, now_ms: u64) -> Value {
     }
 }
 
+/// T-3708 (FCW-120, r1 MAJOR 4): whether a check's verdict stamps the `consumers` field fresh. Only a
+/// verdict from a list the hub answered does; an `unknown (…)` verdict (no answer, an error, a malformed
+/// list) leaves the field to go unknown at its bound.
+pub fn stamps_field(v: &Verdict) -> bool {
+    !v.line.starts_with("unknown")
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn t3708_only_an_answered_list_stamps_the_field() {
+        let me = "ed25519:mine";
+        let unanswered = super::verdict("fx", "i1", me, Err((0, "hub unreachable: refused")));
+        assert!(!super::stamps_field(&unanswered), "{}", unanswered.line);
+        let odd = super::verdict("fx", "i1", me, Ok(&serde_json::json!({"nothing": 1})));
+        assert!(!super::stamps_field(&odd), "{}", odd.line);
+        let own = serde_json::json!({"bound": null, "consumers": [
+            {"agent": "fx", "instance": "i1", "strength": "proven", "key_fp": me, "actions": ["read"], "first_ms": 1, "last_ms": 2}]});
+        let one = super::verdict("fx", "i1", me, Ok(&own));
+        assert_eq!(one.line, "one (proven)");
+        assert!(super::stamps_field(&one));
+    }
+
     use super::*;
 
     const FP: &str = "ed25519:mine";

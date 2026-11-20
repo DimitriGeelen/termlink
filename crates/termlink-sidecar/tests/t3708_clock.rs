@@ -25,4 +25,67 @@ fn t3708_e59_deadline_ages_ignore_wall_jumps_on_the_real_clock_path() {
     let late = store::now_ms() - 1_000;
     assert!((1_000..3_000).contains(&fields::age_ms(late, store::now_ms())));
     store::test_shift_wall_ms(3_600_000);
+    fields::look();
+
+    // the receiver's hand-over deadline (deliver.rs) across a +1 h jump: no notice fires early
+    receiver_deadline_ignores_a_forward_jump();
+}
+
+fn receiver_deadline_ignores_a_forward_jump() {
+    use std::sync::Arc;
+    use std::time::Duration;
+    use termlink_sidecar::deadline::Deadlines;
+    use termlink_sidecar::deliver::Deliverer;
+    use termlink_sidecar::policy::BuiltIn;
+    use termlink_sidecar::send::{SendConfig, Sender};
+    use termlink_sidecar::store::Store;
+    use termlink_sidecar::testkit::Estate;
+    use termlink_sidecar::wire::{Msg, Roster};
+    let Ok(e) = Estate::create() else { panic!("no test hub: E-59 deliver part not run (not a PASS)") };
+    let ka = e.identity("a").unwrap();
+    let mut roster = Roster::new();
+    roster.add(ka.verifying_key());
+    let st = Arc::new(Store::open(&e.store_root(), "agent-b").unwrap());
+    let sender = Arc::new(
+        Sender::new(
+            SendConfig {
+                agent: "agent-b".into(),
+                instance: "inst-b".into(),
+                identity: e.identity("b").unwrap(),
+                hub: e.hub_addr(),
+                declared_hub_id: e.hub_id().unwrap(),
+                queue_path: e.root().join("outbox-b.sqlite"),
+                timeout: Duration::from_secs(15),
+                pump_interval: None,
+            },
+            st.clone(),
+        )
+        .unwrap(),
+    );
+    let d = Deliverer::new("agent-b", st.clone(), Box::new(BuiltIn::new(roster)), Some(sender));
+    let m = Msg {
+        from: ka.fingerprint().to_owned(),
+        from_agent: "agent-a".into(),
+        from_instance: "inst-a".into(),
+        to_agent: "agent-b".into(),
+        to_instance: "inst-b".into(),
+        conv: "c".into(),
+        msg_id: "h1".into(),
+        seq: 0,
+        priority: "0".into(),
+        ts_ms: 1,
+        body: "b".into(),
+    };
+    st.append_event(&m.conv, "RECEIVED", &m.msg_id, &m.from, &m.digest()).unwrap();
+    st.put(&m.from, &m.conv, &m.msg_id, &m.payload_bytes()).unwrap();
+    fields::look();
+    let now = store::now_ms();
+    d.mark_ready("s1", now).unwrap();
+    assert_eq!(d.check_overdue(store::now_ms(), &Deadlines::R44E), 0);
+    store::test_shift_wall_ms(3_600_000);
+    fields::look();
+    let fired = d.check_overdue(store::now_ms(), &Deadlines::R44E);
+    store::test_shift_wall_ms(-3_600_000);
+    fields::look();
+    assert_eq!(fired, 0, "a +1 h wall jump fired the hand-over deadline early");
 }

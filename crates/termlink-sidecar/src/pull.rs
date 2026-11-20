@@ -419,7 +419,7 @@ impl Inner {
         };
         crate::consumers::record(&self.store, &topic, &v, now);
         // T-3708 (FCW-120, r1 MAJOR 4): fresh only from a check the hub answered
-        if matches!(answer, Ok(RpcResponse::Success(_))) {
+        if crate::consumers::stamps_field(&v) {
             crate::fields::touch(crate::fields::CONSUMERS);
         }
     }

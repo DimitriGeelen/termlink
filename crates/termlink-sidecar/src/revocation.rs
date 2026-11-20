@@ -343,6 +343,8 @@ impl Tracker {
             let _ = store.write_state(SWITCH_SEEN_STATE, now_s);
         }
         if off {
+            // T-3708 (FCW-120): "off (PH-1 trust)" is this pass's evaluation too; unstamped it would read unknown
+            crate::fields::touch(crate::fields::REVOCATION);
             self.state = State::Off;
             publish(store, &BTreeSet::new(), false);
             self.write_status(store, "off (PH-1 trust)");
