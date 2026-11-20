@@ -1138,9 +1138,11 @@ async fn attach_loop(
 }
 
 /// T-3833: `--read-only` hands off to the mirror path, which drops the write half and never reads stdin.
+/// T-3838: the RAW mirror, so the viewer sees what `stream` shows (the same 100-line scrollback replay, then byte
+/// passthrough); the grid mirror draws only what changes after connecting (055's measurement).
 pub(crate) async fn cmd_stream(target: &str, read_only: bool) -> Result<()> {
     if read_only {
-        return cmd_mirror(target, 100, false, false).await;
+        return cmd_mirror(target, 100, true, false).await;
     }
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
@@ -1614,7 +1616,10 @@ mod tests {
         }
         let stream = body("cmd_stream");
         let ro = stream.find("if read_only").expect("cmd_stream checks read_only");
-        assert!(stream[ro..].starts_with("if read_only {\n        return cmd_mirror("), "--read-only must hand off to the mirror path first");
+        assert!(
+            stream[ro..].starts_with("if read_only {\n        return cmd_mirror(target, 100, true, false)"),
+            "--read-only must hand off first to the RAW mirror (same scrollback replay as stream, T-3838)"
+        );
         assert!(ro < stream.find("cfmakeraw").expect("raw mode"), "read-only must return before raw mode");
     }
 
