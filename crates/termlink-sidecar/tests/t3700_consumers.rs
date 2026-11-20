@@ -355,3 +355,14 @@ fn a_long_poll_opened_before_a_bind_does_not_deliver_after_it() {
     assert_eq!(r["error"]["code"], INBOX_BOUND, "{r}");
     println!("E-66 PASS (a long-poll that waited across the bind is refused)");
 }
+
+#[test]
+fn a_read_of_a_topic_that_does_not_exist_records_nothing() {
+    // r1 CC 3 / OC 2: junk inbox names cannot grow the hub's table
+    let e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let ghost = format!("inbox:{id}/no-such-agent");
+    let r = raw_read(&e, &ghost, Some(json!({"agent": "fx-z", "instance": "raw"})));
+    assert!(r.get("error").is_some(), "{r}");
+    assert!(consumers(&e, &ghost).is_empty());
+}
