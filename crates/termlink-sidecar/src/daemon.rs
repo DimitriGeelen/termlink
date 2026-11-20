@@ -286,6 +286,8 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     // B-16 (T-3697): the doorbell and its watchdog, OFF until `<store>/doorbell-on` exists.
     let doorbell = Arc::new(crate::doorbell::Runner::new(&cfg.agent, store.clone(), deliverer.clone(), meter.clone(), rpc.clone(), Some(lease_shared.clone())));
     api_cfg.doorbell = Some(doorbell.clone());
+    // T-3708 (V-5): the NTP state, sampled in the background so `status` never runs a command.
+    crate::host::start_ntp_sampler();
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
     let liveness = match liveness_monitor {
         None => None,
@@ -406,7 +408,12 @@ impl Running {
                 }
             }
         }
-        crate::beat::write(self.store.dir(), now, &beats, after)
+        let r = crate::beat::write(self.store.dir(), now, &beats, after);
+        // T-3708 (FCW-120): `supervision` is fresh only while the heartbeat is being written
+        if r.is_ok() {
+            crate::fields::touch(crate::fields::HEARTBEAT);
+        }
+        r
     }
 }
 

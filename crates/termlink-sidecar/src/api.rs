@@ -480,6 +480,11 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 let vl = vendor_log_view(ctx.hook_errlog, store);
                 v["vendor_log"] = vl["state"].clone();
                 v["vendor_log_detail"] = vl;
+                // T-3708 (P-24 slice a): stamped fields, CLEAR, host strength, skew (additive; design 3.0).
+                if crate::fields::enabled() {
+                    let ready = ctx.deliverer.and_then(|d| d.ready_since(crate::store::now_ms()));
+                    p24_fields(&mut v, crate::fields::global(), ready, crate::store::now_ms());
+                }
             }
             v
         }
@@ -497,6 +502,10 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "pull" => {
             if let (Some(m), Some(sess)) = (ctx.meter, obj.get("session").and_then(Value::as_str)) {
                 m.legacy_hook(sess, "post-tool-use", None, crate::meter::adapter_ord(obj));
+            }
+            // T-3708 (V-8): a hook call ran while these messages were pending; the first such time counts.
+            if let Some(d) = ctx.deliverer {
+                crate::fields::global().hook_call(&d.pending_ids());
             }
             pull(obj, ctx.deliverer, ctx.lease, agent)
         }
@@ -1293,6 +1302,36 @@ fn status_at(
         "supervision": crate::beat::view(store.dir(), now_ms),
         "activity_veto": crate::activity::host_availability(),
     })
+}
+
+/// T-3708 (P-24 slice a; AL-29, arch 6.7.1; design 3.1-3.5): add `fields` (each stamped, or
+/// `unknown (last at T)` past its bound), `clear`, and `strength_host` to a status reply. Additive:
+/// no existing key is touched. CLEAR is judged over this agent's own fields; the main's liveness is
+/// another agent's state and keeps its own verdict under `main`.
+pub(crate) fn p24_fields(v: &mut Value, reg: &crate::fields::Registry, ready_since: Option<u64>, now_wall: u64) {
+    use crate::fields::{self as f, BOUND_DAILY_MS, BOUND_HEARTBEAT_MS, BOUND_TICKS_MS};
+    let mono = reg.clock().mono_ms();
+    let rows = f::rows_of(&v["rows"]);
+    let missed = |id: &str| reg.hook_missed_at(id);
+    let strength = crate::host::strength_now();
+    let mut m = serde_json::Map::new();
+    m.insert("mode".into(), f::computed(&v["mode"], now_wall));
+    m.insert("binary".into(), f::computed(&v["binary"], now_wall));
+    m.insert("hub".into(), f::render(&v["hub"], reg.last(f::PULL), BOUND_TICKS_MS, mono));
+    m.insert("revocation".into(), f::render(&v["revocation"], reg.last(f::PULL), BOUND_TICKS_MS, mono));
+    m.insert("consumers".into(), f::render(&v["consumers"], reg.last(f::CONSUMERS), 2 * crate::consumers::CHECK_EVERY_MS, mono));
+    m.insert("supervision".into(), f::render(&v["supervision"], reg.last(f::HEARTBEAT), BOUND_HEARTBEAT_MS, mono));
+    // T-3708 D-2 (operator ruling A): no receiver quotas yet (P-17), so nothing can refuse receipts.
+    m.insert("quota".into(), f::computed(&json!(f::QUOTA_NOT_BUILT), now_wall));
+    m.insert("strength".into(), f::computed(&strength, now_wall));
+    let skew = crate::host::skew_view().unwrap_or(Value::Null);
+    m.insert("skew".into(), f::render(&skew, reg.last(f::SKEW), BOUND_TICKS_MS, mono));
+    let ntp = crate::host::ntp_view().map(Value::from).unwrap_or(Value::Null);
+    m.insert("ntp".into(), f::render(&ntp, reg.last(f::NTP), BOUND_DAILY_MS, mono));
+    m.insert("last_surface".into(), f::computed(&f::last_surface(&rows, ready_since, &missed, now_wall), now_wall));
+    v["clear"] = f::clear(&m, &rows, now_wall);
+    v["fields"] = Value::Object(m);
+    v["strength_host"] = strength;
 }
 
 /// Own strength flags: (name, present, text shown when absent).

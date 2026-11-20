@@ -414,6 +414,8 @@ impl Inner {
             Err(e) => crate::consumers::verdict(me, inst, &fp, Err((0, &format!("hub unreachable: {e}")))),
         };
         crate::consumers::record(&self.store, &topic, &v, now);
+        // T-3708 (FCW-120): the check ran; its value says when it could not see (`unknown (...)`)
+        crate::fields::touch(crate::fields::CONSUMERS);
     }
 
     fn cursor(&self) -> u64 {
@@ -453,6 +455,8 @@ impl Inner {
         let version = match self.check_pin() {
             Ok(version) => {
                 mem.held = None;
+                // T-3708 (FCW-120): the hub was read; `hub` and `revocation` are fresh from this pass.
+                crate::fields::touch(crate::fields::PULL);
                 self.observe_impersonation();
                 version
             }
@@ -481,6 +485,7 @@ impl Inner {
         let mut handled = 0;
         loop {
             let cursor = self.cursor();
+            let before = crate::store::now_ms();
             let resp = match self.rpc(
                 method::CHANNEL_SUBSCRIBE,
                 // T-3700 (AL-30, ruling E): a named, signed read of our own inbox (proven consumer)
@@ -490,6 +495,10 @@ impl Inner {
                 Ok(r) => r,
                 Err(_) => return PassResult::Waiting,
             };
+            // T-3708 (V-5): this round trip is a skew sample when the hub reports its time
+            if let RpcResponse::Success(s) = &resp {
+                crate::host::record_round_trip(before, crate::store::now_ms(), s.result.get("hub_now_ms").and_then(Value::as_u64));
+            }
             let page = match resp {
                 RpcResponse::Success(s) => s.result,
                 RpcResponse::Error(e) if e.error.code == error_code::CHANNEL_TOPIC_UNKNOWN => {

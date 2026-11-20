@@ -360,6 +360,11 @@ impl Deliverer {
             .find(|p| p.is_file())
     }
 
+    /// T-3708 (V-8): ids of the messages that may be offered now (stored, not handed over).
+    pub fn pending_ids(&self) -> Vec<String> {
+        self.candidates().into_iter().map(|c| c.msg_id).collect()
+    }
+
     /// Everything that may be offered now, in delivery order (urgent first, then
     /// oldest first).
     fn candidates(&self) -> Vec<Candidate> {
