@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3836: Consult AEF T-5300: 'withdrawn' outcome for a dispatched-never-started pool job (shared worker contract v0.3.4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-20T16:10:50Z
+# ============================================================================
+
+task_id: T-3836
+task_name: "Consult AEF T-5300: 'withdrawn' outcome for a dispatched-never-started pool job (shared worker contract v0.3.4)"
+workflow_type: design
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-20T12:46:53Z
+completed: 2026-11-20T16:10:26Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-20T17:10:23+01:00
+last_commit: 2026-11-20T17:10:23+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  AEF T-5300 consult answered (withdrawn outcome: T3b variant, supervisor-token holder only, CAS sufficient with T2-before-launch); build captured as T-3837
+
+# Key outcomes
+outcomes:
+  - 'AEF''s three questions answered from our code on consult-010-termlink, in reply to dd599e15 (sent 2026-11-20, client_msg_id ab85e88e): agree + T3b-variant shape; who may withdraw = holder of the attempt''s nonce + supervisor token from `dispatch.allocate` (hub never, operator only via a separate command); CAS sufficient (one IMMEDIATE transaction each side), with the requirement "start the worker only after T2 succeeded" and the evidence_digest / open-answers points for v0.3.4.'
+  - 'The backend build is captured for when v0.3.4 is published: T-3837 (horizon later), with its conformance vectors named.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3836-consult-aef-t-5300-withdrawn-outcome-for.md'
+  - '.tasks/active/T-3837-worker-contract-wc034-withdrawn-outcome-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-20T17:10:23'
+    action: 'T-3836: AEF T-5300 consult answered (withdrawn outcome: T3b variant, supervisor-token holder only, CAS sufficient with T2-before-launch); build captured as T-3837'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 203 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 203
+  commits: 2
+  files_changed: 5
+  lines_added: 886
+  lines_removed: 4
+  footprint_refreshed_at: '2026-11-20T16:11:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3836-consult-aef-t-5300-withdrawn-outcome-for.md
+generated_by: context-agent-hybrid

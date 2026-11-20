@@ -25011,3 +25011,21 @@ scan_id: R-a2fc2820
 task_id: T-3708
 payload:
   task_file: .tasks/active/T-3708-p-24-b-14-status-strength-flags-reachabi.md
+---
+kind: scan_emitted
+timestamp: '2026-11-20T16:10:27Z'
+scan_id: R-433245f7
+task_id: T-3836
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-20T16:10:27Z'
+scan_id: R-433245f7
+task_id: T-3836
+payload:
+  task_file: .tasks/active/T-3836-consult-aef-t-5300-withdrawn-outcome-for.md
