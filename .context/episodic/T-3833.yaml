@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3833: termlink pty stream forwards stdin when used as a viewer (no read-only mode): injected stray input into a live claude session
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-20T16:24:28Z
+# ============================================================================
+
+task_id: T-3833
+task_name: "termlink pty stream forwards stdin when used as a viewer (no read-only mode): injected stray input into a live claude session"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-20T11:24:58Z
+completed: 2026-11-20T16:23:32Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-20T17:23:25+01:00
+last_commit: 2026-11-20T17:23:25+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  pty stream --read-only (mirror path: read half only, no raw mode, no stdin); interactive stream says keystrokes are sent and names pty mirror; tests pin the flag and that mirror never writes; 055 told
+
+# Key outcomes
+outcomes:
+  - '`termlink pty stream --read-only <target>` and `termlink stream --read-only <target>` take the mirror path (no raw mode, write half dropped, stdin never read); clap tests pin the flag on both forms.'
+  - 'Interactive `stream` prints that keystrokes ARE sent and names `termlink pty mirror` / `--read-only` for watching.'
+  - 'A test pins that the mirror loops never write to the data plane (they keep only the read half).'
+  - '055 told the verb/flag on conversation stray-input-t755.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3833-termlink-pty-stream-forwards-stdin-when-.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/pty.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-20T17:23:25'
+    action: 'T-3833: pty stream --read-only (mirror path: read half only, no raw mode, no stdin); interactive stream says keystrokes are sent and names pty mirror; tests pin the flag and that mirror never writes; 055 told'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 298 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 298
+  commits: 2
+  files_changed: 7
+  lines_added: 219
+  lines_removed: 20
+  footprint_refreshed_at: '2026-11-20T16:24:35Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3833-termlink-pty-stream-forwards-stdin-when-.md
+generated_by: context-agent-hybrid

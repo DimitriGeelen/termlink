@@ -25029,3 +25029,21 @@ scan_id: R-433245f7
 task_id: T-3836
 payload:
   task_file: .tasks/active/T-3836-consult-aef-t-5300-withdrawn-outcome-for.md
+---
+kind: scan_emitted
+timestamp: '2026-11-20T16:24:12Z'
+scan_id: R-433ab946
+task_id: T-3833
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-20T16:24:12Z'
+scan_id: R-433ab946
+task_id: T-3833
+payload:
+  task_file: .tasks/active/T-3833-termlink-pty-stream-forwards-stdin-when-.md
