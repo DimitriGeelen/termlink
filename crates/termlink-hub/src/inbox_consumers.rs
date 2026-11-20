@@ -113,12 +113,15 @@ pub struct Refusal {
     pub reason: String,
 }
 
+/// Looks up the signing key (raw 32 bytes) on an agent's card: `Ok(None)` without a card.
+pub type CardKeyLookup<'a> = &'a dyn Fn(&str) -> Result<Option<[u8; 32]>, String>;
+
 /// What [`assess`] needs from the hub, injectable for tests.
 pub struct Lookups<'a> {
     /// The hub's id; `None` when the identity is not loaded (nothing can be proven).
     pub hub_id: Option<&'a str>,
     /// The signing key (raw 32 bytes) on an agent's card, `Ok(None)` without a card.
-    pub card_key: &'a dyn Fn(&str) -> Result<Option<[u8; 32]>, String>,
+    pub card_key: CardKeyLookup<'a>,
     /// The fingerprints on the hub's revocation list.
     pub revoked: &'a dyn Fn() -> Result<BTreeSet<String>, String>,
 }
@@ -411,7 +414,9 @@ pub type AdminLog<'a> = &'a mut dyn FnMut(serde_json::Value) -> Result<(), Strin
 /// Write a capped admin row of one kind: at most [`ROWS_PER_MINUTE`] a minute; the rest are counted and the
 /// count rides on the next written row as `suppressed` (r1 CC 3, CC 13).
 fn capped_row(kind: &'static str, mut row: serde_json::Value, now_ms: u64, log: AdminLog<'_>) {
-    static WIN: Mutex<Option<HashMap<&'static str, (u64, u32, u64)>>> = Mutex::new(None);
+    /// Per row kind: (current minute, rows written this minute, rows suppressed since the last written row).
+    type Windows = Option<HashMap<&'static str, (u64, u32, u64)>>;
+    static WIN: Mutex<Windows> = Mutex::new(None);
     let mut g = WIN.lock().unwrap_or_else(|p| p.into_inner());
     let w = g.get_or_insert_with(HashMap::new).entry(kind).or_insert((0, 0, 0));
     let minute = now_ms / 60_000;

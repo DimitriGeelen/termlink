@@ -30,10 +30,10 @@ pub struct Proc {
 /// (`termlink sidecar start --config …/<agent>.json`) or the framework one (`--agent <agent>`).
 pub fn sidecar_agent(argv: &[String]) -> Option<String> {
     let s: Vec<&str> = argv.iter().map(String::as_str).collect();
-    if let Some(i) = s.iter().position(|a| *a == "--agent") {
-        if s.iter().any(|a| a.ends_with("http_server.py")) {
-            return s.get(i + 1).map(|a| a.to_string());
-        }
+    if let Some(i) = s.iter().position(|a| *a == "--agent")
+        && s.iter().any(|a| a.ends_with("http_server.py"))
+    {
+        return s.get(i + 1).map(|a| a.to_string());
     }
     if s.windows(2).any(|w| w == ["sidecar", "start"]) {
         let i = s.iter().position(|a| *a == "--config")?;

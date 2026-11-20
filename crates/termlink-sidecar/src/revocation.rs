@@ -178,10 +178,11 @@ pub fn e127_broken(
         .find_map(|p| status_line.strip_prefix(p))
         .and_then(|r| r.split_whitespace().next())
         .and_then(|n| n.parse::<u64>().ok());
-    if let Some(t) = since {
-        if now.saturating_sub(t) > PN13.as_millis() as u64 && !narrowing_now {
-            out.push(format!("revocation list unverified since {t}, longer than PN-13, and the narrowing is not applied"));
-        }
+    if let Some(t) = since
+        && now.saturating_sub(t) > PN13.as_millis() as u64
+        && !narrowing_now
+    {
+        out.push(format!("revocation list unverified since {t}, longer than PN-13, and the narrowing is not applied"));
     }
     for (id, from, at) in stored {
         if from.len() < 16 {

@@ -1,0 +1,119 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3837: Worker contract wc/0.3.4: 'withdrawn' outcome (dispatched -> done) in the TermLink backend + conformance vectors
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-20T20:22:11Z
+# ============================================================================
+
+task_id: T-3837
+task_name: "Worker contract wc/0.3.4: 'withdrawn' outcome (dispatched -> done) in the TermLink backend + conformance vectors"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-20T16:10:03Z
+completed: 2026-11-20T20:21:19Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-11-20T17:45:39+01:00
+last_commit: 2026-11-20T21:21:10+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator ruling A — TermLink adopts shared worker contract v0.3.4 item 3 (withdrawn, T3w); horizon now; AEF told. operator ruling A — adopt v0.3.4 item 1 (refusal before rule 1; no build). operator ruling B on v0.3.4 item 2 (adopt only with TermLink's amendments); external item-2 reviews (claude-code + opencode: adopt with amendments, same six weaknesses) saved; task context + ACs. TermLink's v0.3.4 position (items 1+3 adopted, item 2 only with amendments A1-A6) sent to AEF and ring20. wc v0.3.4 T3w withdrawn in the hub store + reader rule; CC-26..29 adapter (23 pass, 1 disputed variant); RPC gated until all three adopt. CC-26..29 all pass against AEF 4b1d2304e (CC-26 fixed by AEF T-5319): 29 cases, 24 pass, 0 fail; T-3840 filed to switch withdraw on after adoption
+
+# Key outcomes
+outcomes:
+  - 'Item-2 reviews saved under `docs/reports/T-3837-reviews/`, and TermLink''s amendment set (fenced close CAS; closure fences T1 only; declared `closure` capability with split CC-15/CC-19; credentialed close; terminal closure + `retry_of_dispatch_id`; first close wins + history) sent to AEF and ring20 with the operator''s adoption of items 1 and 3.'
+  - 'T3w built in `worker_contract.rs`: dispatched -> done{withdrawn} only from dispatched, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden_transition; repeat -> T8 dedupe; different-reason withdrawal -> forbidden_transition; late real completion -> done_conflict; closes open answers.'
+  - 'Conformance vectors CC-26..CC-29 pass on our backend, plus the reader rule (unknown outcome = terminal, not finished).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'CC-26..29 all pass against AEF 4b1d2304e (CC-26 fixed by AEF T-5319): 29 cases, 24 pass, 0 fail; T-3840 filed to switch withdraw on after adoption'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-20 — Adopt shared worker contract v0.3.4 item 3 ("withdrawn", T3w)? (operator ruling: "A")'
+    chose: 'A — TermLink adopts item 3 as drafted by AEF (T-5311, commit 90202e700 on AEF bleeding-edge): T3w = dispatched -> done{withdrawn}, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden_transition; same withdrawal repeated = T8 dedupe; different-reason withdrawal = forbidden_transition; late real completion = done_conflict; only the holder of the nonce + supervisor_token from dispatch.allocate (Execute scope); hub sweep never withdraws; evidence_digest = sha256(reason), result_kind none; closes open questions; T2 rule: launch only after T2 accepted (a launch failure after T2 ends through T3 as failed); vectors CC-26..CC-29; reader rule: an unknown outcome is terminal, not finished work.'
+    rationale: 'our own proposal (T-3836), checked against `worker_contract.rs`; the race is settled by the existing CAS; ring20 needs it this week. Brief scores: A +26, B +16, D -5, C -17.'
+    alternatives_rejected: ['B (wait for items 1 and 2: delays a self-contained change), C (no withdrawal), D (defer). - **Left open:** v0.3.4 items 1 and 2 are separate decisions, not yet read.']
+  - decision: '2026-11-20 — Adopt v0.3.4 item 1 (refusal before rule 1)? (operator ruling: "A")'
+    chose: 'A — adopt. Rule 1 (hand-back missing/malformed -> handback-malformed) applies only to a worker that ran; a run.sh or supervisor refusal yields refused via rule 2 even with no hand-back; rule numbers unchanged.'
+    rationale: 'it states what our backend already does (`worker_contract.rs` derive_outcome: the refused flag outranks the hand-back check) and our tests pin (CC-16, CC-21, CC-25, `worker_contract/tests.rs:344`); no build needed. Brief scores: A +22, B +10, D 0, C -15.'
+    alternatives_rejected: ['B (tie to item 2), C (spec stays ambiguous), D (defer). - **Left open:** item 2 (optional dispatch closure), next.']
+  - decision: '2026-11-20 — Adopt v0.3.4 item 2 (optional dispatch closure)? (operator ruling: "B")'
+    chose: 'B — adopt only with TermLink''s amendments, as our condition: (1) close is one fenced transaction with CAS on (last attempt, last state ∈ {done, lost}); commit order decides close vs T1; (2) closure fences T1 only, every attempt-level transition stays legal, finishedness computed from attempts; (3) a declared `closure: never|supported` capability, `dispatch_closed` only with a readable closure record, CC-15/CC-19 split per arrangement (no "accept either"), clients treat an unknown fence reason as a non-retryable refusal; (4) close authenticated by the last attempt''s supervisor credential or a declared backend policy, actor derived from the credential; (5) closure terminal, recovery = new dispatch with `retry_of_dispatch_id`, readers expose closed / finished / last outcome separately; (6) first close wins, repeats return the stored record, every close and `dispatch_closed` refusal writes history. Proposed vectors CC-30..CC-43 (reviewers'' numbering).'
+    rationale: 'an external review (claude-code and opencode, independently) found the same six weaknesses, five high: close vs T1 race, late lost->done after close, unauthenticated actor, no recovery from a wrong close, "accept either" disarming CC-15/CC-19, repeat/audit. All amendments are additive; our hub''s cost is a typed refusal of close and tolerance of the new reason. Reviews: `docs/reports/T-3837-reviews/`.'
+    alternatives_rejected: ['A (adopt as drafted: leaves every hard case to each backend), C (minimum 1-3 only), D (not adopt).']
+  - decision: '2026-11-20 — T3w build choices (agent, within the operator''s ruling A on item 3)'
+    chose: '1. The store implements T3w as a `withdraw: Option<Withdrawal{actor, reason}>` on `TransitionRequest` with `to: done`. The digest is computed as sha256(reason); actor and reason go in two new `wc_history` columns, shown on that row only. 2. The RPC (`dispatch.transition`) refuses `withdraw` while `WITHDRAW_LIVE = false`, because the spec says no backend emits `withdrawn` before all three owners adopt v0.3.4. Flip it once AEF''s operator adopts. 3. The reader rule is `finished_work()`: done, not attested, and outcome in {succeeded, failed, refused, handback-malformed}. Anything else, including an outcome this reader does not know, is `not_finished_work`. The adapter''s `consume` op calls it, so CC-19 and CC-22 now pass too. 4. A start (T2) on `lost` is `forbidden_transition` whatever prior it expected (CC-20). Otherwise a CAS miss is `cas_mismatch` (CC-27). The adapter''s start now always expects `dispatched`. 5. `run-wc-vectors.sh` keeps v0.3.3 (18c6e0042) as its default until adoption; v0.3.4 runs with `--ref ea8379a56`.'
+    rationale: 'each choice follows the spec text at ea8379a56 (§3.3 T3w, §3.2 submitter, the v0.3.4 status line).'
+    alternatives_rejected: ['1. Serving withdraw over the RPC now. That breaks the spec''s "no backend emits withdrawn before adoption". 2. Allowing a worker question while `dispatched` to fit CC-26 answer-channel (see the open finding below). - **Open finding (sent to AEF):** CC-26''s answer-channel variant asks a question on a `dispatched` attempt. Our store refuses it (`answer.rs:289`: only a running or unknown worker asks). The spec''s own T2 rule says no agent child runs before T2, so no worker can have asked. **Resolved:** AEF agreed and fixed it (their T-5319, commit 4b1d2304e): one un-acked dispatcher answer with no question_id, deadline clock+600, expected state `undelivered`. Result at 4b1d2304e: 29 cases, pass 24, fail 0, not-implemented 4, n/a 1; CC-26 passes every variant. Earlier result at ea8379a56: pass 23, fail 1 (that variant only), not-implemented 4, n/a 1.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3835.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3837-worker-contract-wc034-withdrawn-outcome-.md'
+  - '.tasks/active/T-3840-serve-wc-v034-withdraw-over-dispatchtran.md'
+  - '.tasks/completed/T-3835-client-treats-any-127001localhost1-hub-a.md'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/tests.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/tests/wc_conformance.rs'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+  - 'docs/reports/T-3837-reviews/item2-bundle.md'
+  - 'docs/reports/T-3837-reviews/item2-independence.json'
+  - 'docs/reports/T-3837-reviews/item2-prompt.md'
+  - 'docs/reports/T-3837-reviews/item2-review-claude-code.md'
+  - 'docs/reports/T-3837-reviews/item2-review-opencode.md'
+  - 'scripts/run-wc-vectors.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-20T17:45:39'
+    action: 'T-3837: operator ruling A — TermLink adopts shared worker contract v0.3.4 item 3 (withdrawn, T3w); horizon now; AEF told'
+  - time: '2026-11-20T18:05:37'
+    action: 'T-3837: operator ruling A — adopt v0.3.4 item 1 (refusal before rule 1; no build)'
+  - time: '2026-11-20T18:33:26'
+    action: 'T-3837: operator ruling B on v0.3.4 item 2 (adopt only with TermLink''s amendments); external item-2 reviews (claude-code + opencode: adopt with amendments, same six weaknesses) saved; task context + ACs'
+  - time: '2026-11-20T18:33:53'
+    action: 'T-3837: TermLink''s v0.3.4 position (items 1+3 adopted, item 2 only with amendments A1-A6) sent to AEF and ring20'
+  - time: '2026-11-20T20:44:09'
+    action: 'T-3837: wc v0.3.4 T3w withdrawn in the hub store + reader rule; CC-26..29 adapter (23 pass, 1 disputed variant); RPC gated until all three adopt'
+  - time: '2026-11-20T21:21:10'
+    action: 'T-3837: CC-26..29 all pass against AEF 4b1d2304e (CC-26 fixed by AEF T-5319): 29 cases, 24 pass, 0 fail; T-3840 filed to switch withdraw on after adoption'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 251 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 251
+  commits: 7
+  files_changed: 27
+  lines_added: 1870
+  lines_removed: 70
+  footprint_refreshed_at: '2026-11-20T21:28:20Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3837-worker-contract-wc034-withdrawn-outcome-.md
+generated_by: context-agent-hybrid

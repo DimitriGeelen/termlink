@@ -103,10 +103,10 @@ fn boottime_ms() -> Option<u64> {
 impl Clock for SystemClock {
     fn mono_ms(&self) -> u64 {
         // one source for the life of the process: a failed call keeps the last-known base, never switches
-        if self.boot {
-            if let Some(t) = boottime_ms() {
-                return t;
-            }
+        if self.boot
+            && let Some(t) = boottime_ms()
+        {
+            return t;
         }
         self.start.elapsed().as_millis() as u64
     }
@@ -185,10 +185,10 @@ impl Registry {
         if j.at_write.contains_key(&stamp_wall) {
             return;
         }
-        if j.at_write.len() >= AGES_CAP {
-            if let Some(old) = j.order.pop_front() {
-                j.at_write.remove(&old);
-            }
+        if j.at_write.len() >= AGES_CAP
+            && let Some(old) = j.order.pop_front()
+        {
+            j.at_write.remove(&old);
         }
         let t = j.total;
         j.at_write.insert(stamp_wall, t);
@@ -306,10 +306,11 @@ pub fn pending(rows: &[Row], deliverable: Option<&[String]>) -> Vec<(String, u64
     let mut ids: Vec<&str> = rows.iter().filter(|r| r.stage == "STORED").map(|r| r.msg_id.as_str()).collect();
     ids.sort();
     ids.dedup();
+    let has = |id: &str, stage: &str| rows.iter().any(|r| r.msg_id == id && r.stage == stage);
     ids.into_iter()
         .filter(|id| !rows.iter().any(|r| r.msg_id == *id && matches!(r.stage.as_str(), "HANDED_OVER" | "SENT" | "REFUSED" | "DENIED")))
         // held for the operator (and not admitted): a decision the operator owes, shown in `held`, not surfacing
-        .filter(|id| !(rows.iter().any(|r| r.msg_id == *id && r.stage == "HELD") && !rows.iter().any(|r| r.msg_id == *id && r.stage == "ADMITTED")))
+        .filter(|id| !has(id, "HELD") || has(id, "ADMITTED"))
         .filter(|id| deliverable.is_none_or(|d| d.iter().any(|x| x == id)))
         .filter_map(|id| rows.iter().filter(|r| r.msg_id == id && r.stage == "STORED").map(|r| r.ts_ms).min().map(|t| (id.to_string(), t)))
         .collect()

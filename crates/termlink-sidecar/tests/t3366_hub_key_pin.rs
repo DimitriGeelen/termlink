@@ -221,8 +221,7 @@ fn e37_concurrent_first_contacts_with_different_offers_pin_once() {
     let h = "0123456789abcdef";
     let offers: Vec<String> = (0..8).map(|i| format!("ed25519:{}", format!("{i:x}").repeat(64))).collect();
     let hs: Vec<_> = offers
-        .iter()
-        .cloned()
+        .into_iter()
         .map(|off| {
             let st = store.clone();
             std::thread::spawn(move || hub_key_pin::observe(&st, h, &json!({"hub_id": h, "signing_key": off}), true))

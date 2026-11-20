@@ -294,7 +294,9 @@ type Stamp = (u64, u128, String);
 static KEY_CACHE: Mutex<BTreeMap<PathBuf, (Stamp, BTreeSet<String>)>> = Mutex::new(BTreeMap::new());
 /// Committed-row keys per admin log, by the log's (len, mtime ns): a pending reconcile no longer re-reads the whole
 /// log on every carded post (T-3823, T-3703 r3 CC N5).
-static COMMITTED_CACHE: Mutex<BTreeMap<PathBuf, ((u64, u128), BTreeSet<String>)>> = Mutex::new(BTreeMap::new());
+/// A log's (len, mtime ns) and the committed-row keys read at that point.
+type CommittedEntry = ((u64, u128), BTreeSet<String>);
+static COMMITTED_CACHE: Mutex<BTreeMap<PathBuf, CommittedEntry>> = Mutex::new(BTreeMap::new());
 
 fn len_mtime(p: &Path) -> Option<(u64, u128)> {
     let m = std::fs::metadata(p).ok()?;

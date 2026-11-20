@@ -540,7 +540,9 @@ pub fn refusal_counts() -> serde_json::Value {
 
 /// Admin rows for refusals are coalesced per (claimed agent, poster key, minute) so a token
 /// holder cannot flood the admin log (design v2, C-12). True = write a row for this one.
-static LOGGED: Mutex<(u64, Option<HashSet<(String, String)>>)> = Mutex::new((0, None));
+/// The current minute and the (claimed agent, poster key) pairs already logged in it.
+type LoggedMinute = (u64, Option<HashSet<(String, String)>>);
+static LOGGED: Mutex<LoggedMinute> = Mutex::new((0, None));
 /// At most this many refusal rows per minute for CARDED agents (r2 MAJOR 7). Refusals naming an
 /// agent without a card are coalesced under one key per signer, so made-up names can neither flood
 /// the log nor use up the carded budget (r3 MAJOR: a real impersonation is always logged).

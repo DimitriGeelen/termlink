@@ -1,20 +1,11 @@
 ---
-id: T-3837
-name: "Worker contract wc/0.3.4: 'withdrawn' outcome (dispatched -> done) in the TermLink
-  backend + conformance vectors"
+id: T-3841
+name: "Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)"
 description: >
-  From T-3836 (AEF T-5300 consult, ring20 T-2790). Build when AEF publishes shared-worker-contract
-  v0.3.4: T3b variant to=done from expected_prior=dispatched with a withdrawn flag
-  -> outcome 'withdrawn'; only from actual dispatched, current attempt, matching sgen;
-  running -> cas_mismatch; done/lost/unknown -> forbidden (repeat = T8 dedupe); credential
-  = the attempt's nonce + supervisor token from dispatch.allocate; evidence_digest
-  per v0.3.4 (we proposed sha256 of the reason, result_kind none); closes open answers.
-  Vectors: withdraw from dispatched; withdraw vs T2 race (one wins, loser cas_mismatch);
-  withdraw from running; repeat deduped. Files: crates/termlink-bus/src/worker_contract.rs,
-  crates/termlink-hub/src/dispatch_contract.rs, crates/termlink-hub/tests/wc_conformance.
+  Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)
 
 status: started-work
-workflow_type: build
+workflow_type: refactor
 owner: agent
 horizon: now
 tags: []
@@ -46,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-20T16:10:03Z
-last_update: 2026-11-20T20:21:10Z
-date_finished:
+created: 2026-11-20T21:08:46Z
+last_update: 2026-11-20T21:28:16Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -59,44 +50,26 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-11-20T17:32:42Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 0
-      D2: 0
-      D3: 0
-      D4: 0
-      F-RECALL: 2
-    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
-      (no-signal); F-RECALL=2 (body:lightly-promoted)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3837: Worker contract wc/0.3.4: 'withdrawn' outcome (dispatched -> done) in the TermLink backend + conformance vectors
+# T-3841: Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)
 
 ## Context
 
-**Background / trigger:** shared worker contract v0.3.4 (DRAFT, AEF T-5311) carries three items; the operator ruled on
-2026-11-20: item 3 (withdrawn, T3w) A = adopt; item 1 (refusal before rule 1) A = adopt; item 2 (optional dispatch
-closure) B = adopt only with TermLink's amendments, after an external review (claude-code + opencode, both "adopt with
-amendments").
+**Background / trigger:** checking T-3835 on 2026-11-20, `cargo clippy -p termlink --all-targets -- -D warnings` stopped before it reached the CLI crate. Nine lints stopped it: 5 in termlink-sidecar (4 collapsible_if, 1 nonminimal_bool; from today's P-24 work in T-3708) and 4 in termlink-hub (type_complexity).
 
-**Problem / hypothesis:** TermLink's backend (`crates/termlink-bus/src/worker_contract.rs`, hub
-`dispatch_contract.rs`) must implement T3w and stay conformant; item 2 as drafted leaves races, authentication,
-recovery and conformance to each backend.
+**Problem / hypothesis:** while those crates fail clippy, no change to the CLI or session crates can be clippy-checked without switching lints off. T-3835 had to be checked that way.
 
-**Goal:** build T3w with CC-26..CC-29; put TermLink's item-2 amendment set to AEF and ring20; record the reviews.
+**Goal:** clippy with `-D warnings` passes for the whole workspace.
 
-**Expected outcome:** our backend passes the v0.3.4 vectors; item 2 is adopted only in its amended form.
+**Expected outcome:** the same behaviour, the 9 lints gone, and plain workspace clippy exits 0.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Item-2 reviews saved under `docs/reports/T-3837-reviews/`, and TermLink's amendment set (fenced close CAS; closure fences T1 only; declared `closure` capability with split CC-15/CC-19; credentialed close; terminal closure + `retry_of_dispatch_id`; first close wins + history) sent to AEF and ring20 with the operator's adoption of items 1 and 3.
-- [x] T3w built in `worker_contract.rs`: dispatched -> done{withdrawn} only from dispatched, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown -> forbidden_transition; repeat -> T8 dedupe; different-reason withdrawal -> forbidden_transition; late real completion -> done_conflict; closes open answers.
-- [x] Conformance vectors CC-26..CC-29 pass on our backend, plus the reader rule (unknown outcome = terminal, not finished).
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` exits 0, with no `#[allow]` added for the nine lints (a named `type` alias for each complex type). Once those nine were gone, clippy reached two more in sidecar tests (`redundant_iter_cloned`, `unnecessary_to_owned`/`needless_borrow`); those are fixed too.
+- [x] `cargo test -p termlink-hub -p termlink-sidecar` passes unchanged (1105 passed, 0 failed).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,10 +144,8 @@ recovery and conformance to each backend.
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
-env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-bus worker_contract::tests::t3w > /tmp/t3837-bus.out 2>&1 && grep -q "test result: ok. 6 passed" /tmp/t3837-bus.out
-env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-bus worker_contract::tests::reader_rule > /tmp/t3837-rr.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3837-rr.out
-env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3837-rt cargo test -p termlink-hub dispatch_transition_withdraw_over_rpc > /tmp/t3837-hub.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3837-hub.out
-bash scripts/run-wc-vectors.sh --ref 4b1d2304e > /tmp/t3837-wc.out 2>&1 && grep -q "fail=0" /tmp/t3837-wc.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3841-rt cargo clippy --workspace --all-targets -- -D warnings > /tmp/t3841-clippy.out 2>&1
+! grep -qE "allow\(clippy::(collapsible_if|nonminimal_bool|type_complexity)" crates/termlink-hub/src/inbox_consumers.rs crates/termlink-hub/src/key_card.rs crates/termlink-hub/src/revocation.rs crates/termlink-sidecar/src/fields.rs crates/termlink-sidecar/src/host.rs crates/termlink-sidecar/src/revocation.rs
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -385,69 +356,6 @@ bash scripts/run-wc-vectors.sh --ref 4b1d2304e > /tmp/t3837-wc.out 2>&1 && grep 
      - **Rejected:** [alternatives and why not]
 -->
 
-### 2026-11-20 — Adopt shared worker contract v0.3.4 item 3 ("withdrawn", T3w)? (operator ruling: "A")
-- **Chose:** A — TermLink adopts item 3 as drafted by AEF (T-5311, commit 90202e700 on AEF bleeding-edge): T3w =
-  dispatched -> done{withdrawn}, current attempt, matching sgen; running -> cas_mismatch; done/lost/unknown ->
-  forbidden_transition; same withdrawal repeated = T8 dedupe; different-reason withdrawal = forbidden_transition; late
-  real completion = done_conflict; only the holder of the nonce + supervisor_token from dispatch.allocate (Execute
-  scope); hub sweep never withdraws; evidence_digest = sha256(reason), result_kind none; closes open questions; T2 rule:
-  launch only after T2 accepted (a launch failure after T2 ends through T3 as failed); vectors CC-26..CC-29; reader rule:
-  an unknown outcome is terminal, not finished work.
-- **Why:** our own proposal (T-3836), checked against `worker_contract.rs`; the race is settled by the existing CAS;
-  ring20 needs it this week. Brief scores: A +26, B +16, D -5, C -17.
-- **Rejected:** B (wait for items 1 and 2: delays a self-contained change), C (no withdrawal), D (defer).
-- **Left open:** v0.3.4 items 1 and 2 are separate decisions, not yet read.
-
-### 2026-11-20 — Adopt v0.3.4 item 1 (refusal before rule 1)? (operator ruling: "A")
-- **Chose:** A — adopt. Rule 1 (hand-back missing/malformed -> handback-malformed) applies only to a worker that ran;
-  a run.sh or supervisor refusal yields refused via rule 2 even with no hand-back; rule numbers unchanged.
-- **Why:** it states what our backend already does (`worker_contract.rs` derive_outcome: the refused flag outranks the
-  hand-back check) and our tests pin (CC-16, CC-21, CC-25, `worker_contract/tests.rs:344`); no build needed.
-  Brief scores: A +22, B +10, D 0, C -15.
-- **Rejected:** B (tie to item 2), C (spec stays ambiguous), D (defer).
-- **Left open:** item 2 (optional dispatch closure), next.
-
-### 2026-11-20 — Adopt v0.3.4 item 2 (optional dispatch closure)? (operator ruling: "B")
-- **Chose:** B — adopt only with TermLink's amendments, as our condition: (1) close is one fenced transaction with CAS
-  on (last attempt, last state ∈ {done, lost}); commit order decides close vs T1; (2) closure fences T1 only, every
-  attempt-level transition stays legal, finishedness computed from attempts; (3) a declared `closure: never|supported`
-  capability, `dispatch_closed` only with a readable closure record, CC-15/CC-19 split per arrangement (no "accept
-  either"), clients treat an unknown fence reason as a non-retryable refusal; (4) close authenticated by the last
-  attempt's supervisor credential or a declared backend policy, actor derived from the credential; (5) closure terminal,
-  recovery = new dispatch with `retry_of_dispatch_id`, readers expose closed / finished / last outcome separately;
-  (6) first close wins, repeats return the stored record, every close and `dispatch_closed` refusal writes history.
-  Proposed vectors CC-30..CC-43 (reviewers' numbering).
-- **Why:** an external review (claude-code and opencode, independently) found the same six weaknesses, five high:
-  close vs T1 race, late lost->done after close, unauthenticated actor, no recovery from a wrong close, "accept either"
-  disarming CC-15/CC-19, repeat/audit. All amendments are additive; our hub's cost is a typed refusal of close and
-  tolerance of the new reason. Reviews: `docs/reports/T-3837-reviews/`.
-- **Rejected:** A (adopt as drafted: leaves every hard case to each backend), C (minimum 1-3 only), D (not adopt).
-
-### 2026-11-20 — T3w build choices (agent, within the operator's ruling A on item 3)
-- **Chose:**
-  1. The store implements T3w as a `withdraw: Option<Withdrawal{actor, reason}>` on `TransitionRequest` with
-     `to: done`. The digest is computed as sha256(reason); actor and reason go in two new `wc_history` columns,
-     shown on that row only.
-  2. The RPC (`dispatch.transition`) refuses `withdraw` while `WITHDRAW_LIVE = false`, because the spec says
-     no backend emits `withdrawn` before all three owners adopt v0.3.4. Flip it once AEF's operator adopts.
-  3. The reader rule is `finished_work()`: done, not attested, and outcome in {succeeded, failed, refused,
-     handback-malformed}. Anything else, including an outcome this reader does not know, is `not_finished_work`.
-     The adapter's `consume` op calls it, so CC-19 and CC-22 now pass too.
-  4. A start (T2) on `lost` is `forbidden_transition` whatever prior it expected (CC-20). Otherwise a CAS miss is
-     `cas_mismatch` (CC-27). The adapter's start now always expects `dispatched`.
-  5. `run-wc-vectors.sh` keeps v0.3.3 (18c6e0042) as its default until adoption; v0.3.4 runs with `--ref ea8379a56`.
-- **Why:** each choice follows the spec text at ea8379a56 (§3.3 T3w, §3.2 submitter, the v0.3.4 status line).
-- **Rejected:**
-  1. Serving withdraw over the RPC now. That breaks the spec's "no backend emits withdrawn before adoption".
-  2. Allowing a worker question while `dispatched` to fit CC-26 answer-channel (see the open finding below).
-- **Open finding (sent to AEF):** CC-26's answer-channel variant asks a question on a `dispatched` attempt. Our
-  store refuses it (`answer.rs:289`: only a running or unknown worker asks). The spec's own T2 rule says no agent
-  child runs before T2, so no worker can have asked. **Resolved:** AEF agreed and fixed it (their T-5319, commit
-  4b1d2304e): one un-acked dispatcher answer with no question_id, deadline clock+600, expected state `undelivered`.
-  Result at 4b1d2304e: 29 cases, pass 24, fail 0, not-implemented 4, n/a 1; CC-26 passes every variant.
-  Earlier result at ea8379a56: pass 23, fail 1 (that variant only),
-  not-implemented 4, n/a 1.
-
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -460,13 +368,7 @@ bash scripts/run-wc-vectors.sh --ref 4b1d2304e > /tmp/t3837-wc.out 2>&1 && grep 
 
 ## Updates
 
-### 2026-11-20T16:10:03Z — task-created [task-create-agent]
+### 2026-11-20T21:08:46Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3837-worker-contract-wc034-withdrawn-outcome-.md
+- **Output:** /opt/termlink/.tasks/active/T-3841-clear-the-9-clippy--d-warnings-lints-in-.md
 - **Context:** Initial task creation
-
-### 2026-11-20T16:45:33Z — status-update [task-update-agent]
-- **Change:** horizon: later → now
-
-### 2026-11-20T17:32:40Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

@@ -25101,3 +25101,21 @@ scan_id: R-b8de3cba
 task_id: T-3835
 payload:
   task_file: .tasks/active/T-3835-client-treats-any-127001localhost1-hub-a.md
+---
+kind: scan_emitted
+timestamp: '2026-11-20T20:22:03Z'
+scan_id: R-095a5734
+task_id: T-3837
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-20T20:22:03Z'
+scan_id: R-095a5734
+task_id: T-3837
+payload:
+  task_file: .tasks/active/T-3837-worker-contract-wc034-withdrawn-outcome-.md
