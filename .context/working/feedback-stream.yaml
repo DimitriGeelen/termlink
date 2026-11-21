@@ -25299,3 +25299,21 @@ scan_id: R-f5d69b48
 task_id: T-3847
 payload:
   task_file: .tasks/active/T-3847-w1-hooks-write-the-meter-report-log-so-t.md
+---
+kind: scan_emitted
+timestamp: '2026-11-21T22:25:38Z'
+scan_id: R-be8c57d6
+task_id: T-3848
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-21T22:25:38Z'
+scan_id: R-be8c57d6
+task_id: T-3848
+payload:
+  task_file: .tasks/active/T-3848-w1-session-start-hook-reports-harnesspid.md
