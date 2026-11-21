@@ -79,6 +79,37 @@ echo '{"topics":[{"name":"xfer-a","count":5}]}' > "$D/list.json"
 run --ack >/dev/null
 check "15 --ack keeps the acknowledgement of a topic not scanned this run" 'python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get(\"inbox:old\")==5 and d.get(\"xfer-a\")==9 else 1)" "$T/state"'
 
+# T-3844: parity between the hub's post-time record (admin log) and the scan, for inbox topics.
+rm -rf "$D"/*.raw "$D"/*.rc "$T/state" "$T/state.parity"
+cat > "$D/list.json" <<'EOF'
+{"topics":[{"name":"inbox:p","count":3},{"name":"xfer-b","count":1}]}
+EOF
+cat > "$D/inbox_p.ndjson" <<'EOF'
+{"offset":0,"ts":50,"msg_type":"document","metadata":{"filename":"old.pdf","from_project":"p1"}}
+{"offset":1,"ts":150,"msg_type":"turn","metadata":{"from_project":"p3"}}
+{"offset":2,"ts":200,"msg_type":"note","metadata":{"filename":"r.md","from_project":"p3"}}
+EOF
+echo '{"offset":0,"ts":210,"msg_type":"document","metadata":{"filename":"x.pdf"}}' > "$D/xfer-b.ndjson"
+run --ack >/dev/null
+out=$(run); rc=$?
+check "16 no admin log: parity unknown, reported, never a pass, exit unchanged" '[ $rc = 0 ] && grep -q "Parity (T-3844): unknown" <<< "$out"'
+printf '%s\n' '{"event":"file-shaped-watch-on","ts":100}' \
+  '{"event":"file-shaped-post","topic":"inbox:p","offset":2,"shape":"note+filename","post_ts":200}' > "$D/admin.jsonl"
+out=$(run); rc=$?
+check "17 hub record and scan agree since the watch began (the pre-watch post at ts 50 and non-inbox topics are not compared)" '[ $rc = 0 ] && grep -q "agree on 1 inbox post(s) since 100" <<< "$out"'
+check "18 the watch start is kept in <state>.parity" 'python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1]))[\"since\"]==100 else 1)" "$T/state.parity"'
+echo '{"offset":3,"ts":300,"msg_type":"attachment","metadata":{"from_project":"p4"}}' >> "$D/inbox_p.ndjson"; run --ack >/dev/null
+out=$(run); rc=$?
+check "19 scan-only (the hub did not record a new inbox post) => PARITY MISMATCH, rc 1" '[ $rc = 1 ] && grep -q "PARITY MISMATCH" <<< "$out" && grep -q "scan only: inbox:p@3" <<< "$out"'
+echo '{"event":"file-shaped-post","topic":"inbox:p","offset":3,"shape":"attachment","post_ts":300}' >> "$D/admin.jsonl"
+echo '{"event":"file-shaped-post","topic":"inbox:p","offset":1,"shape":"turn+filename","post_ts":150}' >> "$D/admin.jsonl"
+out=$(run --json); rc=$?
+check "20 hub-only (the hub recorded a post the scan does not see as file-shaped) => mismatch in --json, rc 1" '[ $rc = 1 ] && python3 -c "import json,sys; d=json.loads(sys.argv[1]); p=d[\"parity\"]; sys.exit(0 if p[\"state\"]==\"mismatch\" and p[\"hub_only\"]==[\"inbox:p@1\"] and not p[\"scan_only\"] and not d[\"ok\"] else 1)" "$out"'
+printf '%s\n' '{"event":"file-shaped-post","topic":"inbox:p","offset":2,"shape":"note+filename","post_ts":200}' \
+  '{"event":"file-shaped-post","topic":"inbox:p","offset":3,"shape":"attachment","post_ts":300}' > "$D/admin.jsonl"
+out=$(run); rc=$?
+check "21 the watch-on row pruned from the log: the kept start still applies" '[ $rc = 0 ] && grep -q "agree on 2 inbox post(s) since 100" <<< "$out"'
+
 echo "---"
 echo "file-shaped-posts canary fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

@@ -133,15 +133,21 @@ except Exception: tooling(f"state file unreadable: {state_path}")
 # T-3843: --ack starts from the stored offsets, so a topic this run did not scan (or could not
 # read) keeps its acknowledgement instead of having it erased.
 report, new_acked = [], dict(acked)
+# T-3844: inbox findings of this scan, and the first offset scanned per inbox, for the hub parity check.
+scan_inbox, first_off = {}, {}
 for name, count in topics():
     if not count: continue
     found = []
     for env in envelopes(name):
+        if name.startswith("inbox:"):
+            first_off[name] = min(first_off.get(name, env["offset"]), env["offset"])
         shape = file_shaped(env)
         if shape:
             md = env.get("metadata") or {}
             found.append({"offset": env["offset"], "shape": shape,
                           "from": md.get("from_project") or env.get("sender_id", "?")[:16]})
+            if name.startswith("inbox:"):
+                scan_inbox[(name, env["offset"])] = env.get("ts")
     if not found: continue
     newest = max(f["offset"] for f in found)
     new_acked[name] = newest
@@ -151,12 +157,49 @@ for name, count in topics():
                    "senders": sorted({str(f["from"]) for f in found})})
 
 firing = [r for r in report if r["new"]]
+
+# T-3844 (T-3843 ruling H): the hub records file-shaped inbox posts at post time in its admin log. While
+# both run, compare them: a post one side saw and the other did not, since the hub started watching, is a
+# PARITY MISMATCH (fires). The earliest watch-on time is kept in <state>.parity, because the admin log
+# prunes rows older than 30 days. No readable admin log = parity unknown: reported, never a pass.
+admin_path = os.environ.get("FILE_SHAPED_ADMIN_LOG") or (os.path.join(test_dir, "admin.jsonl") if test_dir else "/var/lib/termlink/rpc-admin.jsonl")
+parity_path = state_path + ".parity"
+parity = {"state": "unknown", "since": None, "matched": 0, "hub_only": [], "scan_only": []}
+hub_rows, watch_on = None, []
+try:
+    hub_rows = []
+    for line in open(admin_path):
+        try: r = json.loads(line)
+        except Exception: continue
+        if r.get("event") == "file-shaped-watch-on" and isinstance(r.get("ts"), int): watch_on.append(r["ts"])
+        elif r.get("event") == "file-shaped-post" and isinstance(r.get("offset"), int): hub_rows.append(r)
+except OSError as e:
+    parity["why"] = f"admin log unreadable: {admin_path}: {e.strerror}"
+try: since = json.load(open(parity_path)).get("since")
+except Exception: since = None
+if watch_on: since = min([since] + watch_on) if since else min(watch_on)
+if hub_rows is not None and since is None:
+    parity["why"] = "the hub has not started watching (no file-shaped-watch-on row)"
+if hub_rows is not None and since is not None:
+    try:
+        json.dump({"since": since}, open(parity_path, "w"))
+    except OSError: pass
+    hub = {(r["topic"], r["offset"]) for r in hub_rows if isinstance(r.get("post_ts"), int) and r["post_ts"] >= since}
+    scan = {k for k, ts in scan_inbox.items() if isinstance(ts, int) and ts >= since}
+    # a hub row for an offset the inbox no longer holds (capped or swept) cannot be compared
+    # (a topic whose read failed has no first offset, so it is never compared: that gap is already exit 2)
+    hub_cmp = {k for k in hub if k[0] in first_off and k[1] >= first_off[k[0]]}
+    parity.update(state="ok", since=since, matched=len(hub_cmp & scan),
+                  hub_only=sorted(f"{t}@{o}" for t, o in hub_cmp - scan),
+                  scan_only=sorted(f"{t}@{o}" for t, o in scan - hub))
+    if parity["hub_only"] or parity["scan_only"]: parity["state"] = "mismatch"
+parity_firing = parity["state"] == "mismatch"
 if os.environ["FILE_SHAPED_ACK"] == "1":
     os.makedirs(os.path.dirname(state_path) or ".", exist_ok=True)
     json.dump(new_acked, open(state_path, "w"), indent=1, sort_keys=True)
 if os.environ["FILE_SHAPED_JSON"] == "1":
-    print(json.dumps({"ok": not firing and not problems, "acked_now": os.environ["FILE_SHAPED_ACK"] == "1",
-                      "topics": report, "firing": [r["topic"] for r in firing], "tooling": problems}))
+    print(json.dumps({"ok": not firing and not problems and not parity_firing, "acked_now": os.environ["FILE_SHAPED_ACK"] == "1",
+                      "topics": report, "firing": [r["topic"] for r in firing], "tooling": problems, "parity": parity}))
 else:
     quiet = os.environ["FILE_SHAPED_QUIET"] == "1"
     if firing and os.environ["FILE_SHAPED_ACK"] != "1":
@@ -173,9 +216,19 @@ else:
         for r in report:
             print(f"  {r['topic']}: {r['total']}  shapes={','.join(r['shapes'])}  from={','.join(r['senders'])}")
         print("  Scope: local hub; detects the listed shapes only, not a file disguised as a plain note.")
+    # T-3844: the hub-side record of inbox posts, compared with this scan.
+    if parity_firing:
+        print(f"file-shaped-posts canary: PARITY MISMATCH — the hub's post-time record and this scan disagree on inbox posts "
+              f"(hub only: {', '.join(parity['hub_only']) or 'none'}; scan only: {', '.join(parity['scan_only']) or 'none'})")
+    elif not quiet:
+        if parity["state"] == "ok":
+            print(f"  Parity (T-3844): hub record and scan agree on {parity['matched']} inbox post(s) since {parity['since']}")
+        else:
+            print(f"  Parity (T-3844): unknown — {parity.get('why', 'not compared')} (not a pass)")
 for p in problems:
     print(f"check-file-shaped-posts: TOOLING: {p}", file=sys.stderr)
 # A finding outranks a gap (it is the actionable signal); a gap is never reported clean (T-3843).
 if firing and os.environ["FILE_SHAPED_ACK"] != "1": sys.exit(1)
+if parity_firing: sys.exit(1)
 sys.exit(2 if problems else 0)
 PY

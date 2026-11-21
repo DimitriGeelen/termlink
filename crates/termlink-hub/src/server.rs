@@ -606,6 +606,8 @@ pub async fn run_with_tcp(
     // sink at <runtime_dir>/rpc-audit.jsonl, read by `fw metrics api-usage`
     // for T-1166 entry-gate measurement.
     crate::rpc_audit::init(&runtime_dir);
+    // T-3844: from here on, file-shaped inbox posts are recorded at post time.
+    crate::channel::note_file_shaped_watch_on();
     crate::circuit_breaker::init(&runtime_dir);
     // T-3704 (AL-33 2.17.f(2)): a card whose seq the admin log does not show (a crash between
     // persist and log, or an edit outside hub.key_card_put) raises an attention row at start.

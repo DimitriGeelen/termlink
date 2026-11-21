@@ -25173,3 +25173,21 @@ scan_id: R-3f1af639
 task_id: T-3840
 payload:
   task_file: .tasks/active/T-3840-serve-wc-v034-withdraw-over-dispatchtran.md
+---
+kind: scan_emitted
+timestamp: '2026-11-21T13:33:35Z'
+scan_id: R-03fe777e
+task_id: T-3845
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-21T13:33:35Z'
+scan_id: R-03fe777e
+task_id: T-3845
+payload:
+  task_file: .tasks/active/T-3845-w1-sidecars-sidecarbin-follows-the-path-.md

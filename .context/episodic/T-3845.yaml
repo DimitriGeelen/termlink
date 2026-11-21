@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3845: W1 sidecars' SIDECAR_BIN follows the PATH of whoever ran runme; runme's restart check then fails on an identical copy
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T13:33:43Z
+# ============================================================================
+
+task_id: T-3845
+task_name: "W1 sidecars' SIDECAR_BIN follows the PATH of whoever ran runme; runme's restart check then fails on an identical copy"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-21T13:00:03Z
+completed: 2026-11-21T13:33:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-21T14:33:12+01:00
+last_commit: 2026-11-21T14:33:12+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  W1 sidecars' SIDECAR_BIN no longer follows the caller's PATH (runme passes W1_BIN; provisioner defaults to ~/.cargo/bin/termlink); action 4b accepts an identical copy of the installed binary; runme fixtures 452/0, provision fixtures 24/0
+
+# Key outcomes
+outcomes:
+  - 'runme passes its `W1_BIN` to the provisioner, and the provisioner''s default is `/root/.cargo/bin/termlink` when that is executable, never the PATH''s first `termlink`.'
+  - 'Action 4b treats a process executable that is the same file as `W1_BIN`, or byte-identical to it, as on the installed binary. Different content is still restarted, and still FAILED if it stays different.'
+  - '`tests/runme-fixtures.sh` covers both cases (identical copy: skip, no restart; different copy: restart) with distinct contents for the new and old fake binaries, and the whole suite passes. The provisioner''s own fixtures pass.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'W1 sidecars'' SIDECAR_BIN no longer follows the caller''s PATH (runme passes W1_BIN; provisioner defaults to ~/.cargo/bin/termlink); action 4b accepts an identical copy of the installed binary; runme fixtures 452/0, provision fixtures 24/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3840.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3845-w1-sidecars-sidecarbin-follows-the-path-.md'
+  - '.tasks/completed/T-3840-serve-wc-v034-withdraw-over-dispatchtran.md'
+  - 'runme.sh'
+  - 'scripts/arc011-w1-provision.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T14:33:12'
+    action: 'T-3845: W1 sidecars'' SIDECAR_BIN no longer follows the caller''s PATH (runme passes W1_BIN; provisioner defaults to ~/.cargo/bin/termlink); action 4b accepts an identical copy of the installed binary; runme fixtures 452/0, provision fixtures 24/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 33 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 33
+  commits: 2
+  files_changed: 14
+  lines_added: 1265
+  lines_removed: 18
+  footprint_refreshed_at: '2026-11-21T13:57:09Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3845-w1-sidecars-sidecarbin-follows-the-path-.md
+generated_by: context-agent-hybrid

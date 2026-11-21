@@ -835,6 +835,54 @@ fn plaintext_too_large(id: Value, field: &str, bytes: usize) -> RpcResponse {
 
 /// `channel.post(topic, msg_type, payload_b64, artifact_ref?, ts, sender_id,
 /// sender_pubkey_hex, signature_hex)` — verifies signature then appends.
+/// T-3844: admin-log event for a file-shaped post to an `inbox:*` topic.
+pub const FILE_SHAPED_EVENT: &str = "file-shaped-post";
+/// T-3844: admin-log event written once at hub start: from here on inbox posts are watched.
+pub const FILE_SHAPED_WATCH_EVENT: &str = "file-shaped-watch-on";
+
+/// T-3844: the file-shaped rule of `scripts/check-file-shaped-posts.sh` (T-3432, FX-5), kept
+/// identical so the two can be compared: msg_type document | artifact-chunk | attachment |
+/// file-chunk, or metadata `filename`, or both `part` and `sha256`. `artifact` (the sanctioned
+/// `termlink file send` path) is never file-shaped.
+pub fn file_shape(msg_type: &str, metadata: &std::collections::BTreeMap<String, String>) -> Option<String> {
+    const FILE_TYPES: [&str; 4] = ["document", "artifact-chunk", "attachment", "file-chunk"];
+    if msg_type == "artifact" {
+        return None;
+    }
+    if FILE_TYPES.contains(&msg_type) {
+        return Some(msg_type.to_string());
+    }
+    if metadata.contains_key("filename") {
+        return Some(format!("{msg_type}+filename"));
+    }
+    if metadata.contains_key("part") && metadata.contains_key("sha256") {
+        return Some(format!("{msg_type}+part/sha256"));
+    }
+    None
+}
+
+/// T-3844: record a committed file-shaped post to an `inbox:*` topic in the admin log. A failed
+/// write is logged loudly; the post is already stored, and the canary's parallel scan still sees it.
+fn note_file_shaped_post(topic: &str, offset: u64, env: &Envelope) {
+    if !crate::inbox_consumers::applies(topic) {
+        return;
+    }
+    let Some(shape) = file_shape(&env.msg_type, &env.metadata) else { return };
+    let sender = env.metadata.get("from_project").cloned().unwrap_or_else(|| env.sender_id.chars().take(16).collect());
+    let row = json!({"event": FILE_SHAPED_EVENT, "topic": topic, "offset": offset, "shape": shape,
+                     "msg_type": &env.msg_type, "sender": sender, "post_ts": env.ts_unix_ms});
+    if let Err(e) = crate::rpc_audit::admin_note(row) {
+        tracing::error!(error = %e, topic, offset, "T-3844: file-shaped inbox post not recorded in the admin log");
+    }
+}
+
+/// T-3844: mark the start of inbox file-shape watching in the admin log (once per hub start).
+pub fn note_file_shaped_watch_on() {
+    if let Err(e) = crate::rpc_audit::admin_note(json!({"event": FILE_SHAPED_WATCH_EVENT})) {
+        tracing::error!(error = %e, "T-3844: file-shaped watch start not recorded in the admin log");
+    }
+}
+
 pub async fn handle_channel_post(
     id: Value,
     params: &Value,
@@ -1188,6 +1236,9 @@ pub(crate) async fn handle_channel_post_with_peer(
                     let _ = crate::cv_index::record(&topic, cv_key, offset);
                 }
             }
+            // T-3844 (T-3843 ruling H): a file-shaped post to an inbox is recorded at post time, so the
+            // file-shaped-posts canary can see it without reading the inbox (P-12: one reader).
+            note_file_shaped_post(&topic, offset, &env);
             // T-1286 / T-243: passive presence tracking. When the envelope
             // carries metadata.conversation_id, record (cid, sender_id) →
             // ts so dialog.presence can answer "who's active here?"
@@ -5173,6 +5224,71 @@ mod tests {
         let v = unwrap_success(resp);
         assert_eq!(v["offset"], 0);
         assert_eq!(v["ts"], 2);
+    }
+
+    /// T-3844: the hub's file-shape rule is the canary's (scripts/check-file-shaped-posts.sh).
+    #[test]
+    fn t3844_file_shape_matches_the_canary_rule() {
+        let md = |kv: &[(&str, &str)]| kv.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<std::collections::BTreeMap<_, _>>();
+        for t in ["document", "artifact-chunk", "attachment", "file-chunk"] {
+            assert_eq!(file_shape(t, &md(&[])).as_deref(), Some(t), "{t}");
+        }
+        assert_eq!(file_shape("note", &md(&[("filename", "r.md")])).as_deref(), Some("note+filename"));
+        assert_eq!(file_shape("file", &md(&[("part", "2"), ("sha256", "y")])).as_deref(), Some("file+part/sha256"));
+        assert_eq!(file_shape("artifact", &md(&[("filename", "a.txt")])), None, "the sanctioned artifact path");
+        assert_eq!(file_shape("note", &md(&[("from_project", "p")])), None, "a plain note");
+        assert_eq!(file_shape("file", &md(&[("part", "2")])), None, "part without sha256");
+    }
+
+    /// T-3844: a committed file-shaped post to an inbox writes one admin row with the stored offset;
+    /// a non-inbox topic or a non-file-shaped post writes none.
+    #[tokio::test]
+    async fn t3844_file_shaped_inbox_post_is_recorded_at_post_time() {
+        let (_d, bus) = tmp_bus();
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("rpc-admin.jsonl");
+        crate::rpc_audit::ADMIN_TEST_PATH.with(|c| *c.borrow_mut() = Some(log.clone()));
+        let key = signing_key();
+        for t in ["inbox:h/a", "xfer"] {
+            bus.create_topic(t, Retention::Forever).unwrap();
+        }
+        let post = |topic: &str, msg_type: &str, md: Value, ts: i64| {
+            let mut p = post_params(&key, topic, msg_type, b"x", ts);
+            p["metadata"] = md;
+            p
+        };
+        let r = unwrap_success(handle_channel_post_with(&bus, json!(1), &post("inbox:h/a", "turn", json!({"from_project": "p3"}), 1)).await);
+        assert_eq!(r["offset"], 0);
+        let r = unwrap_success(handle_channel_post_with(&bus, json!(2), &post("inbox:h/a", "note", json!({"filename": "r.md", "from_project": "p3"}), 2)).await);
+        assert_eq!(r["offset"], 1);
+        unwrap_success(handle_channel_post_with(&bus, json!(3), &post("xfer", "document", json!({"filename": "n.pdf"}), 3)).await);
+        unwrap_success(handle_channel_post_with(&bus, json!(4), &post("inbox:h/a", "artifact", json!({"filename": "a.txt"}), 4)).await);
+        crate::rpc_audit::ADMIN_TEST_PATH.with(|c| *c.borrow_mut() = None);
+        let rows: Vec<Value> = std::fs::read_to_string(&log)
+            .unwrap_or_default()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .filter(|v: &Value| v["event"] == FILE_SHAPED_EVENT)
+            .collect();
+        assert_eq!(rows.len(), 1, "only the file-shaped inbox post: {rows:?}");
+        let r = &rows[0];
+        assert_eq!((r["topic"].as_str(), r["offset"].as_u64(), r["shape"].as_str(), r["sender"].as_str()),
+                   (Some("inbox:h/a"), Some(1), Some("note+filename"), Some("p3")));
+        assert_eq!(r["post_ts"].as_i64(), Some(2));
+    }
+
+    /// T-3844: the watch-start marker is an admin row.
+    #[test]
+    fn t3844_watch_on_marker_is_written() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("rpc-admin.jsonl");
+        crate::rpc_audit::ADMIN_TEST_PATH.with(|c| *c.borrow_mut() = Some(log.clone()));
+        note_file_shaped_watch_on();
+        crate::rpc_audit::ADMIN_TEST_PATH.with(|c| *c.borrow_mut() = None);
+        let text = std::fs::read_to_string(&log).unwrap();
+        let v: Value = serde_json::from_str(text.lines().next().unwrap()).unwrap();
+        assert_eq!(v["event"], FILE_SHAPED_WATCH_EVENT);
+        assert!(v["ts"].as_u64().is_some());
     }
 
     // ── T-3486: the stored signature round-trips to a reader, who verifies it
