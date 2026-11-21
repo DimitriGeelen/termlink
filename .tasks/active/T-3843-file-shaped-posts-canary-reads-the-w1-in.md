@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-21T11:21:17Z
-last_update: 2026-11-21T12:05:10Z
+last_update: 2026-11-21T19:45:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -397,6 +397,14 @@ test -s docs/reports/T-3843-reviews/review-claude-code.md && test -s docs/report
 - **Also agreed (no coverage change):** a read-only 24-48 h observation of the W1 reader lists to settle the
   diagnosis, and fixes for two canary bugs: a refused or errored read is reported clean, and `--ack` drops the
   offsets of unscanned topics.
+
+### 2026-11-21 19:44Z — first parity evidence (agent, with a positive control)
+1. A manual canary run (no `--ack`, no heartbeat) read parity `ok`, but with `matched: 0`. No file-shaped inbox post had been made since the hub started watching (watch-on 11-21 13:27Z), so the comparison was empty. Waiting for the 07:47 cron would most likely have produced the same empty pass.
+2. Positive control: created the throwaway inbox `inbox:cacc73ea32b121dd/t3844-parity-probe` and posted one synthetic `document` message (`filename=t3844-probe.txt`, no file content) at offset 0.
+   2a. The hub wrote the `file-shaped-post` admin row at post time.
+   2b. The canary fired on the probe (exit 1, correct) and read parity `matched: 1, hub_only: [], scan_only: []`.
+3. The probe was the only new file-shaped post, so it was acknowledged with `--ack`. The canary is healthy again (exit 0), and parity holds with 1 match.
+4. Still open: parity across real peer posts over the coming days, then the operator's approval to retire the canary's inbox scanning.
 
 ## Decision
 
