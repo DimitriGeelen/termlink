@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3841: Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-20T21:30:24Z
+# ============================================================================
+
+task_id: T-3841
+task_name: "Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-20T21:08:46Z
+completed: 2026-11-20T21:30:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-20T22:28:16+01:00
+last_commit: 2026-11-20T22:28:16+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  workspace clippy -D warnings clean (collapsible_if x4, nonminimal_bool, type_complexity x4 via named aliases, 2 test lints); no behaviour change
+
+# Key outcomes
+outcomes:
+  - '`cargo clippy --workspace --all-targets -- -D warnings` exits 0, with no `#[allow]` added for the nine lints (a named `type` alias for each complex type). Once those nine were gone, clippy reached two more in sidecar tests (`redundant_iter_cloned`, `unnecessary_to_owned`/`needless_borrow`); those are fixed too.'
+  - '`cargo test -p termlink-hub -p termlink-sidecar` passes unchanged (1105 passed, 0 failed).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3837.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3841-clear-the-9-clippy--d-warnings-lints-in-.md'
+  - '.tasks/completed/T-3837-worker-contract-wc034-withdrawn-outcome-.md'
+  - 'crates/termlink-hub/src/inbox_consumers.rs'
+  - 'crates/termlink-hub/src/key_card.rs'
+  - 'crates/termlink-hub/src/revocation.rs'
+  - 'crates/termlink-sidecar/src/fields.rs'
+  - 'crates/termlink-sidecar/src/host.rs'
+  - 'crates/termlink-sidecar/src/revocation.rs'
+  - 'crates/termlink-sidecar/tests/t3366_hub_key_pin.rs'
+  - 'crates/termlink-sidecar/tests/t3708_clock.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-20T22:28:16'
+    action: 'T-3841: workspace clippy -D warnings clean (collapsible_if x4, nonminimal_bool, type_complexity x4 via named aliases, 2 test lints); no behaviour change'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 21
+  commits: 2
+  files_changed: 21
+  lines_added: 2149
+  lines_removed: 34
+  footprint_refreshed_at: '2026-11-21T12:00:34Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3841-clear-the-9-clippy--d-warnings-lints-in-.md
+generated_by: context-agent-hybrid

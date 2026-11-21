@@ -1,11 +1,15 @@
 ---
-id: T-3841
-name: "Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)"
+id: T-3843
+name: "file-shaped-posts canary reads the W1 inboxes as an unnamed second reader,
+  so P-12 / runme action 37 can never pass"
 description: >
-  Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)
+  check-file-shaped-posts.sh (cron 47 7 * * *, 07:47 CET) lists every topic and channel-subscribes
+  each, inbox:* included, unsigned. inbox-consumers.json shows (unnamed, local, claimed)
+  last_ms 2026-11-21T06:47:08Z on both W1 inboxes, so the 24 h window never empties.
+  Operator decision pending (options A-D; external review requested 2026-11-21).
 
 status: started-work
-workflow_type: refactor
+workflow_type: build
 owner: agent
 horizon: now
 tags: []
@@ -37,9 +41,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-20T21:08:46Z
-last_update: 2026-11-20T21:28:16Z
-date_finished: null
+created: 2026-11-21T11:21:17Z
+last_update: 2026-11-21T12:00:26Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,26 +54,46 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-21T11:30:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3841: Clear the 9 clippy -D warnings lints in termlink-hub and termlink-sidecar (blocks clippy on the CLI crate)
+# T-3843: file-shaped-posts canary reads the W1 inboxes as an unnamed second reader, so P-12 / runme action 37 can never pass
 
 ## Context
 
-**Background / trigger:** checking T-3835 on 2026-11-20, `cargo clippy -p termlink --all-targets -- -D warnings` stopped before it reached the CLI crate. Nine lints stopped it: 5 in termlink-sidecar (4 collapsible_if, 1 nonminimal_bool; from today's P-24 work in T-3708) and 4 in termlink-hub (type_complexity).
+**Background / trigger:** runme 2026-11-21T10:55Z still failed action 37 (P-12 live) on both W1 inboxes. The cause is a second reader, `(unnamed)/local/claimed`, last seen 2026-11-21T06:47:08Z, which is not the residue of manual reads predicted on 11-20. That read matches `check-file-shaped-posts.sh` (cron `47 7 * * *` CET), which channel-subscribes every topic, `inbox:*` included, unsigned.
 
-**Problem / hypothesis:** while those crates fail clippy, no change to the CLI or session crates can be clippy-checked without switching lints off. T-3835 had to be checked that way.
+**Problem / hypothesis:** the canary is a recurring unsigned reader of the W1 inboxes, so the 24 h consumer window never empties. It may not be the only one. The registry merges every unsigned local reader into one row, and the first-seen time 2026-11-20T05:52:37Z is not at HH:47 (all three external reviewers, 2026-11-21).
 
-**Goal:** clippy with `-D warnings` passes for the whole workspace.
+**Goal:** P-12 can pass honestly, without losing file-shape coverage of inboxes before a replacement is proven, and with the operator's documented approval for any narrowing.
 
-**Expected outcome:** the same behaviour, the 9 lints gone, and plain workspace clippy exits 0.
+**Expected outcome:**
+1. The diagnosis is settled: every recurring unsigned inbox reader is identified.
+2. The canary never reports a refused or errored read as clean.
+3. The operator rules on the replacement route.
+4. Action 37 passes.
+
+Reviews: `docs/reports/T-3843-reviews/`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `cargo clippy --workspace --all-targets -- -D warnings` exits 0, with no `#[allow]` added for the nine lints (a named `type` alias for each complex type). Once those nine were gone, clippy reached two more in sidecar tests (`redundant_iter_cloned`, `unnecessary_to_owned`/`needless_borrow`); those are fixed too.
-- [x] `cargo test -p termlink-hub -p termlink-sidecar` passes unchanged (1105 passed, 0 failed).
+- [x] External review of options A-D saved under `docs/reports/T-3843-reviews/` (bundle, prompt, three seats, independence).
+- [ ] Diagnosis settled: the W1 inboxes' consumer list is observed for at least 24 h without recording a read (`termlink hub inbox consumers`), and every advance of the `(unnamed)` row's `last_ms` is attributed to a named process.
+- [ ] `check-file-shaped-posts.sh` exits 2 (tooling) when a `channel subscribe` returns an error object or a non-zero status, never 0. `--ack` keeps the stored offsets of topics it did not scan. Fixtures pin both.
+- [ ] The operator's ruling on the replacement route is recorded in Decisions with his words, and the route is built or filed as its own task.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -144,8 +168,6 @@ date_finished: null
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
-env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3841-rt cargo clippy --workspace --all-targets -- -D warnings > /tmp/t3841-clippy.out 2>&1
-! grep -qE "allow\(clippy::(collapsible_if|nonminimal_bool|type_complexity)" crates/termlink-hub/src/inbox_consumers.rs crates/termlink-hub/src/key_card.rs crates/termlink-hub/src/revocation.rs crates/termlink-sidecar/src/fields.rs crates/termlink-sidecar/src/host.rs crates/termlink-sidecar/src/revocation.rs
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -356,6 +378,24 @@ env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3841-rt cargo clippy --workspace 
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-21 — How inbox file-shape coverage is replaced so P-12 can pass (operator ruling: "H")
+- **Chose:** H. The hub flags file-shaped posts on `inbox:*` topics at post time with a durable finding (admin row).
+  The canary reads those findings instead of reading the inboxes. Both run in parallel until they agree. Then the
+  canary's inbox scanning is retired, and that retirement comes back to the operator for its own approval
+  (standing rule: nothing switched off without a proven replacement).
+- **Agent's recorded assumption (overturnable):** until H is proven, action 37 stays red on record (option D as the
+  interim). runme ends rc=1 on those two lines, and no exception is added to P-12.
+- **Why:** the only route with no second reader of any inbox. It covers bound and unbound inboxes and meets the
+  replacement rule literally (claude-code review). Brief scores: H +37, F +16, E +13.
+- **Rejected:**
+  1. A or B (narrow the canary without a replacement; B as worded also deadlocks on the canary's own row: all three reviewers).
+  2. C (blinds P-12).
+  3. F (covers only inboxes with a sidecar).
+  4. E (amends P-12 and puts a signing key in a cron job).
+- **Also agreed (no coverage change):** a read-only 24-48 h observation of the W1 reader lists to settle the
+  diagnosis, and fixes for two canary bugs: a refused or errored read is reported clean, and `--ack` drops the
+  offsets of unscanned topics.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -368,7 +408,10 @@ env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3841-rt cargo clippy --workspace 
 
 ## Updates
 
-### 2026-11-20T21:08:46Z — task-created [task-create-agent]
+### 2026-11-21T11:21:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3841-clear-the-9-clippy--d-warnings-lints-in-.md
+- **Output:** /opt/termlink/.tasks/active/T-3843-file-shaped-posts-canary-reads-the-w1-in.md
 - **Context:** Initial task creation
+
+### 2026-11-21T11:30:11Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

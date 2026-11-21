@@ -25119,3 +25119,21 @@ scan_id: R-095a5734
 task_id: T-3837
 payload:
   task_file: .tasks/active/T-3837-worker-contract-wc034-withdrawn-outcome-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-20T21:30:05Z'
+scan_id: R-cb763071
+task_id: T-3841
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-20T21:30:05Z'
+scan_id: R-cb763071
+task_id: T-3841
+payload:
+  task_file: .tasks/active/T-3841-clear-the-9-clippy--d-warnings-lints-in-.md
