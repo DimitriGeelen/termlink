@@ -367,7 +367,8 @@ impl Store {
         let p = self.dir.join("attention.jsonl");
         let new = !p.exists();
         let mut f = OpenOptions::new().create(true).append(true).mode(0o600).open(&p)?;
-        writeln!(f, "{line}")?;
+        // T-3846: one write of the whole line; `writeln!` can split it, and concurrent appends then interleave.
+        f.write_all(format!("{line}\n").as_bytes())?;
         f.sync_all()?;
         if new {
             fsync_dir(&self.dir)?;
@@ -392,7 +393,8 @@ impl Store {
         let p = self.dir.join("attention.jsonl");
         let new = !p.exists();
         let mut f = OpenOptions::new().create(true).append(true).mode(0o600).open(&p)?;
-        writeln!(f, "{line}")?;
+        // T-3846: one write of the whole line (see `attention`).
+        f.write_all(format!("{line}\n").as_bytes())?;
         f.sync_all()?;
         if new {
             fsync_dir(&self.dir)?;

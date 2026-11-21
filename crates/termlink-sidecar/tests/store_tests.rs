@@ -341,3 +341,35 @@ fn store_put_stamps_stored_lines() {
     s.put(S, C, "m1", b"hello").unwrap();
     assert!(s.chain_lines(C).unwrap()[0].ts_ms.is_some());
 }
+
+/// T-3846: concurrent attention appends never interleave. Each entry is one whole line, so all parse and none is
+/// lost (before the fix, `writeln!` could split a line into several writes and two threads' pieces mixed).
+#[test]
+fn t3846_concurrent_attention_entries_all_parse_and_none_is_lost() {
+    let (_e, s) = fresh();
+    let s = Arc::new(s);
+    let big = "x".repeat(6000);
+    let hs: Vec<_> = (0..16)
+        .map(|t| {
+            let s = s.clone();
+            let big = big.clone();
+            std::thread::spawn(move || {
+                for i in 0..20 {
+                    if i % 2 == 0 {
+                        s.attention("t3846-plain", &format!("{t}-{i}-{big}")).unwrap();
+                    } else {
+                        s.attention_coalesced("t3846-coalesced", &format!("{t}-{i}"), &big).unwrap();
+                    }
+                }
+            })
+        })
+        .collect();
+    for h in hs {
+        h.join().unwrap();
+    }
+    let lines = s.attention_entries();
+    let parsed: Vec<serde_json::Value> = lines.iter().filter_map(|l| serde_json::from_str(l).ok()).collect();
+    assert_eq!(parsed.len(), lines.len(), "every attention line parses (no interleaving)");
+    assert_eq!(parsed.iter().filter(|v| v["kind"] == "t3846-plain").count(), 160);
+    assert_eq!(parsed.iter().filter(|v| v["kind"] == "t3846-coalesced").count(), 160);
+}

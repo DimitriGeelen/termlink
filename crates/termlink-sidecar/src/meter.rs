@@ -732,7 +732,8 @@ impl Meter {
                 std::fs::rename(&path, path.with_extension("log.1"))?;
             }
             let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
-            writeln!(f, "{line}")
+            // T-3846: one write of the whole line, so another process's append cannot interleave with it.
+            f.write_all(format!("{line}\n").as_bytes())
         })();
         if res.is_err() {
             lock(&self.inner).counters.report_log_failed += 1;
