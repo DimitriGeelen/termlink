@@ -18,11 +18,11 @@ operator runme 2026-11-02 17:22Z) + AEF v1.8.16-be.26 or later (T-5014 hook). No
 | 055-agentic-fleet-cockpit | .107 | LIVE | be.26 on operator go ~21:50; main 0fdf569a gen 1; am-i 1 for another id (msg a3173e5c) |
 | 0909-aef-greenfield-v22 | .107 | DORMANT | 2026-11-11: no agent running; main vacant gen 0; status ask sent (msg b6212859) |
 | 0909-boot-into-timeshift-snapshots | .107 | DORMANT | 2026-11-11: no agent running; main vacant gen 0; status ask sent (msg 9880a895) |
-| 1023-portable-encrypted-chromium-vault | .107 | GO SENT, WAITS UPGRADE | operator go 2026-11-08 ("go for be.26 on 1023 and 1409"), relayed msg 31904e02; 2026-11-11: agent running, main still vacant gen 0, status ask sent (msg bee640f7) |
+| 1023-portable-encrypted-chromium-vault | .107 | GO SENT, WAITS UPGRADE | operator go 2026-11-08 ("go for be.26 on 1023 and 1409"), relayed msg 31904e02; 2026-11-11: agent running, main still vacant gen 0, status ask sent (msg bee640f7). 2026-11-21 20:15Z: upgraded and used. Hub shows generation 1, last held by session d23f2c1f@dimitrimintdev (vacant since about 15:50Z). Own report asked (msg 62dd0da0, RECEIVED direct, conversation p35-rollout-1023-portable-encrypted-chromium-vault). LIVE once it reports |
 | 1409-sprind | .107 | GO SENT, WAITS UPGRADE | operator go 2026-11-08, relayed msg 32fa90a0; upgrade via its operator runme after its operator's appointment on 2026-11-09 (msg e529c83b); 2026-11-11: main still vacant gen 0, follow-up sent (msg d8e8540e) |
 | 832-Workflow-designer | .107 | LIVE | be.26 on operator go (job 120); main 572fe488 gen 1; am-i 1 for x (msg 10007efd) |
-| aef-greenfield-test | .132 | UNREACHABLE | 2026-11-11: .132 offline; status ask sent (msg c9c460ce), lands when .132 is back |
-| dimitri-mint-dev | .107 | WAITS .107 REBOOT | mid disk migration (T-213); cutover + reboot of .107 pending; re-vendor after, with operator OK (msg c7d43c64) |
+| aef-greenfield-test | .132 | UNREACHABLE | 2026-11-11: .132 offline; status ask sent (msg c9c460ce), lands when .132 is back. 2026-11-21: .132 back and on 0.12.13+321; main still vacant gen 0 (`termlink main status --hub 192.168.10.132:9100`) |
+| dimitri-mint-dev | .107 | WAITS .107 REBOOT | mid disk migration (T-213); cutover + reboot of .107 pending; re-vendor after, with operator OK (msg c7d43c64). 2026-11-21 20:15Z: upgraded and used. Hub shows generation 1, last held by session 01c158d1@dimitrimintdev (vacant since about 20:00Z). Own report asked (msg ce95f786, RECEIVED direct, conversation p35-rollout-dimitri-mint-dev). LIVE once it reports |
 | fan-dashboard | .107 | LIVE | AEF HEAD cee5af07b (T-5014); main a06ea9fb gen 1; am-i 1/0 correct (msg 181fa697) |
 | ring20-dashboard | .121 | LIVE | be.26; main 5362761e@dashboard-agent gen 1; am-i 1/0 correct (msg 6f846691) |
 | claude-shared-toolkit | — | N/A (not an agent) | no agent reads its inbox (Pen msg e4fb4bc0); do not address it; toolkit matters go to 050 |
