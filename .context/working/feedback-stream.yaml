@@ -25263,3 +25263,21 @@ scan_id: R-dab54b89
 task_id: T-3846
 payload:
   task_file: .tasks/active/T-3846-sidecar-attention-entries-can-interleave.md
+---
+kind: scan_emitted
+timestamp: '2026-11-21T17:47:29Z'
+scan_id: R-094bece8
+task_id: T-3832
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-21T17:47:29Z'
+scan_id: R-094bece8
+task_id: T-3832
+payload:
+  task_file: .tasks/active/T-3832-p-24-slice-b-reachability-card-on-every-.md

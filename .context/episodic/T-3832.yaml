@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3832: P-24 slice (b): reachability card on every agent + GP-4 offline lines (E-60, E-61)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T17:47:44Z
+# ============================================================================
+
+task_id: T-3832
+task_name: "P-24 slice (b): reachability card on every agent + GP-4 offline lines (E-60, E-61)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-20T10:20:03Z
+completed: 2026-11-21T17:47:07Z
+duration_days: 1
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-011 P-24 slice (b), operator ruling D-1 A on T-3708 (2026-11-20). Design docs/reports/T-3708-design.md 3.6 and 3.8: every sidecar posts its liveness note with card {receiver_up, right_hub, adapter_present, last_surface_ms}; reader UNKNOWN past 2 x PN-9, never DEAD; sender WAITING 'home hub unreachable since T'; L4 network cut on a throwaway hub. Depends on T-3708 slice (a).
+
+# Key outcomes
+outcomes:
+  - '3.8.1: the sender records the first failed post after the last successful one (`hub-unreachable-since`, cleared on the next successful post). A WAITING message''s status carries `reason: "home hub unreachable since <ms>"` and `unreachable_since_ms`. Nothing claims RECEIVED from the outbox. A test drives a send with the hub down, then a successful post that clears it.'
+  - '3.6: every sidecar''s liveness note carries `card {receiver_up, right_hub, adapter_present, last_surface_ms}`. A pre-P-24 note struct still parses a P-24 note (test). A card older than 2 x PN-9 reads UNKNOWN, never DEAD. Sender status shows the recipient''s card when its hub is known.'
+  - '3.8.2: past the recipient''s card expiry, the sender shows WAITING FOR RECIPIENT, not STUCK.'
+  - '3.8.3: L4 network cut on a throwaway hub. On restore, the pump posts only what is missing (no duplicates by the identity triple).'
+  - 'Sidecar suite passes; workspace clippy is clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-21 — 3.6 card inputs and 3.8.2 scope (agent choices, overturnable)'
+    chose: '1. `adapter_present` reads the meter''s report log on disk (newest applied or dropped line), not the meter''s in-memory record, so a sidecar restart does not show a present adapter as absent until the agent''s next hook. 2. The 3.8.2 override applies to every STUCK or UNKNOWN label on a sent message once the recipient''s card has expired, including after hand-over. An unreadable hub or a missing card never counts as expired. 3. 3.6.4 (other projects see only reachable yes/no and the version class) needs the PH-3 read scope. In PH-2 the card carries no secret content; the restriction is recorded here as a PH-3 item.'
+    rationale: 'an offline recipient cannot be STUCK, and our own read failure must not be reported as the recipient''s absence.'
+    alternatives_rejected: ['the in-memory meter record (wrong after every restart); reading every book peer''s card (the recipients actually sent to are the ones whose status shows it).']
+  - decision: '2026-11-21 — 3.8.3 how the cut is made (agent choice, overturnable)'
+    chose: 'a fault proxy on the throwaway hub''s unix socket. The estate hub listens only on a unix socket, so the cut is made at the transport. The hub stays up throughout, so its in-memory `client_msg_id` dedupe is what gets tested.'
+    rationale: 'the design names "netns or firewall rule". Neither applies to a unix socket, and both would change host network state from a test (forbidden). The proxy also stages the one case that creates duplicates, a post the hub took whose reply was lost, which a plain firewall drop would only hit by chance.'
+    alternatives_rejected: ['iptables or netns (host state, and not applicable to a unix-socket hub); stopping the hub (that is 3.8.1''s test, and it also clears the dedupe).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1887 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1887
+  commits: 1
+  files_changed: 3
+  lines_added: 119
+  lines_removed: 4
+  footprint_refreshed_at: '2026-11-21T17:48:17Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3832-p-24-slice-b-reachability-card-on-every-.md
+generated_by: context-agent-hybrid
