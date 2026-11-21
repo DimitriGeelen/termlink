@@ -520,7 +520,7 @@ async fn real_main() -> Result<()> {
                 commands::channel::cmd_channel_replies_of("agent-chat-arc", sender.as_deref(), hub.as_deref(), json).await
             }
             AgentAction::Info { since, hub, json } => {
-                commands::channel::cmd_channel_info("agent-chat-arc", since, hub.as_deref(), json).await
+                commands::channel::cmd_channel_info("agent-chat-arc", since, hub.as_deref(), json, false).await
             }
             AgentAction::React { offset, emoji, remove, hub, json } => {
                 commands::channel::cmd_channel_react("agent-chat-arc", offset, &emoji, None, remove, hub.as_deref(), json).await
@@ -1040,8 +1040,8 @@ async fn real_main() -> Result<()> {
                 )
                 .await
             }
-            ChannelAction::Info { topic, since, hub, json } => {
-                commands::channel::cmd_channel_info(&topic, since, hub.as_deref(), json).await
+            ChannelAction::Info { topic, since, hub, json, read_messages } => {
+                commands::channel::cmd_channel_info(&topic, since, hub.as_deref(), json, read_messages).await
             }
             ChannelAction::Reply {
                 topic,

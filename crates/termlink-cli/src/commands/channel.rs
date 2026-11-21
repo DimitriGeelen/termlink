@@ -4487,11 +4487,24 @@ pub(crate) fn summarize_senders(msgs: &[Value]) -> Vec<(String, u64)> {
 /// T-1324: synthesized topic view — description (latest), retention, post
 /// count, top senders, latest receipt per sender. One-pass walk over the
 /// topic; reuses helpers from T-1315/T-1323.
+/// T-3830: whether `channel info` reads message content. An `inbox:*` topic has one reader, its
+/// sidecar (P-12); a content walk would be recorded as a second consumer (the hub records every
+/// inbox read, `inspect` included, and must, or any process could read an inbox unrecorded). So
+/// on an inbox the walk happens only when the caller asks for it.
+pub(crate) fn info_reads_messages(topic: &str, read_messages: bool) -> bool {
+    read_messages || !topic.starts_with("inbox:")
+}
+
+/// T-3830: the one-line reason shown when `channel info` leaves an inbox's messages unread.
+pub(crate) const INFO_INBOX_NOT_READ: &str = "not read: an inbox has one reader, its sidecar (P-12); reading the \
+    messages would register this command as a second consumer. Pass --read-messages to read them anyway.";
+
 pub(crate) async fn cmd_channel_info(
     topic: &str,
     since: Option<i64>,
     hub: Option<&str>,
     json_output: bool,
+    read_messages: bool,
 ) -> Result<()> {
     let sock = hub_socket_or_json_exit(hub, json_output)?;
     // Pull retention + count from channel.list with the topic name as exact prefix.
@@ -4517,6 +4530,42 @@ pub(crate) async fn cmd_channel_info(
     let retention_value = entry["retention"]
         .get("value")
         .and_then(|v| v.as_u64());
+
+    // T-3830: on an inbox, show only what channel.list gives; read no message unless asked.
+    if !info_reads_messages(topic, read_messages) {
+        if json_output {
+            let mut obj = json!({
+                "topic": topic,
+                "retention": {"kind": retention_kind, "value": retention_value},
+                "count": count,
+                "messages_read": false,
+                "note": INFO_INBOX_NOT_READ,
+            });
+            if let Some(map) = obj.as_object_mut() {
+                for k in ["activity", "flags", "flag_days", "readers", "owner", "reason", "unowned_forever", "over_ceiling"] {
+                    if let Some(v) = entry.get(k) {
+                        map.insert(k.to_string(), v.clone());
+                    }
+                }
+            }
+            println!("{}", serde_json::to_string_pretty(&obj)?);
+        } else {
+            println!("Topic: {topic}");
+            match retention_value {
+                Some(v) => println!("Retention: {retention_kind}:{v}"),
+                None => println!("Retention: {retention_kind}"),
+            }
+            println!("Posts: {count}");
+            if let Some(r) = entry.get("readers") {
+                println!("Readers: {r}");
+            }
+            println!("Messages: {INFO_INBOX_NOT_READ}");
+        }
+        return Ok(());
+    }
+    if topic.starts_with("inbox:") {
+        eprintln!("note: reading the messages of {topic} registers this command as a reader of the inbox (P-12, T-3830)");
+    }
 
     // Single full walk to compute description / senders / receipts.
     let mut all_msgs: Vec<Value> = Vec::with_capacity(count as usize);
@@ -13451,6 +13500,33 @@ fn render_claims_summary_text_with_annotation(
 #[allow(clippy::await_holding_lock)] // T-3577: the *_ENV_LOCKs serialise env-changing tests across awaits on purpose
 mod tests {
     use super::*;
+
+    /// T-3830: `channel info` reads an inbox's messages only with --read-messages (P-12: one reader);
+    /// every other topic is read as before.
+    #[test]
+    fn t3830_channel_info_reads_an_inbox_only_when_asked() {
+        assert!(!info_reads_messages("inbox:cacc73ea32b121dd/claude-termlink", false));
+        assert!(info_reads_messages("inbox:cacc73ea32b121dd/claude-termlink", true));
+        for t in ["agent-chat-arc", "dm:a:b", "xfer-832-ring20", "inbox.queued"] {
+            assert!(info_reads_messages(t, false), "{t}");
+        }
+        assert!(INFO_INBOX_NOT_READ.contains("P-12") && INFO_INBOX_NOT_READ.contains("--read-messages"));
+    }
+
+    #[test]
+    fn t3830_channel_info_read_messages_flag_parses() {
+        use clap::Parser;
+        let cli = crate::cli::Cli::try_parse_from(["termlink", "channel", "info", "inbox:h/a", "--read-messages"]).unwrap();
+        match cli.command {
+            crate::cli::Command::Channel { action: crate::cli::ChannelAction::Info { read_messages, .. } } => assert!(read_messages),
+            _ => panic!("not channel info"),
+        }
+        let cli = crate::cli::Cli::try_parse_from(["termlink", "channel", "info", "inbox:h/a"]).unwrap();
+        match cli.command {
+            crate::cli::Command::Channel { action: crate::cli::ChannelAction::Info { read_messages, .. } } => assert!(!read_messages),
+            _ => panic!("not channel info"),
+        }
+    }
 
     // T-2653: the hub-error-code hint taxonomy must route backpressure/auth/other
     // to distinct recovery commands (Directive #3). This is load-bearing: reverting

@@ -25191,3 +25191,21 @@ scan_id: R-03fe777e
 task_id: T-3845
 payload:
   task_file: .tasks/active/T-3845-w1-sidecars-sidecarbin-follows-the-path-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-21T13:57:25Z'
+scan_id: R-92c42d52
+task_id: T-3844
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-21T13:57:25Z'
+scan_id: R-92c42d52
+task_id: T-3844
+payload:
+  task_file: .tasks/active/T-3844-hub-flags-file-shaped-posts-on-inbox-top.md

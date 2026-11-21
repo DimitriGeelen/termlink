@@ -2871,6 +2871,12 @@ pub(crate) enum ChannelAction {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// T-3830: on an `inbox:*` topic, also read the messages (description, senders,
+        /// receipts). Off by default: an inbox has one reader (P-12), and this registers the
+        /// command as a second consumer.
+        #[arg(long)]
+        read_messages: bool,
     },
     /// Membership list for one topic (T-1341). Walks the topic once and
     /// reports each distinct sender with post-count, first-seen ts, and

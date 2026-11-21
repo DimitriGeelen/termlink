@@ -10217,6 +10217,17 @@ pub struct ChannelInfoParams {
     /// receipts are computed only over messages with `ts >= since`. Total
     /// `count` stays unbounded so operator can see "12 of 23 in last hour".
     pub since: Option<i64>,
+    /// T-3830: on an `inbox:*` topic, also read the messages (description, senders, receipts).
+    /// Default false: an inbox has one reader (P-12), and reading registers the caller as a
+    /// second consumer. Non-inbox topics are always read.
+    #[serde(default)]
+    pub read_messages: bool,
+}
+
+/// T-3830: whether `termlink_channel_info` reads message content (an inbox only when asked; P-12).
+/// Mirrors the CLI's `info_reads_messages`.
+pub(crate) fn channel_info_reads_messages(topic: &str, read_messages: bool) -> bool {
+    read_messages || !topic.starts_with("inbox:")
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -22994,6 +23005,20 @@ impl TermLinkTools {
             .unwrap_or("?")
             .to_string();
         let retention_value = entry["retention"].get("value").and_then(|v| v.as_u64());
+
+        // T-3830: on an inbox, return only what channel.list gives; read no message unless asked.
+        if !channel_info_reads_messages(&p.topic, p.read_messages) {
+            return serde_json::json!({
+                "topic": p.topic,
+                "retention": {"kind": retention_kind, "value": retention_value},
+                "count": count,
+                "messages_read": false,
+                "readers": entry.get("readers"),
+                "note": "not read: an inbox has one reader, its sidecar (P-12); reading the messages would register \
+                         this tool as a second consumer. Pass read_messages: true to read them anyway.",
+            })
+            .to_string();
+        }
 
         // Single full walk.
         let all_msgs = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
@@ -36725,6 +36750,19 @@ YW\tJ
         let p: ChannelInfoParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert!(p.since.is_none());
+    }
+
+    /// T-3830: an inbox's messages are read only when asked (P-12); other topics always.
+    #[test]
+    fn t3830_channel_info_reads_an_inbox_only_when_asked() {
+        let p: ChannelInfoParams = serde_json::from_value(serde_json::json!({"topic": "inbox:h/a"})).unwrap();
+        assert!(!p.read_messages, "default off");
+        assert!(!channel_info_reads_messages("inbox:h/a", false));
+        assert!(channel_info_reads_messages("inbox:h/a", true));
+        assert!(channel_info_reads_messages("dm:alice:bob", false));
+        assert!(channel_info_reads_messages("agent-chat-arc", false));
+        let p: ChannelInfoParams = serde_json::from_value(serde_json::json!({"topic": "inbox:h/a", "read_messages": true})).unwrap();
+        assert!(p.read_messages);
     }
 
     #[test]

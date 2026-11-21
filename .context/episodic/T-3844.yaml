@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3844: Hub flags file-shaped posts on inbox:* topics at post time (T-3843 ruling H); canary reads the findings, not the inboxes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T13:57:35Z
+# ============================================================================
+
+task_id: T-3844
+task_name: "Hub flags file-shaped posts on inbox:* topics at post time (T-3843 ruling H); canary reads the findings, not the inboxes"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-21T12:05:12Z
+completed: 2026-11-21T13:57:10Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-21T14:57:07+01:00
+last_commit: 2026-11-21T14:57:07+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub records file-shaped inbox posts at post time (admin rows file-shaped-post + file-shaped-watch-on, canary's shape rule); canary compares them with its scan (PARITY MISMATCH fires; parity unknown never a pass); T-3843 ruling H, parity period
+
+# Key outcomes
+outcomes:
+  - '`channel::file_shape` matches the canary''s rule. A unit test pins each shape, plus `artifact` and a plain note as negatives.'
+  - 'A committed file-shaped post to an `inbox:*` topic writes one `file-shaped-post` admin row with the stored offset. A non-inbox topic or a non-file-shaped post writes none. The hub writes `file-shaped-watch-on` at start. Unit tests use the admin-log test seam.'
+  - '`check-file-shaped-posts.sh` reads the admin log and keeps the earliest watch-on time in its state. For inbox topics it compares (topic, offset) of findings posted since then: hub only, scan only, or matched. A mismatch prints `PARITY MISMATCH` and exits 1; matched or nothing to compare prints a parity line and changes nothing else. Fixtures pin matched, hub-only, scan-only, no admin log (parity unknown, never a pass), and a pre-watch post (not compared).'
+  - 'The hub and canary test suites pass; workspace clippy is clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3845.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3844-hub-flags-file-shaped-posts-on-inbox-top.md'
+  - '.tasks/completed/T-3845-w1-sidecars-sidecarbin-follows-the-path-.md'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'scripts/check-file-shaped-posts.sh'
+  - 'tests/file-shaped-posts-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T14:57:07'
+    action: 'T-3844: hub records file-shaped inbox posts at post time (admin rows file-shaped-post + file-shaped-watch-on, canary''s shape rule); canary compares them with its scan (PARITY MISMATCH fires; parity unknown never a pass); T-3843 ruling H, parity period'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 111 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 111
+  commits: 2
+  files_changed: 15
+  lines_added: 1379
+  lines_removed: 15
+  footprint_refreshed_at: '2026-11-21T15:45:34Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3844-hub-flags-file-shaped-posts-on-inbox-top.md
+generated_by: context-agent-hybrid
