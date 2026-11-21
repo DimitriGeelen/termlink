@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3847: W1 hooks write the meter report log, so the card's adapter_present reads true when the built hooks report
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T21:14:17Z
+# ============================================================================
+
+task_id: T-3847
+task_name: "W1 hooks write the meter report log, so the card's adapter_present reads true when the built hooks report"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-21T21:05:37Z
+completed: 2026-11-21T21:14:05Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-21T22:13:17+01:00
+last_commit: 2026-11-21T22:13:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the W1 built hooks (session-start, stop, session-end) write a meter report-log line, so the reachability card's adapter_present reads true when they report (W1 cards read false after T-3832 went live: only adapter/2 intake wrote the log). post-tool-use is left out. Test fails with the write disabled; sidecar 429/0, clippy clean
+
+# Key outcomes
+outcomes:
+  - '`Meter::legacy_hook` writes one report-log line (`ts_ms`, `session`, `event` = the hook, `outcome` applied, `source` w1-hook) for session-start, stop and session-end; none for post-tool-use. Nothing else of the hook input is copied.'
+  - 'A test: a meter with a state store, given a legacy stop hook, makes `liveness::last_valid_report_ms` return its time; a post-tool-use alone does not. Negative control: with the write removed the test fails.'
+  - 'Sidecar suite passes; workspace clippy is clean. (2026-11-21: 429/0; clippy clean; the test fails with the write disabled.)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3847-w1-hooks-write-the-meter-report-log-so-t.md'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/tests/meter_tests.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T22:13:17'
+    action: 'T-3847: the W1 built hooks (session-start, stop, session-end) write a meter report-log line, so the reachability card''s adapter_present reads true when they report (W1 cards read false after T-3832 went live: only adapter/2 intake wrote the log). post-tool-use is left out. Test fails with the write disabled; sidecar 429/0, clippy clean'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 2
+  files_changed: 6
+  lines_added: 545
+  lines_removed: 5
+  footprint_refreshed_at: '2026-11-21T21:14:42Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3847-w1-hooks-write-the-meter-report-log-so-t.md
+generated_by: context-agent-hybrid

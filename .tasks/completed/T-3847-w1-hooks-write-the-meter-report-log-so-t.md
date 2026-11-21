@@ -4,10 +4,10 @@ name: "W1 hooks write the meter report log, so the card's adapter_present reads 
 description: >
   T-3832 3.6 follow-up: adapter_present reads the meter report log, which only adapter reports write; the W1 built hooks (legacy_hook) never write it, so W1 cards always say adapter absent.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-21T21:05:37Z
-last_update: 2026-11-21T21:13:17Z
-date_finished: null
+last_update: 2026-11-21T21:14:05Z
+date_finished: 2026-11-21T21:14:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -298,6 +298,11 @@ env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3847-verify cargo test -p termlin
 
 ## Evolution
 
+### 2026-11-21 — the W1 pair's adapter is the built hooks, not adapter/2
+- **What changed:** T-3832 3.6 took "adapter report" to mean adapter/2 intake, the only writer of the report log. In the W1 pair, AEF's adapter/2 stays off on purpose: its `enabled()` refuses whenever TermLink's own sidecar hooks run in a settings file. The built hooks report through `Meter::legacy_hook`, which wrote no log line.
+- **Plan impact:** the card's `adapter_present` was a false negative on every W1 agent. Field-checked after the T-3832 deploy, before anyone relied on it.
+- **Triggered:** this fix. Not yet live: it needs the next runme.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -376,3 +381,16 @@ env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3847-verify cargo test -p termlin
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3847-w1-hooks-write-the-meter-report-log-so-t.md
 - **Context:** Initial task creation
+
+### 2026-11-21T21:14:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f5d69b48
+- **Timestamp:** 2026-11-21T21:14:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
