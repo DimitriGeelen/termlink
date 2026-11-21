@@ -55,6 +55,30 @@ HB="$T/hb"; echo '{"topics":[]}' > "$D/list.json"; rm -f "$T/state"
 FILE_SHAPED_TEST_DIR="$D" FILE_SHAPED_STATE="$T/state" FILE_SHAPED_HEARTBEAT="$HB" bash "$SUT" --quiet >/dev/null 2>&1
 check "10 a completed run writes its heartbeat" '[ -f "$HB" ]'
 
+# T-3843: a refused or failed read is a coverage gap (rc 2), never an empty, healthy topic.
+cat > "$D/list.json" <<'EOF'
+{"topics":[{"name":"xfer-a","count":4},{"name":"inbox:q","count":2}]}
+EOF
+rm -f "$T/state"; run --ack >/dev/null
+echo '{"error":{"code":-32050,"message":"inbox is bound: unsigned read refused"}}' > "$D/inbox_q.raw"
+out=$(run); rc=$?
+check "11 a refused read (error object) is tooling rc 2, named, and the other topics are still scanned" '[ $rc = 2 ] && grep -q "TOOLING: subscribe inbox:q: refused" <<< "$out" && grep -q "xfer-a: 3" <<< "$out"'
+echo 'Error: hub refused' > "$D/inbox_q.raw"; echo 1 > "$D/inbox_q.rc"
+out=$(run); rc=$?
+check "12 a non-zero subscribe exit is tooling rc 2, never a false clean" '[ $rc = 2 ] && grep -q "TOOLING: subscribe inbox:q: exit 1" <<< "$out"'
+rm -f "$D/inbox_q.rc"; echo 'garbage' > "$D/inbox_q.raw"
+out=$(run --json); rc=$?
+check "13 non-JSON output is tooling rc 2; --json reports ok=false and the gap" '[ $rc = 2 ] && python3 -c "import json,sys; d=json.loads(sys.argv[1].splitlines()[0]); sys.exit(0 if not d[\"ok\"] and d[\"tooling\"] else 1)" "$(grep "^{" <<< "$out")"'
+echo '{"offset":9,"msg_type":"document","metadata":{"filename":"z.pdf","from_project":"p7"}}' >> "$D/xfer-a.ndjson"
+out=$(run); rc=$?
+check "14 a finding elsewhere outranks the gap (rc 1), and the gap is still printed" '[ $rc = 1 ] && grep -q "xfer-a: 1 new" <<< "$out" && grep -q "TOOLING: subscribe inbox:q" <<< "$out"'
+
+# T-3843: --ack keeps the stored offset of a topic it did not scan.
+echo '{"inbox:old":5,"xfer-a":3}' > "$T/state"
+echo '{"topics":[{"name":"xfer-a","count":5}]}' > "$D/list.json"
+run --ack >/dev/null
+check "15 --ack keeps the acknowledgement of a topic not scanned this run" 'python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get(\"inbox:old\")==5 and d.get(\"xfer-a\")==9 else 1)" "$T/state"'
+
 echo "---"
 echo "file-shaped-posts canary fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

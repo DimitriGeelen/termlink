@@ -19,7 +19,9 @@
 #
 # SCOPE (T-2680): reads the local hub only, and only the shapes above; a file disguised as a plain
 # `note` is not seen. Exit 0 healthy · 1 new file-shaped post(s) · 2 tooling (hub unreachable,
-# unparseable output; never a false clean).
+# unparseable output, or a topic read the hub refused or failed; never a false clean). A refused
+# read is named on stderr and the scan continues; a finding elsewhere still exits 1 (T-3843).
+# --ack keeps the stored offset of a topic it did not scan (T-3843).
 # Usage: check-file-shaped-posts.sh [--json] [--quiet] [--ack] [--no-heartbeat]
 # Seams: FILE_SHAPED_TEST_DIR (list.json + <topic-slug>.ndjson), FILE_SHAPED_STATE, FILE_SHAPED_HEARTBEAT
 set -uo pipefail
@@ -62,8 +64,37 @@ def topics():
     ts = d.get("topics", d) if isinstance(d, dict) else d
     return [(t["name"], t.get("count", 0)) for t in ts if isinstance(t, dict) and "name" in t]
 
+# T-3843: a read the hub refused or failed (non-zero exit, an error object, output that is not
+# JSON) is a coverage gap for that topic, never an empty topic. The scan goes on; the run ends 2.
+problems = []
+
+def page(topic, out, rc, err=""):
+    """Rows of one subscribe page, or None (and a recorded problem) when the read did not succeed."""
+    if rc != 0:
+        problems.append(f"subscribe {topic}: exit {rc}: {(err or out).strip()[:160]}")
+        return None
+    rows = []
+    for line in out.splitlines():
+        if not line.strip(): continue
+        try: r = json.loads(line)
+        except Exception:
+            problems.append(f"subscribe {topic}: output is not JSON: {line.strip()[:160]}")
+            return None
+        if not isinstance(r, dict) or "error" in r:
+            problems.append(f"subscribe {topic}: refused: {json.dumps(r)[:160]}")
+            return None
+        rows.append(r)
+    return rows
+
 def envelopes(topic):
     if test_dir:
+        raw = os.path.join(test_dir, slug(topic) + ".raw")
+        if os.path.exists(raw):
+            rcf = os.path.join(test_dir, slug(topic) + ".rc")
+            rc = int(open(rcf).read().strip()) if os.path.exists(rcf) else 0
+            for r in page(topic, open(raw).read(), rc) or []:
+                if isinstance(r.get("offset"), int): yield r
+            return
         p = os.path.join(test_dir, slug(topic) + ".ndjson")
         if os.path.exists(p):
             for line in open(p):
@@ -72,14 +103,14 @@ def envelopes(topic):
     cursor = 0
     while True:
         try:
-            out = subprocess.run(["termlink", "channel", "subscribe", topic, "--json", "--cursor",
+            res = subprocess.run(["termlink", "channel", "subscribe", topic, "--json", "--cursor",
                                   str(cursor), "--limit", "1000"], capture_output=True, text=True,
-                                 timeout=120).stdout
-        except Exception as e: tooling(f"subscribe {topic}: {e}")
-        rows = []
-        for line in out.splitlines():
-            try: rows.append(json.loads(line))
-            except Exception: continue
+                                 timeout=120)
+        except Exception as e:
+            problems.append(f"subscribe {topic}: {e}")
+            return
+        rows = page(topic, res.stdout, res.returncode, res.stderr)
+        if rows is None: return
         for r in rows:
             if isinstance(r.get("offset"), int): yield r
         offs = [r["offset"] for r in rows if isinstance(r.get("offset"), int)]
@@ -99,7 +130,9 @@ try: acked = json.load(open(state_path))
 except FileNotFoundError: acked = {}
 except Exception: tooling(f"state file unreadable: {state_path}")
 
-report, new_acked = [], {}
+# T-3843: --ack starts from the stored offsets, so a topic this run did not scan (or could not
+# read) keeps its acknowledgement instead of having it erased.
+report, new_acked = [], dict(acked)
 for name, count in topics():
     if not count: continue
     found = []
@@ -122,8 +155,8 @@ if os.environ["FILE_SHAPED_ACK"] == "1":
     os.makedirs(os.path.dirname(state_path) or ".", exist_ok=True)
     json.dump(new_acked, open(state_path, "w"), indent=1, sort_keys=True)
 if os.environ["FILE_SHAPED_JSON"] == "1":
-    print(json.dumps({"ok": not firing, "acked_now": os.environ["FILE_SHAPED_ACK"] == "1",
-                      "topics": report, "firing": [r["topic"] for r in firing]}))
+    print(json.dumps({"ok": not firing and not problems, "acked_now": os.environ["FILE_SHAPED_ACK"] == "1",
+                      "topics": report, "firing": [r["topic"] for r in firing], "tooling": problems}))
 else:
     quiet = os.environ["FILE_SHAPED_QUIET"] == "1"
     if firing and os.environ["FILE_SHAPED_ACK"] != "1":
@@ -140,5 +173,9 @@ else:
         for r in report:
             print(f"  {r['topic']}: {r['total']}  shapes={','.join(r['shapes'])}  from={','.join(r['senders'])}")
         print("  Scope: local hub; detects the listed shapes only, not a file disguised as a plain note.")
-sys.exit(1 if firing and os.environ["FILE_SHAPED_ACK"] != "1" else 0)
+for p in problems:
+    print(f"check-file-shaped-posts: TOOLING: {p}", file=sys.stderr)
+# A finding outranks a gap (it is the actionable signal); a gap is never reported clean (T-3843).
+if firing and os.environ["FILE_SHAPED_ACK"] != "1": sys.exit(1)
+sys.exit(2 if problems else 0)
 PY

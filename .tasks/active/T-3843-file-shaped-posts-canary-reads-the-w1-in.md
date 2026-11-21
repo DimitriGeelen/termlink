@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-21T11:21:17Z
-last_update: 2026-11-21T12:00:26Z
+last_update: 2026-11-21T12:05:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -92,7 +92,7 @@ Reviews: `docs/reports/T-3843-reviews/`.
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] External review of options A-D saved under `docs/reports/T-3843-reviews/` (bundle, prompt, three seats, independence).
 - [ ] Diagnosis settled: the W1 inboxes' consumer list is observed for at least 24 h without recording a read (`termlink hub inbox consumers`), and every advance of the `(unnamed)` row's `last_ms` is attributed to a named process.
-- [ ] `check-file-shaped-posts.sh` exits 2 (tooling) when a `channel subscribe` returns an error object or a non-zero status, never 0. `--ack` keeps the stored offsets of topics it did not scan. Fixtures pin both.
+- [x] `check-file-shaped-posts.sh` exits 2 (tooling) when a `channel subscribe` returns an error object or a non-zero status, never 0. `--ack` keeps the stored offsets of topics it did not scan. Fixtures pin both.
 - [ ] The operator's ruling on the replacement route is recorded in Decisions with his words, and the route is built or filed as its own task.
 
 ### Human
@@ -168,6 +168,8 @@ Reviews: `docs/reports/T-3843-reviews/`.
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
+bash tests/file-shaped-posts-canary-fixtures.sh > /tmp/t3843-fsp.out 2>&1 && grep -q "15 passed, 0 failed" /tmp/t3843-fsp.out
+test -s docs/reports/T-3843-reviews/review-claude-code.md && test -s docs/reports/T-3843-reviews/review-codex.md && test -s docs/reports/T-3843-reviews/review-opencode.md
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
