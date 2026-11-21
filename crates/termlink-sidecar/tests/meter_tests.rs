@@ -1167,3 +1167,32 @@ fn t3783_every_report_leaves_one_receipt_line_without_content() {
     assert!(rotated.exists(), "rotated to {}", rotated.display());
     assert_eq!(std::fs::read_to_string(&path).unwrap().lines().count(), 1, "a fresh file after rotation");
 }
+
+/// T-3847: a built W1 hook is an adapter record (the reachability card's `adapter_present`,
+/// T-3832 3.6). session-start, stop and session-end write one report-log line each; post-tool-use
+/// writes none (it fires on every tool call). Only the hook name and session are copied.
+#[test]
+fn t3847_w1_hooks_are_adapter_records_in_the_report_log() {
+    let e = Estate::create_without_hub().unwrap();
+    let st = open_store(&e);
+    let m = Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_state(st.clone());
+    let sess = "11111111-2222-3333-4444-555555555555";
+    // post-tool-use alone: no adapter record
+    m.legacy_hook(sess, "post-tool-use", None, None);
+    assert_eq!(termlink_sidecar::liveness::last_valid_report_ms(st.dir()), None);
+    let before = termlink_sidecar::store::now_ms();
+    m.legacy_hook(sess, "stop", None, None);
+    let t = termlink_sidecar::liveness::last_valid_report_ms(st.dir()).expect("a stop hook is an adapter record");
+    assert!(t >= before.saturating_sub(1_000), "{t} vs {before}");
+    m.legacy_hook(sess, "session-start", None, None);
+    m.legacy_hook(sess, "session-end", None, None);
+    let log = std::fs::read_to_string(m.report_log_path().unwrap()).unwrap();
+    let lines: Vec<Value> = log.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+    let events: Vec<&str> = lines.iter().map(|v| v["event"].as_str().unwrap()).collect();
+    assert_eq!(events, vec!["stop", "session-start", "session-end"]);
+    for v in &lines {
+        assert_eq!((v["outcome"].as_str(), v["source"].as_str(), v["session"].as_str()), (Some("applied"), Some("w1-hook"), Some(sess)));
+        let keys: Vec<&String> = v.as_object().unwrap().keys().collect();
+        assert_eq!(keys.len(), 6, "nothing else copied: {v}");
+    }
+}

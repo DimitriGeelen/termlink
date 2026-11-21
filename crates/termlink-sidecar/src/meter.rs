@@ -710,7 +710,9 @@ impl Meter {
     /// outcome and reason. Nothing else of the report is copied (no prompt text). A failed
     /// write is counted, never an error for the reporter.
     fn log_report(&self, raw: &[u8], out: &Intake) {
-        let Some(path) = self.report_log_path() else { return };
+        if self.report_log_path().is_none() {
+            return;
+        }
         let v: Value = if raw.len() <= MAX_REPORT { serde_json::from_slice(raw).unwrap_or(Value::Null) } else { Value::Null };
         let session = v.get("session_id").and_then(Value::as_str).filter(|x| valid_session(x)).unwrap_or("?");
         let event = v.get("event").and_then(Value::as_str).filter(|e| EVENTS.contains(e)).unwrap_or("?");
@@ -725,6 +727,13 @@ impl Meter {
                 line[k] = json!(n);
             }
         }
+        self.write_report_line(&line);
+    }
+
+    /// Append one line to the report log, rotating at the size cap. Must be called without
+    /// `self.inner` held: a failed write takes it to count the failure.
+    fn write_report_line(&self, line: &Value) {
+        let Some(path) = self.report_log_path() else { return };
         let _g = lock(&self.report_log_lock);
         let res = (|| -> std::io::Result<()> {
             use std::io::Write;
@@ -937,6 +946,14 @@ impl Meter {
         }
         if matches!(hook, "stop" | "session-end") {
             self.persist(inner);
+        }
+        drop(g);
+        // T-3847: a built hook is this agent's adapter record too (the reachability card's
+        // `adapter_present`, T-3832 3.6). post-tool-use is left out: it fires on every tool call
+        // and would flush the diagnostic log. Only the hook name and session are copied.
+        if matches!(hook, "session-start" | "stop" | "session-end") {
+            self.write_report_line(&json!({"ts_ms": (self.wall)(), "session": session, "event": hook,
+                                           "outcome": "applied", "reason": "", "source": "w1-hook"}));
         }
     }
 
