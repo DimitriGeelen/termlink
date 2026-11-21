@@ -3050,7 +3050,8 @@ printf '%s\nexport CLAUDE_CODE_TMPDIR="$HOME/.cache/claude-tmp"\n' "$TD_TMPLINE"
 # ---- T-3647: action 4b restarts W1 sidecars running older code -------------------
 echo "T-3647: 4b W1 sidecars onto the installed binary"
 s4b() { echo "$1" | sed -n '/^.*4b\. W1 sidecars onto the installed binary/,/^.*17\. arc-011 W1/p'; }
-: > "$W1R/termlink-new"; : > "$W1R/termlink-old"
+# T-3845: distinct contents, so the content check (an identical copy counts as installed) can tell them apart.
+printf 'build-new\n' > "$W1R/termlink-new"; printf 'build-old\n' > "$W1R/termlink-old"
 cat > "$W1R/systemctl" <<'EOS'
 #!/usr/bin/env bash
 D="${FAKE_W1_DIR:?}"; u="${@: -1}"; f="$D/pid.$u"
@@ -3083,6 +3084,18 @@ else bad "T-3647 still-stale" "rc=$rc: $x"; fi
 rm -f "$W1R/pid.u-none"; out=$(RUNME_W1_UNITS="u-none" run); x=$(s4b "$out")
 if echo "$x" | grep_all 'skip    u-none not running'; then ok "T-3647: unit not running => skip, nothing restarted"
 else bad "T-3647 absent" "$x"; fi
+# T-3845: a unit running an identical copy of the installed binary at another path is on it (no restart);
+# a copy with different content is not.
+cp "$W1R/termlink-new" "$W1R/termlink-copy"; rm -f "$W1R/restarts"; w1_unit u-main 41 termlink-copy
+out=$(RUNME_W1_UNITS="u-main" run); x=$(s4b "$out")
+if echo "$x" | grep_all 'skip    u-main already runs the installed binary' && [ ! -s "$W1R/restarts" ]; then
+    ok "T-3845: identical copy at another path => already on the installed binary, no restart"
+else bad "T-3845 identical copy" "$x"; fi
+printf 'build-other\n' > "$W1R/termlink-copy"; rm -f "$W1R/restarts"; w1_unit u-main 51 termlink-copy
+out=$(RUNME_W1_UNITS="u-main" run); x=$(s4b "$out")
+if echo "$x" | grep_all 'OK      u-main restarted and verified' && [ "$(cat "$W1R/restarts")" = u-main ]; then
+    ok "T-3845: a copy with different content is stale => restarted onto the installed binary"
+else bad "T-3845 different copy" "$x"; fi
 # ---- T-3789: action 22f restarts aef-meter only on request ------------------------
 s22f() { echo "$1" | sed -n '/^.*22f\. /,/^.*23\. Daily telemetry rollup/p'; }
 rm -f "$W1R/restarts" "$TMP/aefm.request" "$TMP/aefm.log"; w1_unit u-aef 31 termlink-old

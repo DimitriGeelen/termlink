@@ -871,6 +871,9 @@ seam W1_PROC RUNME_W1_PROC "/proc"
 seam W1_BIN RUNME_W1_BIN "${HOME:-/root}/.cargo/bin/termlink"
 # T-3698: once 4e has selected a release, the W1 units run it (their SIDECAR_BIN is current/bin/termlink).
 [ -n "$REL_TAG" ] && [ -x "$REL_CUR_BIN" ] && W1_BIN="$REL_CUR_BIN"
+# T-3845: "runs the installed binary" = the same file, or a copy with identical content at another path
+# (the unit's SIDECAR_BIN may name /root/.local/bin/termlink, which runme installs from the same build).
+w1_same_bin() { [ "$1" -ef "$2" ] || cmp -s "$1" "$2"; }
 w1_restart_onto_binary() {
     local unit pid i
     for unit in $W1_UNITS; do
@@ -878,7 +881,7 @@ w1_restart_onto_binary() {
         if [ -z "$pid" ] || [ "$pid" = "0" ]; then
             say "  skip    $unit not running (W1 not provisioned here, or stopped on purpose)"; SKIPPED=$((SKIPPED+1)); continue
         fi
-        if [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then
+        if w1_same_bin "$W1_PROC/$pid/exe" "$W1_BIN"; then
             say "  skip    $unit already runs the installed binary (pid $pid)"; SKIPPED=$((SKIPPED+1)); continue
         fi
         # T-3713: 4b runs after 4e now; with a release pinned, 4e owns the units (never move them off it here)
@@ -901,11 +904,11 @@ w1_restart_unit() {
     if ! $W1_SYSTEMCTL restart "$unit"; then W1_WHY="systemctl restart $unit"; return 1; fi
     for i in 1 2 3 4 5 6 7 8 9 10; do
         pid="$($W1_SYSTEMCTL show -p MainPID --value "$unit" 2>/dev/null)"
-        [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ] && break
+        [ -n "$pid" ] && [ "$pid" != "0" ] && w1_same_bin "$W1_PROC/$pid/exe" "$W1_BIN" && break
         [ "${RUNME_FIXTURE:-0}" = "1" ] || sleep 1
     done
     W1_PID="$pid"
-    if [ "$($W1_SYSTEMCTL is-active "$unit" 2>/dev/null)" = "active" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then return 0; fi
+    if [ "$($W1_SYSTEMCTL is-active "$unit" 2>/dev/null)" = "active" ] && w1_same_bin "$W1_PROC/$pid/exe" "$W1_BIN"; then return 0; fi
     W1_WHY="$unit after restart: not active or not on the installed binary (pid ${pid:-none})"; return 1
 }
 # T-3703 (P-31 roll-out order): 4b runs AFTER 5, so the hub serves the revocation list before any sidecar
@@ -2794,7 +2797,9 @@ install_claude_fw_router
 # ---------------------------------------------------------------------------
 # The recorded operator go for W1: "<date>|<where it is recorded>". Empty = not given.
 ARC011_W1_GO="${RUNME_W1_GO-2026-10-14|T-3426 Decisions: W1 go, operator ruling B}"
-seam W1_PROVISION RUNME_W1_PROVISION "bash $PROJECT_ROOT/scripts/arc011-w1-provision.sh"
+# T-3845: the provisioner writes SIDECAR_BIN = the binary runme installs and verifies (W1_BIN), never
+# whatever `command -v termlink` finds on the PATH of the shell runme was started from.
+seam W1_PROVISION RUNME_W1_PROVISION "env W1_BIN=$W1_BIN bash $PROJECT_ROOT/scripts/arc011-w1-provision.sh"
 arc011_w1() {
     local out rc
     out=$($W1_PROVISION --check 2>&1); rc=$?

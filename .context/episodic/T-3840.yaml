@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3840: Serve wc v0.3.4 withdraw over dispatch.transition (flip WITHDRAW_LIVE) once the amended text is published and all three owners adopted
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T12:33:41Z
+# ============================================================================
+
+task_id: T-3840
+task_name: "Serve wc v0.3.4 withdraw over dispatch.transition (flip WITHDRAW_LIVE) once the amended text is published and all three owners adopted"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-20T20:21:02Z
+completed: 2026-11-21T12:32:18Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-21T13:32:13+01:00
+last_commit: 2026-11-21T13:32:13+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub serves wc v0.3.4 withdraw (WITHDRAW_LIVE=true) after all three owners adopted 13c61c64c; operator ruling B (together with T-3842); run-wc-vectors defaults to the adopted 47-case file (28 pass, 0 fail)
+
+# Key outcomes
+outcomes:
+  - '`WITHDRAW_LIVE = true`, and the RPC test asserts the live path: withdraw over `dispatch.transition` writes done{withdrawn} with actor and reason, and a repeat is a T8 replay.'
+  - '`scripts/run-wc-vectors.sh` defaults to 13c61c64c, its cache fixtures pass, and the default run reports `fail=0`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-21 — When to switch withdraw on in the hub (operator ruling: "B")'
+    chose: 'B. Build T-3842 (closure: never conformance, CC-35) first, then switch withdraw on in the same change, so the hub starts claiming v0.3.4 with the 47-case file at 0 failures, in one deploy.'
+    rationale: 'nothing depends on the timing. ring20''s pool does not call T3w until it vendors v0.3.4 (ring20 bb98285a), and AEF does not depend on ours. One deploy avoids a half-v0.3.4 hub.'
+    alternatives_rejected: ['A (switch on alone now: a partial v0.3.4 state for a while), C (wait: no remaining reason). - **Preconditions met:** all three owners adopted 13c61c64c: AEF T-5318; ring20 directly, msg bb98285a; TermLink T-3837 rulings.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3842.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3840-serve-wc-v034-withdraw-over-dispatchtran.md'
+  - '.tasks/completed/T-3842-wc-v034-closurenever-conformance-on-the-.md'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'scripts/run-wc-vectors.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T13:32:13'
+    action: 'T-3840: hub serves wc v0.3.4 withdraw (WITHDRAW_LIVE=true) after all three owners adopted 13c61c64c; operator ruling B (together with T-3842); run-wc-vectors defaults to the adopted 47-case file (28 pass, 0 fail)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 971 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 971
+  commits: 2
+  files_changed: 12
+  lines_added: 721
+  lines_removed: 41
+  footprint_refreshed_at: '2026-11-21T13:33:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3840-serve-wc-v034-withdraw-over-dispatchtran.md
+generated_by: context-agent-hybrid

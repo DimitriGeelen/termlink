@@ -41,7 +41,12 @@ IDENT="${W1_IDENT_DIR:-${HOME:-/root}/.termlink/identities}"
 ETC="${W1_ETC:-/etc/termlink-sidecar}"
 VARLIB="${W1_VARLIB:-/var/lib/termlink-sidecar}"
 HUB_RT="${W1_HUB_RT:-/var/lib/termlink}"
-BIN="${W1_BIN:-$(command -v termlink || echo /root/.cargo/bin/termlink)}"
+# T-3845: a fixed default, not `command -v termlink`: that followed the PATH of whoever ran it, so one
+# run wrote SIDECAR_BIN=/root/.local/bin/termlink and runme's restart check then disagreed with it.
+_cargo_bin="${HOME:-/root}/.cargo/bin/termlink"
+if [ -n "${W1_BIN:-}" ]; then BIN="$W1_BIN"
+elif [ -x "$_cargo_bin" ]; then BIN="$_cargo_bin"
+else BIN="$(command -v termlink || echo "$_cargo_bin")"; fi
 SHOME="${W1_HOME:-${HOME:-/root}}"
 SUPERVISE="${W1_SUPERVISE:-$ROOT/scripts/sidecar-supervise.sh}"
 CFG_CHANGED=""   # T-3823: agents whose config this run changed (restarted to load it)

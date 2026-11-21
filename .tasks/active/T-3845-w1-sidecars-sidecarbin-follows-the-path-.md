@@ -1,12 +1,8 @@
 ---
-id: T-3840
-name: "Serve wc v0.3.4 withdraw over dispatch.transition (flip WITHDRAW_LIVE) once
-  the amended text is published and all three owners adopted"
+id: T-3845
+name: "W1 sidecars' SIDECAR_BIN follows the PATH of whoever ran runme; runme's restart check then fails on an identical copy"
 description: >
-  T-3837 built T3w in the store; dispatch_contract.rs WITHDRAW_LIVE=false keeps the
-  RPC refusing withdraw. Flip when: AEF publishes v0.3.4 with A1-A6 (T-5320), ring20
-  confirms adoption on that text, and the operator approves. Update the dispatch_transition_withdraw_over_rpc
-  test and the run-wc-vectors default ref in the same change.
+  W1 sidecars' SIDECAR_BIN follows the PATH of whoever ran runme; runme's restart check then fails on an identical copy
 
 status: started-work
 workflow_type: build
@@ -41,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-20T20:21:02Z
-last_update: 2026-11-21T12:32:12Z
-date_finished:
+created: 2026-11-21T13:00:03Z
+last_update: 2026-11-21T13:33:11Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,41 +50,29 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-11-21T12:26:19Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 0
-      D2: 0
-      D3: 0
-      D4: 0
-      F-RECALL: 0
-    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
-      (no-signal); F-RECALL=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3840: Serve wc v0.3.4 withdraw over dispatch.transition (flip WITHDRAW_LIVE) once the amended text is published and all three owners adopted
+# T-3845: W1 sidecars' SIDECAR_BIN follows the PATH of whoever ran runme; runme's restart check then fails on an identical copy
 
 ## Context
 
-**Background / trigger:** T-3837 built T3w (withdrawn) in the hub store, but kept `dispatch.transition` refusing `withdraw` (`WITHDRAW_LIVE = false`). The spec says no backend emits `withdrawn` before all three owners adopt v0.3.4. All three have now adopted it on AEF's text at 13c61c64c:
-1. AEF (T-5318).
-2. ring20, confirmed directly to us (msg bb98285a, 2026-11-21).
-3. TermLink (operator rulings on T-3837).
+**Background / trigger:** the deploy runme on 2026-11-21 (12:38Z, `runme-20261121T123830Z-1591077.log`) reported FAILED for both W1 sidecars: "after restart: not active or not on the installed binary". Both were active and running the new build (sha256 1c4b78c09846, 0.12.13+308).
 
-**Problem / hypothesis:** the precondition is met, so the refusal no longer has a reason. T-3842 completed the rest of v0.3.4 for this hub.
+**Problem / hypothesis:** two parts of runme disagree about the binary.
+1. `scripts/arc011-w1-provision.sh:44` (action 17) sets `SIDECAR_BIN` from `command -v termlink`, so it follows the PATH of whoever ran runme. The 12:11Z run, which nobody handed over, wrote `/root/.local/bin/termlink`; the 11-02 backup and every earlier run had `/root/.cargo/bin/termlink`.
+2. The restart check (action 4b, `runme.sh:881/904/908`) expects `/root/.cargo/bin/termlink` by inode (`-ef`). So an identical copy at another path counts as "not installed".
 
-**Goal:** the hub serves withdraw, in the same deploy as T-3842 (operator ruling B).
+**Goal:** one binary path for the W1 sidecars, and a check that judges the binary the process actually runs.
 
-**Expected outcome:** `dispatch.transition` with `withdraw` writes done{withdrawn}. `run-wc-vectors.sh` defaults to the adopted v0.3.4 file (13c61c64c), and that run has 0 failures.
+**Expected outcome:** the provisioner writes runme's verified binary. Action 4b accepts the same file or an identical copy, and still restarts a sidecar on different content. The next runme shows no 4b FAILED line.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `WITHDRAW_LIVE = true`, and the RPC test asserts the live path: withdraw over `dispatch.transition` writes done{withdrawn} with actor and reason, and a repeat is a T8 replay.
-- [x] `scripts/run-wc-vectors.sh` defaults to 13c61c64c, its cache fixtures pass, and the default run reports `fail=0`.
+- [x] runme passes its `W1_BIN` to the provisioner, and the provisioner's default is `/root/.cargo/bin/termlink` when that is executable, never the PATH's first `termlink`.
+- [x] Action 4b treats a process executable that is the same file as `W1_BIN`, or byte-identical to it, as on the installed binary. Different content is still restarted, and still FAILED if it stays different.
+- [x] `tests/runme-fixtures.sh` covers both cases (identical copy: skip, no restart; different copy: restart) with distinct contents for the new and old fake binaries, and the whole suite passes. The provisioner's own fixtures pass.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -163,10 +147,11 @@ bvp_scores_proposed:
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
-grep -q "pub(crate) const WITHDRAW_LIVE: bool = true;" crates/termlink-hub/src/dispatch_contract.rs
-env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3840-rt cargo test -p termlink-hub dispatch_transition_withdraw_over_rpc > /tmp/t3840-h.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3840-h.out
-bash tests/run-wc-vectors-cache-fixtures.sh > /tmp/t3840-fx.out 2>&1 && grep -q "0 failed" /tmp/t3840-fx.out
-bash scripts/run-wc-vectors.sh > /tmp/t3840-wc.out 2>&1 && grep -q "47 cases: pass=.* fail=0" /tmp/t3840-wc.out
+# The full tests/runme-fixtures.sh (452/0, incl. both T-3845 cases) takes >10 min; it ran 2026-11-21 before commit.
+grep -q 'env W1_BIN=$W1_BIN bash $PROJECT_ROOT/scripts/arc011-w1-provision.sh' runme.sh
+test "$(grep -c 'w1_same_bin "$W1_PROC/$pid/exe" "$W1_BIN"' runme.sh)" = 3
+! grep -q 'BIN="${W1_BIN:-$(command -v termlink' scripts/arc011-w1-provision.sh
+bash tests/arc011-w1-provision-fixtures.sh > /tmp/t3845-w1p.out 2>&1 && grep -q "0 failed" /tmp/t3845-w1p.out
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -377,15 +362,6 @@ bash scripts/run-wc-vectors.sh > /tmp/t3840-wc.out 2>&1 && grep -q "47 cases: pa
      - **Rejected:** [alternatives and why not]
 -->
 
-### 2026-11-21 — When to switch withdraw on in the hub (operator ruling: "B")
-- **Chose:** B. Build T-3842 (closure: never conformance, CC-35) first, then switch withdraw on in the same change,
-  so the hub starts claiming v0.3.4 with the 47-case file at 0 failures, in one deploy.
-- **Why:** nothing depends on the timing. ring20's pool does not call T3w until it vendors v0.3.4 (ring20
-  bb98285a), and AEF does not depend on ours. One deploy avoids a half-v0.3.4 hub.
-- **Rejected:** A (switch on alone now: a partial v0.3.4 state for a while), C (wait: no remaining reason).
-- **Preconditions met:** all three owners adopted 13c61c64c: AEF T-5318; ring20 directly, msg bb98285a; TermLink
-  T-3837 rulings.
-
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -398,11 +374,7 @@ bash scripts/run-wc-vectors.sh > /tmp/t3840-wc.out 2>&1 && grep -q "47 cases: pa
 
 ## Updates
 
-### 2026-11-20T20:21:02Z — task-created [task-create-agent]
+### 2026-11-21T13:00:03Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3840-serve-wc-v034-withdraw-over-dispatchtran.md
+- **Output:** /opt/termlink/.tasks/active/T-3845-w1-sidecars-sidecarbin-follows-the-path-.md
 - **Context:** Initial task creation
-
-### 2026-11-21T12:26:17Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
