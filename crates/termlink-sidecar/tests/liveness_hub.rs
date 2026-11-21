@@ -61,6 +61,88 @@ fn kinds(s: &Store) -> Vec<String> {
         .collect()
 }
 
+/// T-3832 (design 3.6.1): the note a P-24 sidecar posts still parses with the note struct as it was
+/// before P-24 (no `card` field), so an old reader is not broken by the card.
+#[test]
+fn a_p24_note_parses_with_the_pre_p24_struct() {
+    #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
+    struct PreP24Note {
+        agent: String,
+        instance: String,
+        sample_ms: u64,
+        drained_up_to: u64,
+        receiving: String,
+    }
+    let n = Note {
+        agent: "a".into(),
+        instance: "a.w1".into(),
+        sample_ms: 5,
+        drained_up_to: 2,
+        receiving: "on".into(),
+        card: Some(Card { receiver_up: true, right_hub: true, adapter_present: false, last_surface_ms: Some(4) }),
+    };
+    let body = serde_json::to_vec(&n).unwrap();
+    assert!(String::from_utf8_lossy(&body).contains("\"card\""));
+    let old: PreP24Note = serde_json::from_slice(&body).unwrap();
+    assert_eq!((old.sample_ms, old.drained_up_to), (5, 2));
+    // and a pre-P-24 note parses with the new struct, as a note without a card
+    let pre = br#"{"agent":"a","instance":"a.w1","sample_ms":5,"drained_up_to":2,"receiving":"on"}"#;
+    assert_eq!(serde_json::from_slice::<Note>(pre).unwrap().card, None);
+}
+
+/// T-3832 (design 3.6.3): fresh within PN-9, expired past it, unknown past 2 x PN-9 (never dead), and
+/// unknown for anything without a card.
+#[test]
+fn card_view_is_fresh_then_expired_then_unknown_never_dead() {
+    let card = serde_json::json!({"receiver_up": true, "right_hub": true, "adapter_present": true, "last_surface_ms": 1});
+    let read = serde_json::json!({"read_ms": 1_000, "sample_ms": 1_000, "card": card});
+    let at = |now: u64| card_view(Some(&read), now, CARD_EXPIRE_MS);
+    assert_eq!(at(1_000 + CARD_EXPIRE_MS)["state"], "fresh");
+    assert_eq!(at(1_000 + CARD_EXPIRE_MS)["card"], card);
+    assert_eq!(at(1_000 + CARD_EXPIRE_MS + 1)["state"], "expired");
+    assert!(at(1_000 + CARD_EXPIRE_MS + 1)["card"].is_null());
+    assert_eq!(at(1_000 + 2 * CARD_EXPIRE_MS)["state"], "expired");
+    assert_eq!(at(1_000 + 2 * CARD_EXPIRE_MS + 1)["state"], "unknown");
+    for now in [0, 1_000, 10 * CARD_EXPIRE_MS, u64::MAX] {
+        assert_ne!(at(now)["state"], "dead");
+    }
+    assert_eq!(card_view(None, 5, CARD_EXPIRE_MS)["state"], "unknown");
+    let err = serde_json::json!({"read_ms": 5, "error": "hub unreadable: refused"});
+    assert_eq!(card_view(Some(&err), 5, CARD_EXPIRE_MS)["state"], "unknown");
+}
+
+/// T-3832 (design 3.6.1, 3.6.3): a sidecar that is not the main posts its own note with a card, and a
+/// sender that sent to it reads that card from the hub; a stranger's key is not believed.
+#[test]
+fn every_sidecar_posts_a_card_and_a_sender_reads_its_recipients_card() {
+    let e = Estate::create().unwrap();
+    let hub_id = e.hub_id().unwrap();
+    let (a_store, a_sender) = sender(&e, "a", "agent-a", &hub_id);
+    let (b_store, b_sender) = sender(&e, "b", "agent-b", &hub_id);
+    let mut roster = Roster::new();
+    roster.add(e.identity("a").unwrap().verifying_key());
+    roster.add(e.identity("b").unwrap().verifying_key());
+    // No main pinned at all: the monitor still posts its own card.
+    let a = monitor("agent-a", Book::default(), roster.clone(), a_store.clone(), a_sender.clone(), &hub_id);
+    let b = monitor("agent-b", Book::default(), roster.clone(), b_store.clone(), b_sender.clone(), &hub_id);
+    let hub = RpcHub::new(e.hub_addr(), Duration::from_secs(3)).unwrap();
+    b_sender.send("agent-a", "agent-a.w1", None, "hello a", None).unwrap();
+    let t0 = now_ms();
+    assert_eq!(a.cycle(&hub, t0).state, "unknown"); // no main: unknown, and the card is posted anyway
+    b.cycle(&hub, t0);
+    let cards = stored_cards(&b_store);
+    let r = cards.get("agent-a").expect("b read the card of the agent it sent to");
+    assert_eq!(r["sample_ms"], t0, "{r}");
+    assert!(r["card"]["receiver_up"].is_boolean() && r["card"]["right_hub"].is_boolean(), "{r}");
+    assert_eq!(card_view(Some(r), t0, CARD_EXPIRE_MS)["state"], "fresh");
+    // Signed by a key b does not know: unknown, never a card.
+    let stranger = monitor("agent-b", Book::default(), Roster::new(), b_store.clone(), b_sender.clone(), &hub_id);
+    stranger.read_cards(&hub, t0);
+    let r = stored_cards(&b_store).get("agent-a").cloned().unwrap();
+    assert!(r["error"].as_str().unwrap_or("").contains("unknown key"), "{r}");
+}
+
 #[test]
 fn liveness_hub_alive_then_stuck_then_stale_then_unknown_when_the_hub_is_gone() {
     let mut e = Estate::create().unwrap();

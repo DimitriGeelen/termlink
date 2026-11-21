@@ -80,6 +80,152 @@ pub struct Note {
     pub drained_up_to: u64,
     /// `on`, or `drained` when the operator has stopped receiving (the cursor then holds still on purpose).
     pub receiving: String,
+    /// T-3832 (design 3.6, E-61): the reachability card. Optional and additive: a note from a sidecar that
+    /// predates P-24 has none, and a pre-P-24 reader ignores it (serde skips unknown fields).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<Card>,
+}
+
+/// PN-9: a reachability card older than this has expired; its agent is treated as offline.
+pub const CARD_EXPIRE_MS: u64 = 600_000;
+/// A valid adapter report within this long means the adapter is present (design 3.6.2).
+pub const ADAPTER_PRESENT_MS: u64 = 24 * 3_600_000;
+/// Store state holding the last read of each recipient's card (one JSON object, agent -> read).
+pub const CARDS_STATE: &str = "recipient-cards";
+/// At most this many recipients (the most recently sent to) have their card read each cycle.
+pub const CARDS_MAX: usize = 32;
+
+/// T-3832 (design 3.6, E-61): what a sender may know about whether its recipient can be reached. No secret
+/// content (3.6.4): the PH-3 read scope that limits other projects to yes/no is recorded as a PH-3 item.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Card {
+    /// This sidecar's own heartbeat is fresh and no component is stale.
+    pub receiver_up: bool,
+    /// The hub it reaches is the hub it declares (`hub.match`).
+    pub right_hub: bool,
+    /// A valid adapter report within [`ADAPTER_PRESENT_MS`] (the meter's report log).
+    pub adapter_present: bool,
+    /// The last real hand-over to its agent (3.3's value), never a heartbeat time.
+    pub last_surface_ms: Option<u64>,
+}
+
+/// Test seam (estate only, as [`test_overrides`]): `TERMLINK_SIDECAR_TEST_CARD_EXPIRE_MS`.
+pub fn card_expire_ms(mode: &crate::estate::Mode) -> u64 {
+    if !matches!(mode, crate::estate::Mode::Estate(_)) {
+        return CARD_EXPIRE_MS;
+    }
+    std::env::var("TERMLINK_SIDECAR_TEST_CARD_EXPIRE_MS").ok().and_then(|v| v.parse::<u64>().ok()).filter(|n| *n > 0).unwrap_or(CARD_EXPIRE_MS)
+}
+
+/// Wall time of the newest adapter report the meter's log holds that was not ignored (applied or
+/// dropped: the adapter ran and spoke the protocol). Reads the current log, then the rotated one.
+pub fn last_valid_report_ms(dir: &std::path::Path) -> Option<u64> {
+    let log = dir.join(crate::meter::REPORT_LOG);
+    for path in [log.clone(), log.with_extension("log.1")] {
+        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let newest = text
+            .lines()
+            .rev()
+            .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+            .find(|v| matches!(v["outcome"].as_str(), Some("applied" | "dropped")))
+            .and_then(|v| v["ts_ms"].as_u64());
+        if newest.is_some() {
+            return newest;
+        }
+    }
+    None
+}
+
+/// This sidecar's card at `now`, from its own state only.
+pub fn own_card(store: &Store, agent: &str, hub_id: &str, now: u64) -> Card {
+    let hb = crate::beat::view(store.dir(), now);
+    let receiver_up = hb["heartbeat_age_ms"].as_u64().is_some_and(|a| a <= crate::fields::BOUND_HEARTBEAT_MS)
+        && hb["stale"].as_array().is_some_and(|s| s.is_empty());
+    let right_hub = crate::hub_key_pin::hub_status(store, Some(hub_id))["match"] == Value::Bool(true);
+    let adapter_present = last_valid_report_ms(store.dir()).is_some_and(|t| now.saturating_sub(t) <= ADAPTER_PRESENT_MS);
+    let st = crate::api::status_view(&json!({}), store, agent, Some(hub_id), now, &crate::deadline::Deadlines::R44E);
+    let last_surface_ms = crate::fields::own_handovers(&crate::fields::rows_of(&st["rows"])).max();
+    Card { receiver_up, right_hub, adapter_present, last_surface_ms }
+}
+
+/// The agents this sidecar sent to most recently, newest first, at most `max`.
+pub fn recent_recipients(store: &Store, max: usize) -> Vec<String> {
+    let text = store.read_state(crate::revocation::SENT_TO_STATE).ok().flatten().unwrap_or_default();
+    let mut out: Vec<String> = vec![];
+    for (_, to) in text.lines().rev().filter_map(|l| l.split_once(' ')) {
+        let to = to.trim();
+        if !to.is_empty() && !out.iter().any(|a| a == to) {
+            out.push(to.to_string());
+            if out.len() >= max {
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// One read of a recipient's newest note, as stored: `{sample_ms, card}` from a note its own agent posted
+/// and a known key signed, or `{error}` naming why there is no card to show.
+pub fn read_card(hub: &dyn Hub, hub_id: &str, agent: &str, signers: &dyn Fn(&str) -> bool, now: u64) -> Value {
+    let (note, signer) = match read_note(hub, &liveness_topic(hub_id, agent)) {
+        Read::Unreadable(why) => return json!({"read_ms": now, "error": format!("hub unreadable: {why}")}),
+        Read::NoNote => return json!({"read_ms": now, "error": "no liveness note from this agent"}),
+        Read::Note { note, signer, .. } => (note, signer),
+    };
+    let note = match note {
+        Ok(n) => n,
+        Err(why) => return json!({"read_ms": now, "error": format!("newest note does not parse: {why}")}),
+    };
+    if !signers(&signer) {
+        return json!({"read_ms": now, "error": format!("newest note is signed by an unknown key {}", crate::pull::shown(&signer))});
+    }
+    if note.agent != agent {
+        return json!({"read_ms": now, "error": format!("newest note is from {}, not {agent}", note.agent)});
+    }
+    match note.card {
+        None => json!({"read_ms": now, "sample_ms": note.sample_ms, "error": "its note carries no card (its sidecar predates P-24)"}),
+        Some(c) => json!({"read_ms": now, "sample_ms": note.sample_ms, "card": c}),
+    }
+}
+
+/// The card a sender shows for `agent` at `now` (design 3.6.3), from the stored read:
+/// * `fresh`: a card sampled within `expire_ms` (PN-9), its fields shown;
+/// * `expired`: sampled more than PN-9 ago and at most 2 x PN-9: the recipient is offline;
+/// * `unknown`: no read, an unreadable hub, no card, or a card older than 2 x PN-9. Never `dead`.
+pub fn card_view(read: Option<&Value>, now: u64, expire_ms: u64) -> Value {
+    let Some(r) = read else {
+        return json!({"state": "unknown", "why": "this sidecar has not read the recipient's card yet"});
+    };
+    if let Some(e) = r["error"].as_str() {
+        return json!({"state": "unknown", "why": e, "read_ms": r["read_ms"]});
+    }
+    let Some(sample) = r["sample_ms"].as_u64() else {
+        return json!({"state": "unknown", "why": "the stored read has no sample time"});
+    };
+    let age = now.saturating_sub(sample);
+    let mut v = json!({"age_ms": age, "sample_ms": sample, "read_ms": r["read_ms"]});
+    if age <= expire_ms {
+        v["state"] = json!("fresh");
+        v["card"] = r["card"].clone();
+    } else if age <= 2 * expire_ms {
+        v["state"] = json!("expired");
+        v["why"] = json!(format!("no card for {age} ms (expires after {expire_ms} ms): the recipient is offline"));
+    } else {
+        v["state"] = json!("unknown");
+        v["why"] = json!(format!("the newest card is {age} ms old, more than 2 x {expire_ms} ms"));
+    }
+    v
+}
+
+/// The stored reads (agent -> read).
+pub fn stored_cards(store: &Store) -> serde_json::Map<String, Value> {
+    store
+        .read_state(CARDS_STATE)
+        .ok()
+        .flatten()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .and_then(|v| v.as_object().cloned())
+        .unwrap_or_default()
 }
 
 /// What a read of the hub found.
@@ -179,6 +325,32 @@ pub type HubResult = Result<Value, (Option<i64>, String)>;
 
 /// The newest note on `topic` and the oldest waiting message on `inbox` (see [`Read`]).
 pub fn read(hub: &dyn Hub, topic: &str, inbox: &str) -> Read {
+    let (note, signer) = match read_note(hub, topic) {
+        Read::Note { note, signer, .. } => (note, signer),
+        other => return other,
+    };
+    let oldest_waiting_ms = match &note {
+        Err(_) => None,
+        // T-3700: the timestamp only, so this check is not a consumer of the main's inbox (AL-30)
+        Ok(n) => match hub.call(method::CHANNEL_FIRST_AT, json!({"topic": inbox, "from_offset": n.drained_up_to})) {
+            Ok(v) => v.get("ts").and_then(Value::as_u64).filter(|_| v.get("offset").and_then(Value::as_u64).is_some()),
+            Err((Some(code), _)) if code == error_code::CHANNEL_TOPIC_UNKNOWN => None,
+            // r1 CC 9 / OC 3: only a hub that predates channel.first_at falls back to the one-message read. A
+            // T-3700 hub's own errors name the method; an old hub routes the unknown method to a session
+            // (-32001 "Missing 'target'"). A transport error (no code) is Unreadable, never a content read.
+            // r2 CC N3: exactly the old hub's answer (the unknown method routed to a session), nothing looser
+            Err((Some(code), m)) if code == error_code::SESSION_NOT_FOUND && m.contains("Missing 'target'") => match oldest_by_subscribe(hub, inbox, n.drained_up_to) {
+                Ok(t) => t,
+                Err(e) => return Read::Unreadable(e),
+            },
+            Err((_, e)) => return Read::Unreadable(format!("channel.first_at {inbox}: {e}")),
+        },
+    };
+    Read::Note { note, signer, oldest_waiting_ms }
+}
+
+/// The newest note on `topic` only (no inbox read; `oldest_waiting_ms` is always `None`).
+pub fn read_note(hub: &dyn Hub, topic: &str) -> Read {
     let listed = match hub.call(method::CHANNEL_LIST, json!({"prefix": topic})) {
         Ok(v) => v,
         Err((_, e)) => return Read::Unreadable(format!("channel.list: {e}")),
@@ -209,24 +381,7 @@ pub fn read(hub: &dyn Hub, topic: &str, inbox: &str) -> Read {
             .map_err(|e| e.to_string())
             .and_then(|b| serde_json::from_slice::<Note>(&b).map_err(|e| e.to_string()))
     };
-    let oldest_waiting_ms = match &note {
-        Err(_) => None,
-        // T-3700: the timestamp only, so this check is not a consumer of the main's inbox (AL-30)
-        Ok(n) => match hub.call(method::CHANNEL_FIRST_AT, json!({"topic": inbox, "from_offset": n.drained_up_to})) {
-            Ok(v) => v.get("ts").and_then(Value::as_u64).filter(|_| v.get("offset").and_then(Value::as_u64).is_some()),
-            Err((Some(code), _)) if code == error_code::CHANNEL_TOPIC_UNKNOWN => None,
-            // r1 CC 9 / OC 3: only a hub that predates channel.first_at falls back to the one-message read. A
-            // T-3700 hub's own errors name the method; an old hub routes the unknown method to a session
-            // (-32001 "Missing 'target'"). A transport error (no code) is Unreadable, never a content read.
-            // r2 CC N3: exactly the old hub's answer (the unknown method routed to a session), nothing looser
-            Err((Some(code), m)) if code == error_code::SESSION_NOT_FOUND && m.contains("Missing 'target'") => match oldest_by_subscribe(hub, inbox, n.drained_up_to) {
-                Ok(t) => t,
-                Err(e) => return Read::Unreadable(e),
-            },
-            Err((_, e)) => return Read::Unreadable(format!("channel.first_at {inbox}: {e}")),
-        },
-    };
-    Read::Note { note, signer, oldest_waiting_ms }
+    Read::Note { note, signer, oldest_waiting_ms: None }
 }
 
 /// The pre-T-3700 way to find the oldest waiting message: read one message at `from`.
@@ -276,7 +431,7 @@ pub fn own_note(store: &Store, agent: &str, instance: &str, now: u64) -> Note {
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0);
     let receiving = if crate::policy::receiving_enabled(store) { "on" } else { "drained" };
-    Note { agent: agent.into(), instance: instance.into(), sample_ms: now, drained_up_to, receiving: receiving.into() }
+    Note { agent: agent.into(), instance: instance.into(), sample_ms: now, drained_up_to, receiving: receiving.into(), card: None }
 }
 
 /// The last verdict and when it was reached; `status` reads it.
@@ -369,23 +524,24 @@ pub struct Monitor {
 }
 
 impl Monitor {
-    /// One cycle: post the note if this sidecar is the main, then read and judge the main's
-    /// newest note and move the alarm latch. Returns the verdict.
+    /// One cycle: post this sidecar's own note with its card (every sidecar, T-3832 design 3.6.1), read the
+    /// cards of the agents it sent to most recently, then read and judge the main's newest note and move the
+    /// alarm latch. Returns the main's verdict.
     pub fn cycle(&self, hub: &dyn Hub, now: u64) -> Liveness {
+        let mut note = own_note(&self.store, &self.agent, &self.instance, now);
+        note.card = Some(own_card(&self.store, &self.agent, &self.hub_id, now));
+        let body = serde_json::to_vec(&note).unwrap_or_default();
+        let topic = liveness_topic(&self.hub_id, &self.agent);
+        if let Err(e) = self.sender.post_note(&topic, NOTE_TYPE, &body, json!({"kind": "messages", "value": NOTE_KEEP})) {
+            eprintln!("termlink-sidecar: liveness note not posted: {e}");
+        }
+        self.read_cards(hub, now);
         let Some(main) = self.book.main.as_deref() else {
             let v = Liveness::unknown("no main is pinned in the address book");
             self.shared.set(now, v.clone());
             return v;
         };
         let is_self = main == self.agent;
-        if is_self {
-            let note = own_note(&self.store, &self.agent, &self.instance, now);
-            let body = serde_json::to_vec(&note).unwrap_or_default();
-            let topic = liveness_topic(&self.hub_id, &self.agent);
-            if let Err(e) = self.sender.post_note(&topic, NOTE_TYPE, &body, json!({"kind": "messages", "value": NOTE_KEEP})) {
-                eprintln!("termlink-sidecar: liveness note not posted: {e}");
-            }
-        }
         let instance = if is_self { self.instance.as_str() } else { self.book.peers.get(main).map(String::as_str).unwrap_or("") };
         let signers = |fp: &str| fp == self.own_fingerprint || self.roster.get(fp).is_some();
         let expect = Expect { agent: main, instance, signers: &signers };
@@ -398,6 +554,25 @@ impl Monitor {
         alarm(&self.store, main, &v);
         self.shared.set(now, v.clone());
         v
+    }
+
+    /// Read and store the card of each agent this sidecar sent to most recently (design 3.6.3: recipients are
+    /// addressed on this sidecar's declared hub, so that hub holds their notes). Each read replaces the last
+    /// one, so an unreadable hub shows as `unknown`, never as an expired (offline) recipient.
+    pub fn read_cards(&self, hub: &dyn Hub, now: u64) {
+        let recipients = recent_recipients(&self.store, CARDS_MAX);
+        if recipients.is_empty() {
+            return;
+        }
+        let signers = |fp: &str| fp == self.own_fingerprint || self.roster.get(fp).is_some();
+        let mut out = serde_json::Map::new();
+        for to in recipients {
+            let r = read_card(hub, &self.hub_id, &to, &signers, now);
+            out.insert(to, r);
+        }
+        if let Err(e) = self.store.write_state(CARDS_STATE, &Value::Object(out).to_string()) {
+            eprintln!("termlink-sidecar: recipient cards not written: {e}");
+        }
     }
 
     /// Run [`Monitor::cycle`] every `every_ms` on its own thread until `stop` is set.
@@ -430,7 +605,7 @@ mod tests {
     const STALE: u64 = STALE_AFTER_MS;
 
     fn note(sample_ms: u64, drained: u64) -> Note {
-        Note { agent: "main-a".into(), instance: "main-a.w1".into(), sample_ms, drained_up_to: drained, receiving: "on".into() }
+        Note { agent: "main-a".into(), instance: "main-a.w1".into(), sample_ms, drained_up_to: drained, receiving: "on".into(), card: None }
     }
 
     fn known(fp: &str) -> bool {

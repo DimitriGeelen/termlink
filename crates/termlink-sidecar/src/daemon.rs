@@ -246,11 +246,12 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
             .with_projects_root(projects_root)
             .with_meter(meter.clone()),
     );
-    // T-3646: the pinned main's liveness note (posted when this agent is the main) and check.
+    // T-3646: the pinned main's liveness check. T-3832 (design 3.6.1): every sidecar posts its own note with
+    // its reachability card, main or not, so the monitor runs with or without a pinned main.
     let sweep_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let (every_ms, stale_after_ms) = crate::liveness::test_overrides(store.mode());
     let liveness_shared = crate::liveness::Shared::new();
-    let liveness_monitor = cfg.book.main.is_some().then(|| crate::liveness::Monitor {
+    let liveness_monitor = Some(crate::liveness::Monitor {
         book: cfg.book.clone(),
         agent: cfg.agent.clone(),
         instance: cfg.instance.clone(),

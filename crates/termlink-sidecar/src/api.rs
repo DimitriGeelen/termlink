@@ -1179,6 +1179,9 @@ fn status_at(
     // T-3834 (RK-1): who each sent message is addressed to, and each agent's current key, read once.
     let sent_to = crate::revocation::sent_to(store);
     let recipient_keys = crate::revocation::recipient_keys(store);
+    // T-3832 (design 3.6.3, 3.8.2): the recipients' reachability cards as the liveness monitor last read them.
+    let cards = crate::liveness::stored_cards(store);
+    let card_expire = crate::liveness::card_expire_ms(store.mode());
     // The strongest stage reached per message; the word "delivered" appears only
     // for a message whose chain holds a HANDED_OVER line.
     let msgs: Vec<Value> = by_msg
@@ -1274,6 +1277,21 @@ fn status_at(
                 } else if first_ts("HANDED_OVER").is_some_and(|t| crate::fields::age_ms(t, now_ms) > dl.answer(urgent)) {
                     v["label"] = json!("UNKNOWN");
                 }
+            }
+            // T-3832 (design 3.6.3): the recipient's card, when this sidecar has read one. 3.8.2: past the card's
+            // expiry (PN-9) the recipient is offline, so an unfinished message waits for it: never STUCK, and
+            // not the bare UNKNOWN of "no signal" either. A card older than 2 x PN-9 still reads unknown, never dead.
+            if sent_here && let Some(to) = sent_to.get(m.as_str()) && let Some(read) = cards.get(to.as_str()) {
+                let view = crate::liveness::card_view(Some(read), now_ms, card_expire);
+                let offline = view["age_ms"].as_u64().is_some_and(|a| a > card_expire);
+                if offline && matches!(v["label"].as_str(), Some("STUCK" | "UNKNOWN")) {
+                    v["label"] = json!("WAITING FOR RECIPIENT");
+                    v["reason"] = json!(format!("recipient offline: no reachability card for {} s", view["age_ms"].as_u64().unwrap_or(0) / 1000));
+                    if let Some(o) = v.as_object_mut() {
+                        o.remove("stuck_step");
+                    }
+                }
+                v["recipient_card"] = view;
             }
             // T-3834 (RK-1): mail to a recipient whose current key is revoked waits (E-39: not dropped) until the
             // operator acts; say so instead of an ordinary wait. A recipient-side answer (below) still wins.

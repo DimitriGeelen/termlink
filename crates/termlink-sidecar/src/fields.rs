@@ -320,7 +320,7 @@ pub fn pending(rows: &[Row], deliverable: Option<&[String]>) -> Vec<(String, u64
 /// message it SENT is the recipient's, reported back, and is not this agent's surfacing). A
 /// HANDED_OVER line is written only with hand-over evidence (an unconfirmed attempt is a different
 /// stage), so the line is the evidence.
-fn own_handovers(rows: &[Row]) -> impl Iterator<Item = u64> + '_ {
+pub(crate) fn own_handovers(rows: &[Row]) -> impl Iterator<Item = u64> + '_ {
     rows.iter()
         .filter(|r| r.stage == "HANDED_OVER" && !rows.iter().any(|s| s.msg_id == r.msg_id && s.stage == "SENT"))
         .map(|r| r.ts_ms)

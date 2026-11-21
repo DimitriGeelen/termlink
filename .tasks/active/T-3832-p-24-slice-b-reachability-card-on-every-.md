@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T10:20:03Z
-last_update: 2026-11-21T16:45:28Z
+last_update: 2026-11-21T17:37:29Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -87,15 +87,21 @@ bvp_scores_proposed:
 
 **Progress:**
 1. 2026-11-21: 3.8.1 (the home-hub-unreachable reason on WAITING) built first, as the smallest self-contained part.
-2. 3.6, 3.8.2 and 3.8.3 remain, for a fresh session.
+2. 2026-11-21: 3.6 and 3.8.2 built.
+   2a. Every sidecar's liveness monitor now runs with or without a pinned main. Each cycle it posts its own note with `card` (`liveness.rs` `own_card`).
+   2b. It reads the cards of up to 32 agents it sent to most recently, from its declared hub, into store state `recipient-cards`.
+   2c. Sender status adds `recipient_card` per message: fresh within PN-9 (600 s), expired up to 2 x PN-9, unknown beyond that or without a card, never dead.
+   2d. Past expiry, a STUCK or UNKNOWN label reads WAITING FOR RECIPIENT, with the reason "recipient offline".
+   2e. Tests: `tests/liveness_hub.rs` (3 new) and `tests/t3832_recipient_card.rs` (3 new). With the override disabled, 2 of the 3 card-status tests fail.
+3. 3.8.3 (L4 network cut) remains.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] 3.8.1: the sender records the first failed post after the last successful one (`hub-unreachable-since`, cleared on the next successful post). A WAITING message's status carries `reason: "home hub unreachable since <ms>"` and `unreachable_since_ms`. Nothing claims RECEIVED from the outbox. A test drives a send with the hub down, then a successful post that clears it.
-- [ ] 3.6: every sidecar's liveness note carries `card {receiver_up, right_hub, adapter_present, last_surface_ms}`. A pre-P-24 note struct still parses a P-24 note (test). A card older than 2 x PN-9 reads UNKNOWN, never DEAD. Sender status shows the recipient's card when its hub is known.
-- [ ] 3.8.2: past the recipient's card expiry, the sender shows WAITING FOR RECIPIENT, not STUCK.
+- [x] 3.6: every sidecar's liveness note carries `card {receiver_up, right_hub, adapter_present, last_surface_ms}`. A pre-P-24 note struct still parses a P-24 note (test). A card older than 2 x PN-9 reads UNKNOWN, never DEAD. Sender status shows the recipient's card when its hub is known.
+- [x] 3.8.2: past the recipient's card expiry, the sender shows WAITING FOR RECIPIENT, not STUCK.
 - [ ] 3.8.3: L4 network cut on a throwaway hub. On restore, the pump posts only what is missing (no duplicates by the identity triple).
 - [ ] Sidecar suite passes; workspace clippy is clean.
 
@@ -301,6 +307,7 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3832-verify cargo test -p termlink-sidecar --test t3832_offline_lines --test t3832_recipient_card --test liveness_hub > /tmp/.t3832-verify.out 2>&1 && grep -q 'test result: ok' /tmp/.t3832-verify.out
 
 ## RCA
 
@@ -372,6 +379,14 @@ bvp_scores_proposed:
 -->
 
 ## Decisions
+
+### 2026-11-21 — 3.6 card inputs and 3.8.2 scope (agent choices, overturnable)
+- **Chose:**
+  1. `adapter_present` reads the meter's report log on disk (newest applied or dropped line), not the meter's in-memory record, so a sidecar restart does not show a present adapter as absent until the agent's next hook.
+  2. The 3.8.2 override applies to every STUCK or UNKNOWN label on a sent message once the recipient's card has expired, including after hand-over. An unreadable hub or a missing card never counts as expired.
+  3. 3.6.4 (other projects see only reachable yes/no and the version class) needs the PH-3 read scope. In PH-2 the card carries no secret content; the restriction is recorded here as a PH-3 item.
+- **Why:** an offline recipient cannot be STUCK, and our own read failure must not be reported as the recipient's absence.
+- **Rejected:** the in-memory meter record (wrong after every restart); reading every book peer's card (the recipients actually sent to are the ones whose status shows it).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
