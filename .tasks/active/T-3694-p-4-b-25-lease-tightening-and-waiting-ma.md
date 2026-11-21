@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-21T22:13:00Z
+last_update: 2026-11-21T22:26:59Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -434,6 +434,10 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
   3. D, parking the criterion.
   4. The first brief's automatic fallback to A after a week (codex and opencode: no technical justification). If AEF cannot take C, the agent brings a new brief.
 - **Left open:** the switch itself (operator approval, its own runme action).
+- **Progress 2026-11-21:**
+  1. Step 1 built as T-3848 (W1 session-start reports `harness_pid`; deploys with the next runme, then binds at the session's next start).
+  2. Step 3 sent to AEF (msg 6745a655, conversation `termlink-t3694-w1-origin`, received direct). The request is scoped: prompt_submit only when W1 hooks are present, adapter/2 stays off, failures give origin `unknown`, behind a flag that defaults off, with the five tests.
+  3. Step 2 (switch lockout guard) not built yet. It is needed only before a switch, which waits for AEF's change and the observation period.
 
 ### 2026-11-12 — origin reporting is decided per harness at the hub, by an operator record only
 - **Chose:** a `main-config:<project>` topic (forever retention, owner and reason named) holding `OriginReporting`
