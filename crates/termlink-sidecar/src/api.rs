@@ -1172,6 +1172,10 @@ fn status_at(
         };
         chains.insert(c.clone(), v);
     }
+    // T-3832 (design 3.8.1, E-60): since when this sender's own hub cannot be reached (first failed post after
+    // the last success), read once; it names the reason on a WAITING message.
+    let hub_unreachable_since: Option<u64> =
+        store.read_state(crate::send::HUB_UNREACHABLE_STATE).ok().flatten().and_then(|s| s.trim().parse().ok());
     // T-3834 (RK-1): who each sent message is addressed to, and each agent's current key, read once.
     let sent_to = crate::revocation::sent_to(store);
     let recipient_keys = crate::revocation::recipient_keys(store);
@@ -1207,6 +1211,11 @@ fn status_at(
             if *top == 1 {
                 if has(crate::send::WAITING) && !has(crate::send::POSTED) {
                     v["label"] = json!("WAITING");
+                    // T-3832 (E-60): the reason, when this sender's own hub is the one it cannot reach.
+                    if let Some(t) = hub_unreachable_since {
+                        v["reason"] = json!(format!("home hub unreachable since {t}"));
+                        v["unreachable_since_ms"] = json!(t);
+                    }
                 }
                 if has(crate::send::DEAD_LETTER) {
                     v["label"] = json!("REJECTED BY HUB");
@@ -1426,7 +1435,8 @@ pub(crate) fn latency_log(dir: &Path, ms: u64, v: &Value) -> String {
         use std::io::Write as _;
         use std::os::unix::fs::OpenOptionsExt as _;
         let mut f = std::fs::OpenOptions::new().create(true).append(true).mode(0o600).open(&path)?;
-        writeln!(f, "{line}")
+        // T-3846: one write of the whole line.
+        f.write_all(format!("{line}\n").as_bytes())
     })();
     match r {
         Ok(()) if FAILED.load(Ordering::SeqCst) == 0 => "ok".into(),

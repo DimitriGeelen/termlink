@@ -48,6 +48,8 @@ use termlink_session::client::{rpc_call_addr_with_timeout, unwrap_result};
 use termlink_session::offline_queue::{OfflineQueue, PendingPost, QueueError};
 
 pub const WAITING: &str = "WAITING";
+/// T-3832 (E-60): store state holding the ms of the first failed post after the last successful one.
+pub const HUB_UNREACHABLE_STATE: &str = "hub-unreachable-since";
 pub const POSTED: &str = "POSTED";
 pub const DEAD_LETTER: &str = "DEAD_LETTER";
 /// A message re-queued because no STORED report came back in time.
@@ -651,6 +653,15 @@ impl Inner {
         self.pump_locked(&mut mem)
     }
 
+    /// T-3832 (design 3.8.1, E-60): the first failed post after the last successful one; kept until a post succeeds.
+    fn note_hub_unreachable(&self) {
+        let _ = self.store.write_state_new(HUB_UNREACHABLE_STATE, &crate::store::now_ms().to_string());
+    }
+
+    fn note_hub_reached(&self) {
+        let _ = self.store.remove_state(HUB_UNREACHABLE_STATE);
+    }
+
     fn pump_locked(&self, mem: &mut PumpMemory) -> PumpResult {
         if matches!(self.queue.peek_head_id(), Ok(None)) {
             mem.held = None;
@@ -659,6 +670,7 @@ impl Inner {
         match self.check_pin() {
             Ok(()) => mem.held = None,
             Err(PinError::Unreachable(_)) => {
+                self.note_hub_unreachable();
                 self.wait_head();
                 return PumpResult::Waiting;
             }
@@ -686,6 +698,7 @@ impl Inner {
             if !mem.topics.contains(&post.topic) {
                 match self.rpc(method::CHANNEL_CREATE, json!({"name": post.topic})) {
                     Err(_) => {
+                        self.note_hub_unreachable();
                         self.wait_head();
                         return PumpResult::Waiting;
                     }
@@ -707,10 +720,12 @@ impl Inner {
             let digest = post.metadata.get("sidecar_digest").cloned().unwrap_or_default();
             match self.rpc(method::CHANNEL_POST, post_params(&post)) {
                 Err(_) => {
+                    self.note_hub_unreachable();
                     let _ = self.mark_waiting(&conv, &msg_id, &digest);
                     return PumpResult::Waiting;
                 }
                 Ok(RpcResponse::Success(_)) => {
+                    self.note_hub_reached();
                     // POSTED before the row is removed: a crash in between re-posts
                     // with the same client_msg_id, which the hub absorbs.
                     if !msg_id.is_empty()

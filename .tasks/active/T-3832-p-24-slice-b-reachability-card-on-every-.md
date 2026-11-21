@@ -1,13 +1,18 @@
 ---
 id: T-3832
-name: "P-24 slice (b): reachability card on every agent + GP-4 offline lines (E-60, E-61)"
+name: "P-24 slice (b): reachability card on every agent + GP-4 offline lines (E-60,
+  E-61)"
 description: >
-  arc-011 P-24 slice (b), operator ruling D-1 A on T-3708 (2026-11-20). Design docs/reports/T-3708-design.md 3.6 and 3.8: every sidecar posts its liveness note with card {receiver_up, right_hub, adapter_present, last_surface_ms}; reader UNKNOWN past 2 x PN-9, never DEAD; sender WAITING 'home hub unreachable since T'; L4 network cut on a throwaway hub. Depends on T-3708 slice (a).
+  arc-011 P-24 slice (b), operator ruling D-1 A on T-3708 (2026-11-20). Design docs/reports/T-3708-design.md
+  3.6 and 3.8: every sidecar posts its liveness note with card {receiver_up, right_hub,
+  adapter_present, last_surface_ms}; reader UNKNOWN past 2 x PN-9, never DEAD; sender
+  WAITING 'home hub unreachable since T'; L4 network cut on a throwaway hub. Depends
+  on T-3708 slice (a).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T10:20:03Z
-last_update: 2026-11-20T10:20:03Z
-date_finished: null
+last_update: 2026-11-21T16:45:28Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,49 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-21T16:30:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3832: P-24 slice (b): reachability card on every agent + GP-4 offline lines (E-60, E-61)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** arc-011 P-24 slice (b), from operator ruling D-1 "A" on T-3708 (2026-11-20). Slice (a) (status honesty) is closed and live. The design is `docs/reports/T-3708-design.md` 3.6 (reachability card, E-61) and 3.8 (GP-4 offline lines, E-60).
+
+**Problem / hypothesis:**
+1. A sender cannot tell whether its recipient is reachable. Only the main posts a liveness note, and it has no reachability card.
+2. A sender whose own hub is down sees a bare WAITING, with no reason and no time.
+
+**Goal:**
+1. Every sidecar posts a card `{receiver_up, right_hub, adapter_present, last_surface_ms}`; a reader older than 2 x PN-9 reads UNKNOWN, never DEAD.
+2. The sender names its home hub's outage, with the time it began.
+
+**Expected outcome:** 3.6 and 3.8 as designed, including the L4 network-cut check of 3.8.3.
+
+**Progress:**
+1. 2026-11-21: 3.8.1 (the home-hub-unreachable reason on WAITING) built first, as the smallest self-contained part.
+2. 3.6, 3.8.2 and 3.8.3 remain, for a fresh session.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] 3.8.1: the sender records the first failed post after the last successful one (`hub-unreachable-since`, cleared on the next successful post). A WAITING message's status carries `reason: "home hub unreachable since <ms>"` and `unreachable_since_ms`. Nothing claims RECEIVED from the outbox. A test drives a send with the hub down, then a successful post that clears it.
+- [ ] 3.6: every sidecar's liveness note carries `card {receiver_up, right_hub, adapter_present, last_surface_ms}`. A pre-P-24 note struct still parses a P-24 note (test). A card older than 2 x PN-9 reads UNKNOWN, never DEAD. Sender status shows the recipient's card when its hub is known.
+- [ ] 3.8.2: past the recipient's card expiry, the sender shows WAITING FOR RECIPIENT, not STUCK.
+- [ ] 3.8.3: L4 network cut on a throwaway hub. On restore, the pump posts only what is missing (no duplicates by the identity triple).
+- [ ] Sidecar suite passes; workspace clippy is clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +398,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3832-p-24-slice-b-reachability-card-on-every-.md
 - **Context:** Initial task creation
+
+### 2026-11-21T16:30:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
