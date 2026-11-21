@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T10:20:03Z
-last_update: 2026-11-21T17:37:29Z
+last_update: 2026-11-21T17:46:55Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,7 +93,11 @@ bvp_scores_proposed:
    2c. Sender status adds `recipient_card` per message: fresh within PN-9 (600 s), expired up to 2 x PN-9, unknown beyond that or without a card, never dead.
    2d. Past expiry, a STUCK or UNKNOWN label reads WAITING FOR RECIPIENT, with the reason "recipient offline".
    2e. Tests: `tests/liveness_hub.rs` (3 new) and `tests/t3832_recipient_card.rs` (3 new). With the override disabled, 2 of the 3 card-status tests fail.
-3. 3.8.3 (L4 network cut) remains.
+3. 2026-11-21: 3.8.3 built (`tests/t3832_network_cut.rs`). A proxy on the throwaway hub's socket stages the cut.
+   3a. It passes requests through, then drops the replies to `channel.post` after the hub has taken each post, then drops every connection.
+   3b. After the restore, m1 to m4 are each on the hub exactly once by (sender, conversation, message id), and none is missing. Before the restore the hub already held m2, so the re-post really happened.
+   3c. Negative control: with `client_msg_id` stripped from posts, m2 lands on the hub 4 times and the test fails.
+   3d. Sidecar suite 428/0; workspace clippy clean.
 
 ## Acceptance Criteria
 
@@ -102,8 +106,8 @@ bvp_scores_proposed:
 - [x] 3.8.1: the sender records the first failed post after the last successful one (`hub-unreachable-since`, cleared on the next successful post). A WAITING message's status carries `reason: "home hub unreachable since <ms>"` and `unreachable_since_ms`. Nothing claims RECEIVED from the outbox. A test drives a send with the hub down, then a successful post that clears it.
 - [x] 3.6: every sidecar's liveness note carries `card {receiver_up, right_hub, adapter_present, last_surface_ms}`. A pre-P-24 note struct still parses a P-24 note (test). A card older than 2 x PN-9 reads UNKNOWN, never DEAD. Sender status shows the recipient's card when its hub is known.
 - [x] 3.8.2: past the recipient's card expiry, the sender shows WAITING FOR RECIPIENT, not STUCK.
-- [ ] 3.8.3: L4 network cut on a throwaway hub. On restore, the pump posts only what is missing (no duplicates by the identity triple).
-- [ ] Sidecar suite passes; workspace clippy is clean.
+- [x] 3.8.3: L4 network cut on a throwaway hub. On restore, the pump posts only what is missing (no duplicates by the identity triple).
+- [x] Sidecar suite passes; workspace clippy is clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -307,7 +311,7 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3832-verify cargo test -p termlink-sidecar --test t3832_offline_lines --test t3832_recipient_card --test liveness_hub > /tmp/.t3832-verify.out 2>&1 && grep -q 'test result: ok' /tmp/.t3832-verify.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3832-verify cargo test -p termlink-sidecar --test t3832_offline_lines --test t3832_recipient_card --test t3832_network_cut --test liveness_hub > /tmp/.t3832-verify.out 2>&1 && grep -q 'test result: ok' /tmp/.t3832-verify.out
 
 ## RCA
 
@@ -387,6 +391,12 @@ env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3832-verify cargo test -p termlin
   3. 3.6.4 (other projects see only reachable yes/no and the version class) needs the PH-3 read scope. In PH-2 the card carries no secret content; the restriction is recorded here as a PH-3 item.
 - **Why:** an offline recipient cannot be STUCK, and our own read failure must not be reported as the recipient's absence.
 - **Rejected:** the in-memory meter record (wrong after every restart); reading every book peer's card (the recipients actually sent to are the ones whose status shows it).
+
+### 2026-11-21 — 3.8.3 how the cut is made (agent choice, overturnable)
+- **Chose:** a fault proxy on the throwaway hub's unix socket. The estate hub listens only on a unix socket, so the cut is made at the transport. The hub stays up throughout, so its in-memory `client_msg_id` dedupe is what gets tested.
+- **Why:** the design names "netns or firewall rule". Neither applies to a unix socket, and both would change host network state from a test (forbidden). The proxy also stages the one case that creates duplicates, a post the hub took whose reply was lost, which a plain firewall drop would only hit by chance.
+- **Rejected:** iptables or netns (host state, and not applicable to a unix-socket hub); stopping the hub (that is 3.8.1's test, and it also clears the dedupe).
+- **Note:** the pump does not read the hub record before re-posting (design 3.8.3 wording). It re-posts with the same `client_msg_id` and relies on the hub's dedupe. The outcome the criterion asks for (nothing missing, nothing duplicated) is proven. After a hub restart the in-memory dedupe is gone, and a duplicate is then caught only by the recipient's Duplicate outcome (T-3461), not at the hub.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
