@@ -291,6 +291,9 @@ pub mod method {
     /// operator_stop}, fenced by the supervisor token (Execute). Records the cause only; the
     /// confirmed end that follows carries it on its history entry.
     pub const DISPATCH_STOP: &str = "dispatch.stop";
+    /// T-3842 (wc v0.3.4 §3.3 close): close a dispatch. The hub declares `closure: never`, so this
+    /// always answers the typed refusal `CLOSURE_NOT_SUPPORTED` and writes nothing (Execute).
+    pub const DISPATCH_CLOSE: &str = "dispatch.close";
     /// T-3503 answer path (contract §5): a worker asks (nonce), the dispatcher answers
     /// (supervisor token), the worker acks `received|applied`. Interact.
     /// There is deliberately NO `dispatch.resolve` method: T7d is a hub-host CLI only
@@ -556,8 +559,14 @@ pub mod error_code {
     /// T-3501 `dispatch.transition` / `dispatch.allocate`: a write was refused by the
     /// worker-contract fence. `data.reason` is one of `stale_attempt`, `bad_nonce`,
     /// `bad_credential`, `stale_gen`, `cas_mismatch`, `forbidden_transition`,
-    /// `done_conflict`. A refused write changes nothing.
+    /// `done_conflict` (wc v0.3.4 adds `dispatch_closed` and `dispatch_not_terminal`, which this
+    /// hub never returns). A refused write changes nothing. A client treats a reason it does not
+    /// know as a non-retryable typed refusal (wc v0.3.4 §2 client rule, T-3842).
     pub const FENCE_REJECTED: i64 = -32026;
+    /// T-3842 `dispatch.close`: this hub declares `closure: never` (wc v0.3.4 §2, §3.3 close), so
+    /// every close is answered with this typed refusal, never a silent no-op. Nothing is written.
+    /// `data` carries `{refused: "closure_not_supported", closure: "never", dispatch_id}`.
+    pub const CLOSURE_NOT_SUPPORTED: i64 = -32030;
     /// T-3501: no such dispatch (or attempt). `data` carries `{dispatch_id}`.
     pub const DISPATCH_NOT_FOUND: i64 = -32027;
     /// T-3501 `dispatch.allocate`: the caller-chosen `dispatch_id` is already used.

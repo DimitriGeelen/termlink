@@ -93,6 +93,33 @@ pub async fn handle_dispatch_transition(id: Value, params: &Value) -> RpcRespons
     }
 }
 
+pub async fn handle_dispatch_close(id: Value, params: &Value) -> RpcResponse {
+    match bus_or_err(&id) {
+        Ok(b) => close_with(b, id, params),
+        Err(r) => r,
+    }
+}
+
+/// T-3842 (wc v0.3.4 §2, §3.3 close, CC-35): this hub declares `closure: never`. A close of an
+/// existing dispatch is the typed refusal `closure_not_supported`, never a no-op success, and
+/// nothing is written (no `closed`, no `dispatch_history` row, no attempt change); a later T1 is
+/// accepted as before. An unknown dispatch is `DISPATCH_NOT_FOUND`.
+pub fn close_with(bus: &Bus, id: Value, params: &Value) -> RpcResponse {
+    let Some(dispatch_id) = s(params, "dispatch_id") else {
+        return ErrorResponse::new(id, -32602, "dispatch.close needs dispatch_id").into();
+    };
+    if let Err(e) = bus.wc_get(&dispatch_id) {
+        return err(id, e);
+    }
+    ErrorResponse::with_data(
+        id,
+        error_code::CLOSURE_NOT_SUPPORTED,
+        "this hub declares closure: never; a dispatch is never closed (wc v0.3.4 §3.3 close)",
+        json!({"refused": "closure_not_supported", "closure": termlink_bus::worker_contract::CLOSURE, "dispatch_id": dispatch_id}),
+    )
+    .into()
+}
+
 pub async fn handle_dispatch_stop(id: Value, params: &Value) -> RpcResponse {
     match bus_or_err(&id) {
         Ok(b) => stop_with(b, id, params, now_ms()),
@@ -529,6 +556,30 @@ mod tests {
         assert_eq!((last["writer"].as_str(), last["actor"].as_str(), last["reason"].as_str()), (Some("submitter"), Some("a"), Some("superseded by D2")));
         let again = ok(transition_gated(&bus, json!(3), &req, 3_000, true));
         assert_eq!(again["deduped"].as_bool(), Some(true));
+    }
+
+    /// T-3842 (wc v0.3.4 CC-35): this hub declares closure: never. A close is the typed refusal
+    /// closure_not_supported and writes nothing; an unknown dispatch is DISPATCH_NOT_FOUND; a later
+    /// T1 is accepted.
+    #[test]
+    fn dispatch_close_is_refused_as_closure_not_supported_and_writes_nothing() {
+        let (_d, b) = bus();
+        let a = ok(allocate_with(&b, json!(1), &json!({}), 1_000));
+        ok(transition_with(&b, json!(2), &lifecycle(&a, "running", "dispatched"), 2_000));
+        ok(transition_with(&b, json!(3), &lifecycle(&a, "done", "running"), 3_000));
+        let before = ok(get_with(&b, json!(4), &json!({"dispatch_id": a["dispatch_id"]})));
+        let (code, data) = fail(close_with(&b, json!(5), &json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "reason": "r"})));
+        assert_eq!(code, error_code::CLOSURE_NOT_SUPPORTED);
+        assert_eq!((data["refused"].as_str(), data["closure"].as_str()), (Some("closure_not_supported"), Some("never")));
+        let after = ok(get_with(&b, json!(6), &json!({"dispatch_id": a["dispatch_id"]})));
+        assert_eq!(before, after, "a refused close writes nothing");
+        assert_eq!((after["closure"].as_str(), after["closed"].clone(), after["dispatch_history"].clone()), (Some("never"), Value::Null, json!([])));
+        assert_eq!((after["finished"].as_bool(), after["last_state"].as_str(), after["last_outcome"].as_str()), (Some(true), Some("done"), Some("succeeded")));
+        let (code, _) = fail(close_with(&b, json!(7), &json!({"dispatch_id": "D-00000000000000000000000000"})));
+        assert_eq!(code, error_code::DISPATCH_NOT_FOUND);
+        let (code, _) = fail(close_with(&b, json!(8), &json!({})));
+        assert_eq!(code, -32602);
+        ok(allocate_with(&b, json!(9), &json!({"attempt_of": a["dispatch_id"]}), 4_000));
     }
 
     /// T-3523 (CC-25): `dispatch.stop` records the cause without a state change; the T3 that

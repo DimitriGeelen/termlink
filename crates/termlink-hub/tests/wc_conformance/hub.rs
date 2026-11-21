@@ -28,8 +28,9 @@ use termlink_bus::worker_contract::{
 };
 use termlink_hub::dispatch_contract::{AGENT_SESSION_REFUSAL, ResolveSession, resolve_gate};
 
-/// Capabilities this backend offers (vocabulary.capabilities). `lease` and `real_worker` are not.
-pub const CAPABILITIES: [&str; 4] = ["registry_epoch", "answer_channel", "caller_chosen_ids", "supervisor_gen"];
+/// Capabilities this backend offers (vocabulary.capabilities). `lease`, `real_worker` and
+/// `closure_supported` are not; T-3842: the hub declares `closure_never` (wc v0.3.4 §2).
+pub const CAPABILITIES: [&str; 5] = ["registry_epoch", "answer_channel", "caller_chosen_ids", "supervisor_gen", "closure_never"];
 
 const BASE_MS: i64 = 1_000_000_000;
 const GRACE_MS: i64 = 120_000;
@@ -455,6 +456,24 @@ impl Hub {
             "stop" => self.stop(step, n),
             "ask_wait" | "wait" => missing(&format!("op:{op} (no worker-side wait or collect surface)")),
             "withdraw" => self.withdraw(step, n),
+            // T-3842 (CC-35): the hub's real `dispatch.close` handler, which answers closure: never.
+            "close" => {
+                let d = self.dispatch_id()?;
+                let params = json!({"dispatch_id": d, "attempt": n, "reason": step["args"]["reason"]});
+                Ok(match termlink_hub::dispatch_contract::close_with(&self.bus, json!(1), &params) {
+                    termlink_protocol::jsonrpc::RpcResponse::Error(e) => match e.error.data.as_ref().and_then(|v| v["refused"].as_str()) {
+                        Some(r) => obj(json!({"refused": r})),
+                        None => obj(json!({"error": e.error.code})),
+                    },
+                    termlink_protocol::jsonrpc::RpcResponse::Success(_) => obj(json!({"accepted": "close"})),
+                })
+            }
+            // T-3842 (CC-35): the client rule, as the library implements it for every client.
+            "client_reject" => {
+                let reason = step["args"]["reason"].as_str().unwrap_or_default();
+                let c = termlink_bus::worker_contract::client_refusal(reason);
+                Ok(obj(json!({"ok": true, "values": {"retryable": c["retryable"], "typed_refusal": c["reason"]}})))
+            }
             // T-3837: the reader rule every consumer applies (`finished_work`), on the record as served.
             "consume" => {
                 let d = self.dispatch_id()?;
@@ -829,11 +848,15 @@ impl Hub {
         let mut attempt_count = 0;
         // T-3528 (CC-12): dispatch-level bounce facts, read from the record as served.
         let (mut bounced, mut ladder) = (Value::Null, Value::Null);
+        // T-3842: dispatch-level closure facts (wc v0.3.4), read from the record as served.
+        let (mut closed, mut dispatch_history) = (Value::Null, Value::Null);
         let mut causes = Map::new();
         if let Some(d) = &self.dispatch {
             let v = self.bus.wc_get(d).map_err(|e| Fail::Mismatch(format!("get refused: {e:?}")))?;
             dispatcher_session = v["dispatcher"]["session"].clone();
             bounced = v["bounced_to_dispatcher"].clone();
+            closed = v["closed"].clone();
+            dispatch_history = v["dispatch_history"].clone();
             ladder = v["retry_ladder_entries"].clone();
             let list = v["attempts"].as_array().cloned().unwrap_or_default();
             attempt_count = list.len();
@@ -901,6 +924,8 @@ impl Hub {
             "bounced_to_dispatcher": bounced,
             "retry_ladder_entries": ladder,
             "history_causes": Value::Object(causes),
+            "closed": closed,
+            "dispatch_history": dispatch_history,
         }))
     }
 

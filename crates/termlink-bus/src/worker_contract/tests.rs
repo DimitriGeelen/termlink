@@ -521,6 +521,36 @@ fn t3w_of_an_old_attempt_is_stale_and_a_new_attempt_may_follow() {
 }
 
 #[test]
+fn client_rule_every_fence_reason_is_a_non_retryable_typed_refusal() {
+    for r in FENCE_REASONS {
+        let c = client_refusal(r);
+        assert_eq!((c["known"].as_bool(), c["retryable"].as_bool(), c["reason"].as_str()), (Some(true), Some(false), Some(r)), "{r}");
+    }
+    let c = client_refusal("a_reason_from_a_later_revision");
+    assert_eq!((c["known"].as_bool(), c["retryable"].as_bool()), (Some(false), Some(false)), "unknown: surfaced, never retried");
+    for r in ["stale_attempt", "bad_nonce", "bad_credential", "stale_gen", "cas_mismatch", "forbidden_transition", "done_conflict"] {
+        assert!(FENCE_REASONS.contains(&r), "every reason this hub emits is a known one: {r}");
+    }
+}
+
+#[test]
+fn reader_fields_closure_never_finished_and_last_attempt_are_separate() {
+    let (_d, s) = store();
+    let a = alloc(&s, 10);
+    let v = s.get(&a.dispatch_id).unwrap();
+    assert_eq!((v["closure"].as_str(), v["closed"].clone(), v["dispatch_history"].clone()), (Some(CLOSURE), Value::Null, json!([])));
+    assert_eq!((v["finished"].as_bool(), v["last_state"].as_str(), v["last_outcome"].clone()), (Some(false), Some("dispatched"), Value::Null));
+    s.transition(&t3w(&a, "r"), 11).unwrap();
+    let v = s.get(&a.dispatch_id).unwrap();
+    assert_eq!((v["finished"].as_bool(), v["last_outcome"].as_str()), (Some(false), Some(OUTCOME_WITHDRAWN)), "withdrawn is terminal, not finished");
+    let b = s.allocate(&AllocateRequest { attempt_of: Some(a.dispatch_id.clone()), ..Default::default() }, 12).unwrap();
+    s.transition(&t2(&b), 13).unwrap();
+    s.transition(&t3(&b, "E2"), 14).unwrap();
+    let v = s.get(&a.dispatch_id).unwrap();
+    assert_eq!((v["finished"].as_bool(), v["last_state"].as_str(), v["last_outcome"].as_str()), (Some(true), Some("done"), Some("succeeded")), "computed from the last attempt");
+}
+
+#[test]
 fn reader_rule_finished_work_refuses_paused_attested_withdrawn_and_unknown_outcomes() {
     let done = |outcome: &str, attested: bool| json!({"state": "done", "outcome": outcome, "attested": attested});
     for o in ["succeeded", "failed", "refused", "handback-malformed"] {

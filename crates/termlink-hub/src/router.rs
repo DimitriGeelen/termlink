@@ -123,6 +123,9 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         control::method::DISPATCH_STOP => {
             crate::dispatch_contract::handle_dispatch_stop(id, &req.params).await
         }
+        control::method::DISPATCH_CLOSE => {
+            crate::dispatch_contract::handle_dispatch_close(id, &req.params).await
+        }
         control::method::DISPATCH_GET => {
             crate::dispatch_contract::handle_dispatch_get(id, &req.params).await
         }

@@ -16,7 +16,8 @@ use regex::Regex;
 use serde_json::{Map, Value};
 
 /// Capabilities whose absence may make a `subject: capability` case n/a (vocabulary, §6.6 N2).
-const NA_CAPABILITIES: [&str; 4] = ["answer_channel", "registry_epoch", "caller_chosen_ids", "real_worker"];
+/// T-3842: wc v0.3.4 adds the two closure declarations; a backend offers exactly one of them.
+const NA_CAPABILITIES: [&str; 6] = ["answer_channel", "registry_epoch", "caller_chosen_ids", "real_worker", "closure_supported", "closure_never"];
 
 /// `Yes` / `No` are definite; `Unknown` means the backend does not expose what the expectation names.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -336,9 +337,9 @@ fn wc_vectors_against_hub_backend() {
     let yaml: serde_yaml::Value = serde_yaml::from_str(&text).unwrap_or_else(|e| panic!("parse {path}: {e}"));
     let doc: Value = serde_json::to_value(yaml).expect("vectors as JSON");
     let vectors = doc["vectors"].as_array().cloned().unwrap_or_default();
-    // T-3837: wc v0.3.4 added CC-26..CC-29 (withdrawn); a v0.3.3 file has the 25. Anything else is
-    // refused, not half-judged.
-    assert!(matches!(vectors.len(), 25 | 29), "fail-closed: expected 25 (v0.3.3) or 29 (v0.3.4) cases, found {}", vectors.len());
+    // T-3837: wc v0.3.4 added CC-26..CC-29 (withdrawn); T-3842: the adopted v0.3.4 text (item 2 with
+    // A1-A6) has 47. A v0.3.3 file has the 25. Anything else is refused, not half-judged.
+    assert!(matches!(vectors.len(), 25 | 29 | 47), "fail-closed: expected 25 (v0.3.3), 29 or 47 (v0.3.4) cases, found {}", vectors.len());
 
     // TERMLINK_WC_CASE=CC-NN runs one case (reproducing a finding); the summary then covers that case only.
     let only = std::env::var("TERMLINK_WC_CASE").ok();

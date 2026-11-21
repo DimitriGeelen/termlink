@@ -169,6 +169,31 @@ const FINISHED_OUTCOMES: [&str; 4] = ["succeeded", "failed", "refused", "handbac
 /// The consumer refusal for anything that is not finished work (§3.3, vocabulary `refusals`).
 pub const NOT_FINISHED_WORK: &str = "not_finished_work";
 
+/// T-3842: this backend's closure declaration (wc v0.3.4 §2). The hub never closes a dispatch.
+pub const CLOSURE: &str = "never";
+
+/// T-3842: the `fence_reject` reasons of wc v0.3.4 §3.3 (nine). The hub returns the first seven;
+/// `dispatch_closed` and `dispatch_not_terminal` belong to closure-supported backends.
+pub const FENCE_REASONS: [&str; 9] = [
+    "stale_attempt",
+    "bad_nonce",
+    "bad_credential",
+    "stale_gen",
+    "cas_mismatch",
+    "forbidden_transition",
+    "done_conflict",
+    "dispatch_closed",
+    "dispatch_not_terminal",
+];
+
+/// T-3842 (wc v0.3.4 §2 client rule): how a client treats a `fence_reject` it receives. Every
+/// reason is a typed refusal of that exact write and is never retried as is; a reason this
+/// client does not know is marked `known: false` and surfaced, never an error and never a retry.
+/// That is what lets a later revision add a reason within `wc/0.3`.
+pub fn client_refusal(reason: &str) -> Value {
+    json!({"reason": reason, "known": FENCE_REASONS.contains(&reason), "retryable": false})
+}
+
 /// T-3837: the reader rule (§3.3). A consumer may treat an attempt as finished work only
 /// when it is `done`, not attested, and its outcome is one this reader knows as finished.
 /// `paused` and `withdrawn` are terminal but not finished. An outcome this reader does not
@@ -387,6 +412,16 @@ impl WcStore {
                 a["notices"] = notices::notices_json(&conn, dispatch_id, n)?;
                 attempts.push(a);
             }
+            // T-3842 (wc v0.3.4 §2 reader fields): closure is never on this hub, so `closed` is always
+            // null and `dispatch_history` always empty. `finished` and the last attempt's state and
+            // outcome are separate fields, computed from the attempts only.
+            let last = attempts.last().cloned().unwrap_or(Value::Null);
+            d["closure"] = json!(CLOSURE);
+            d["closed"] = Value::Null;
+            d["dispatch_history"] = json!([]);
+            d["finished"] = json!(!last.is_null() && finished_work(&last).is_ok());
+            d["last_state"] = last["state"].clone();
+            d["last_outcome"] = last["outcome"].clone();
             d["attempts"] = Value::Array(attempts);
             let (bounced, replays) = answer::bounce_json(&conn, dispatch_id)?;
             d["bounced_to_dispatcher"] = bounced;
