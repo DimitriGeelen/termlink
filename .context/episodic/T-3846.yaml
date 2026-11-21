@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3846: Sidecar attention entries can interleave under concurrent writers (writeln! issues several writes); one entry is lost, e37 fails 2/15
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T16:45:46Z
+# ============================================================================
+
+task_id: T-3846
+task_name: "Sidecar attention entries can interleave under concurrent writers (writeln! issues several writes); one entry is lost, e37 fails 2/15"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-21T16:36:33Z
+completed: 2026-11-21T16:45:30Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-21T17:44:57+01:00
+last_commit: 2026-11-21T17:44:57+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  sidecar JSONL appends write one whole line per write_all (writeln! could split a line, so concurrent attention entries interleaved and one was lost; e37 failed 2/15, now 30/30); 16-thread test fails 5/5 on the old store
+
+# Key outcomes
+outcomes:
+  - 'The four JSONL appends (`store.rs` attention and attention_coalesced, `meter.rs` report log, `api.rs` latency log) build the full line, newline included, and write it with one `write_all`. The `api.rs` hunk is committed with T-3832, which edits the same file.'
+  - 'A store test has 16 threads append attention entries at once; every entry is present and parses. Negative control: against the old `store.rs` it failed 5 of 5 runs (only 298 lines parsed).'
+  - 'e37 passes 30 runs out of 30 (2 of 15 failed before); the sidecar suite passes (421/0); workspace clippy is clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3834.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3846-sidecar-attention-entries-can-interleave.md'
+  - '.tasks/completed/T-3834-rk-1-sender-shows-key-revoked-operator-a.md'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/tests/store_tests.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T17:44:57'
+    action: 'T-3846: sidecar JSONL appends write one whole line per write_all (writeln! could split a line, so concurrent attention entries interleaved and one was lost; e37 failed 2/15, now 30/30); 16-thread test fails 5/5 on the old store'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 2
+  files_changed: 10
+  lines_added: 1041
+  lines_removed: 12
+  footprint_refreshed_at: '2026-11-21T16:49:41Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3846-sidecar-attention-entries-can-interleave.md
+generated_by: context-agent-hybrid
