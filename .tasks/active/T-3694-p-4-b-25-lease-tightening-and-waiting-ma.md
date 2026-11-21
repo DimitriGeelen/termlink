@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-21T21:29:44Z
+last_update: 2026-11-21T22:13:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -419,6 +419,21 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
 -->
 
 ## Decisions
+
+### 2026-11-21 — how the W1 pair reports prompt origin (operator ruling: "A")
+- **Chose:** A of the revised brief, i.e. route C in order:
+  1. TermLink makes S1 (the PTY input counters) bind for the interactive session. Checked 2026-11-21: unbound, "no harness_pid reported".
+  2. TermLink adds a lockout guard to the origin-reporting switch action. It refuses unless a checked-`human` claim has been seen, and it reverts automatically.
+  3. TermLink sends AEF a scoped request: one `prompt_submit` report into the W1 socket from `sidecar-inbox`, adapter/2's guard and BUSY stay off, with the test list from the reviews.
+  4. Observe before any switch: human prompts read `human`, zero `unknown`.
+  5. The switch comes back to the operator as its own approval.
+- **Why:** all three external reviews (`docs/reports/T-3694-reviews/`: claude-code, codex, opencode, all independent) chose C. The S1 check shows that no route can return `human` until binding is fixed, and that fix is TermLink's own and is needed by every route.
+- **Rejected:**
+  1. B, the gated W1 prompt hook (permanent two claims per prompt).
+  2. C, moving the W1 pair onto AEF's hook stack (switches off working W1 behaviour).
+  3. D, parking the criterion.
+  4. The first brief's automatic fallback to A after a week (codex and opencode: no technical justification). If AEF cannot take C, the agent brings a new brief.
+- **Left open:** the switch itself (operator approval, its own runme action).
 
 ### 2026-11-12 — origin reporting is decided per harness at the hub, by an operator record only
 - **Chose:** a `main-config:<project>` topic (forever retention, owner and reason named) holding `OriginReporting`
