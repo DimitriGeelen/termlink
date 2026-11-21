@@ -25137,3 +25137,21 @@ scan_id: R-cb763071
 task_id: T-3841
 payload:
   task_file: .tasks/active/T-3841-clear-the-9-clippy--d-warnings-lints-in-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-21T12:25:44Z'
+scan_id: R-215f8e05
+task_id: T-3842
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-21T12:25:44Z'
+scan_id: R-215f8e05
+task_id: T-3842
+payload:
+  task_file: .tasks/active/T-3842-wc-v034-closurenever-conformance-on-the-.md

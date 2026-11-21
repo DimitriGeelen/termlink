@@ -392,10 +392,11 @@ pub(crate) fn allocate_with(bus: &Bus, id: Value, params: &Value, now: i64) -> R
 }
 
 /// T-3837: whether `dispatch.transition` accepts `withdraw` (wc v0.3.4 T3w). The spec says no
-/// backend emits `withdrawn` before all three owners (AEF, ring20, TermLink) adopt v0.3.4, so it
-/// stays `false` until then; the store implements and tests T3w regardless. Flip it, with the
-/// adoption recorded in the task's Decisions, once all three have adopted.
-pub(crate) const WITHDRAW_LIVE: bool = false;
+/// backend emits `withdrawn` before all three owners (AEF, ring20, TermLink) adopt v0.3.4.
+/// T-3840: all three adopted AEF's text at 13c61c64c (AEF T-5318; ring20 directly, bb98285a;
+/// TermLink's T-3837 rulings), and the operator ruled B on 2026-11-21: switched on together with
+/// T-3842's closure: never conformance.
+pub(crate) const WITHDRAW_LIVE: bool = true;
 
 pub(crate) fn transition_with(bus: &Bus, id: Value, params: &Value, now: i64) -> RpcResponse {
     transition_gated(bus, id, params, now, WITHDRAW_LIVE)
@@ -535,26 +536,27 @@ mod tests {
         assert_eq!(got["dispatcher"]["session"], "claude-master-1");
     }
 
-    /// T-3837 (wc v0.3.4 T3w): until all three owners adopt v0.3.4 the RPC refuses `withdraw`
-    /// and writes nothing. Once live, it writes done{withdrawn} with the actor and reason on its
-    /// history entry, and the same withdrawal again is a T8 replay.
+    /// T-3837 / T-3840 (wc v0.3.4 T3w): `withdraw` over `dispatch.transition` (live since all three
+    /// owners adopted v0.3.4) writes done{withdrawn} with the actor and reason on its history entry,
+    /// and the same withdrawal again is a T8 replay. The gate itself still refuses when off.
     #[test]
     fn dispatch_transition_withdraw_over_rpc() {
         let (_d, bus) = bus();
         let a = ok(allocate_with(&bus, json!(1), &json!({}), 1_000));
         let mut req = lifecycle(&a, "done", "dispatched");
         req["withdraw"] = json!({"actor": "a", "reason": "superseded by D2"});
-        // Pins WITHDRAW_LIVE = false: flipping it (after all three adopt v0.3.4) updates this line.
-        let (code, _) = fail(transition_with(&bus, json!(2), &req, 1_500));
+        // With the gate off, a withdraw is refused and writes nothing (the T-3837 behaviour).
+        let (code, _) = fail(transition_gated(&bus, json!(2), &req, 1_500, false));
         assert_eq!(code, -32602);
         let got = ok(get_with(&bus, json!(9), &json!({"dispatch_id": a["dispatch_id"]})));
         assert_eq!(got["attempts"][0]["state"], "dispatched", "a refused withdraw writes nothing");
-        let r = ok(transition_gated(&bus, json!(2), &req, 2_000, true));
+        // The served path: WITHDRAW_LIVE (T-3840).
+        let r = ok(transition_with(&bus, json!(2), &req, 2_000));
         assert_eq!((r["record"]["outcome"].as_str(), r["deduped"].as_bool()), (Some("withdrawn"), Some(false)));
         assert_eq!(r["record"]["exit_code"], Value::Null, "a withdrawal writes no worker field");
         let last = r["record"]["history"].as_array().unwrap().last().cloned().unwrap();
         assert_eq!((last["writer"].as_str(), last["actor"].as_str(), last["reason"].as_str()), (Some("submitter"), Some("a"), Some("superseded by D2")));
-        let again = ok(transition_gated(&bus, json!(3), &req, 3_000, true));
+        let again = ok(transition_with(&bus, json!(3), &req, 3_000));
         assert_eq!(again["deduped"].as_bool(), Some(true));
     }
 

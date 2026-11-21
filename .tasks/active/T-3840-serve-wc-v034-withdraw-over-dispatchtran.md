@@ -1,13 +1,17 @@
 ---
 id: T-3840
-name: "Serve wc v0.3.4 withdraw over dispatch.transition (flip WITHDRAW_LIVE) once the amended text is published and all three owners adopted"
+name: "Serve wc v0.3.4 withdraw over dispatch.transition (flip WITHDRAW_LIVE) once
+  the amended text is published and all three owners adopted"
 description: >
-  T-3837 built T3w in the store; dispatch_contract.rs WITHDRAW_LIVE=false keeps the RPC refusing withdraw. Flip when: AEF publishes v0.3.4 with A1-A6 (T-5320), ring20 confirms adoption on that text, and the operator approves. Update the dispatch_transition_withdraw_over_rpc test and the run-wc-vectors default ref in the same change.
+  T-3837 built T3w in the store; dispatch_contract.rs WITHDRAW_LIVE=false keeps the
+  RPC refusing withdraw. Flip when: AEF publishes v0.3.4 with A1-A6 (T-5320), ring20
+  confirms adoption on that text, and the operator approves. Update the dispatch_transition_withdraw_over_rpc
+  test and the run-wc-vectors default ref in the same change.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T20:21:02Z
-last_update: 2026-11-20T20:21:02Z
-date_finished: null
+last_update: 2026-11-21T12:32:12Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +54,41 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-21T12:26:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3840: Serve wc v0.3.4 withdraw over dispatch.transition (flip WITHDRAW_LIVE) once the amended text is published and all three owners adopted
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3837 built T3w (withdrawn) in the hub store, but kept `dispatch.transition` refusing `withdraw` (`WITHDRAW_LIVE = false`). The spec says no backend emits `withdrawn` before all three owners adopt v0.3.4. All three have now adopted it on AEF's text at 13c61c64c:
+1. AEF (T-5318).
+2. ring20, confirmed directly to us (msg bb98285a, 2026-11-21).
+3. TermLink (operator rulings on T-3837).
+
+**Problem / hypothesis:** the precondition is met, so the refusal no longer has a reason. T-3842 completed the rest of v0.3.4 for this hub.
+
+**Goal:** the hub serves withdraw, in the same deploy as T-3842 (operator ruling B).
+
+**Expected outcome:** `dispatch.transition` with `withdraw` writes done{withdrawn}. `run-wc-vectors.sh` defaults to the adopted v0.3.4 file (13c61c64c), and that run has 0 failures.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `WITHDRAW_LIVE = true`, and the RPC test asserts the live path: withdraw over `dispatch.transition` writes done{withdrawn} with actor and reason, and a repeat is a T8 replay.
+- [x] `scripts/run-wc-vectors.sh` defaults to 13c61c64c, its cache fixtures pass, and the default run reports `fail=0`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -138,6 +163,10 @@ date_finished: null
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
+grep -q "pub(crate) const WITHDRAW_LIVE: bool = true;" crates/termlink-hub/src/dispatch_contract.rs
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3840-rt cargo test -p termlink-hub dispatch_transition_withdraw_over_rpc > /tmp/t3840-h.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3840-h.out
+bash tests/run-wc-vectors-cache-fixtures.sh > /tmp/t3840-fx.out 2>&1 && grep -q "0 failed" /tmp/t3840-fx.out
+bash scripts/run-wc-vectors.sh > /tmp/t3840-wc.out 2>&1 && grep -q "47 cases: pass=.* fail=0" /tmp/t3840-wc.out
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -348,6 +377,15 @@ date_finished: null
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-21 — When to switch withdraw on in the hub (operator ruling: "B")
+- **Chose:** B. Build T-3842 (closure: never conformance, CC-35) first, then switch withdraw on in the same change,
+  so the hub starts claiming v0.3.4 with the 47-case file at 0 failures, in one deploy.
+- **Why:** nothing depends on the timing. ring20's pool does not call T3w until it vendors v0.3.4 (ring20
+  bb98285a), and AEF does not depend on ours. One deploy avoids a half-v0.3.4 hub.
+- **Rejected:** A (switch on alone now: a partial v0.3.4 state for a while), C (wait: no remaining reason).
+- **Preconditions met:** all three owners adopted 13c61c64c: AEF T-5318; ring20 directly, msg bb98285a; TermLink
+  T-3837 rulings.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -364,3 +402,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3840-serve-wc-v034-withdraw-over-dispatchtran.md
 - **Context:** Initial task creation
+
+### 2026-11-21T12:26:17Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

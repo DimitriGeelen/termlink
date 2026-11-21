@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3842: wc v0.3.4 closure:never conformance on the hub: close -> closure_not_supported, closed/dispatch_history on the record, unknown-fence-reason client rule (CC-35); run the 47-case file
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T12:26:08Z
+# ============================================================================
+
+task_id: T-3842
+task_name: "wc v0.3.4 closure:never conformance on the hub: close -> closure_not_supported, closed/dispatch_history on the record, unknown-fence-reason client rule (CC-35); run the 47-case file"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-20T21:30:51Z
+completed: 2026-11-21T12:24:41Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-21T13:24:36+01:00
+last_commit: 2026-11-21T13:24:36+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub meets wc v0.3.4 as closure: never — dispatch.close answers CLOSURE_NOT_SUPPORTED (-32030) and writes nothing; dispatch.get shows closure/closed/dispatch_history/finished/last_state/last_outcome; client_refusal() client rule; 47 cases: 28 pass, 0 fail, 4 not-implemented, 15 n/a (CC-35, CC-39 pass)
+
+# Key outcomes
+outcomes:
+  - '`dispatch.close` (Execute scope) returns error `CLOSURE_NOT_SUPPORTED` (-32030) with `data.refused = "closure_not_supported"` for an existing dispatch, and `DISPATCH_NOT_FOUND` for an unknown one. The record (attempts, history) is byte-identical before and after.'
+  - '`dispatch.get` carries `closure: "never"`, `closed: null`, `dispatch_history: []`, and `finished`, `last_state`, `last_outcome` computed from the last attempt (`finished` uses `finished_work`).'
+  - '`worker_contract::client_refusal(reason)` returns `{reason, known, retryable: false}` for every reason. `known` is true exactly for the nine v0.3.4 reasons.'
+  - 'The adapter declares `closure_never` and runs `close` and `client_reject`. The runner accepts 25, 29 or 47 cases. `run-wc-vectors.sh --ref 13c61c64c` reports `fail=0` with CC-35 `pass`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3842-wc-v034-closurenever-conformance-on-the-.md'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/tests.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/tests/wc_conformance.rs'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T13:24:36'
+    action: 'T-3842: hub meets wc v0.3.4 as closure: never — dispatch.close answers CLOSURE_NOT_SUPPORTED (-32030) and writes nothing; dispatch.get shows closure/closed/dispatch_history/finished/last_state/last_outcome; client_refusal() client rule; 47 cases: 28 pass, 0 fail, 4 not-implemented, 15 n/a (CC-35, CC-39 pass)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 893 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 893
+  commits: 2
+  files_changed: 13
+  lines_added: 758
+  lines_removed: 37
+  footprint_refreshed_at: '2026-11-21T12:32:16Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3842-wc-v034-closurenever-conformance-on-the-.md
+generated_by: context-agent-hybrid

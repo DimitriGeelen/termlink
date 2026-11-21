@@ -7,16 +7,16 @@
 # adapter is crates/termlink-hub/tests/wc_conformance.rs (with wc_conformance/hub.rs). Vectors are
 # DATA: the script reads them through the adapter and never runs anything from them.
 #
-# Usage: scripts/run-wc-vectors.sh [--ref <aef-commit>]     (default ref: 18c6e0042)
+# Usage: scripts/run-wc-vectors.sh [--ref <aef-commit>]     (default ref: 13c61c64c)
 #        History: afe974124 first published; b4c168aa9 fixed CC-11/12 (question asked first);
 #        25f56ed68 added seen_alive_epoch preconditions for confirm_end (CC-01/02/03/06/09/25);
 #        cc5842d89 (be.37, AEF T-4803) put commission in every hand-back and added CC-16
 #        handback-wrong-commission. Our hub requires commission since T-3600, so refs before
 #        cc5842d89 now fail every positive case by design. 18c6e0042 (be.39, AEF T-4818) added
 #        CC-16 handback-absent-commission (T-3602). ea8379a56 (AEF, wc v0.3.4 DRAFT) adds CC-26..29
-#        (withdrawn, T-3837); 4b1d2304e (AEF T-5319) fixes CC-26. Run v0.3.4 with --ref 4b1d2304e.
-#        The default stays the v0.3.3 file
-#        until all three owners adopt v0.3.4.
+#        (withdrawn, T-3837); 4b1d2304e (AEF T-5319) fixes CC-26. 13c61c64c (AEF T-5320) is the
+#        adopted v0.3.4 text (item 2 with TermLink's A1-A6; 47 cases, CC-35 for closure: never,
+#        T-3842). All three owners adopted it, so it is the default since T-3840.
 # Exit:  0 no case fails (not-implemented cases are listed, not hidden)
 #        1 at least one case fails against the hub backend
 #        2 tooling: fetch failed, build failed, or the adapter did not reach its summary line
@@ -25,7 +25,7 @@
 
 set -uo pipefail
 
-REF="18c6e0042"
+REF="13c61c64c"
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref) REF="${2:?--ref needs an AEF commit}"; shift 2 ;;
