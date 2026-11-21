@@ -654,6 +654,19 @@ impl Store {
         }
     }
 
+    /// T-3834: append one line to a named state file under the store's write lock (so two sends cannot
+    /// lose each other's line), keeping only the newest `keep` lines.
+    pub fn append_state_line(&self, name: &str, line: &str, keep: usize) -> Result<()> {
+        let _g = self.guard();
+        let mut lines: Vec<String> = self.read_state(name)?.unwrap_or_default().lines().map(str::to_string).collect();
+        lines.push(line.to_string());
+        if lines.len() > keep {
+            let cut = lines.len() - keep;
+            lines.drain(..cut);
+        }
+        self.write_state(name, &(lines.join("\n") + "\n"))
+    }
+
     pub fn read_state(&self, name: &str) -> Result<Option<String>> {
         check_name(name)?;
         match fs::read_to_string(self.dir.join(format!("state.{name}"))) {

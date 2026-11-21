@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3830: termlink channel info on an inbox records an unproven second consumer (false inbox-second-consumer alert)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-21T15:46:48Z
+# ============================================================================
+
+task_id: T-3830
+task_name: "termlink channel info on an inbox records an unproven second consumer (false inbox-second-consumer alert)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-20T09:45:40Z
+completed: 2026-11-21T15:45:35Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-21T16:45:32+01:00
+last_commit: 2026-11-21T16:45:32+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel info on an inbox reads no message content by default (P-12: one reader); --read-messages / MCP read_messages opt in with a warning; live: W1 inbox unnamed row unchanged; CLI+MCP 2632/0
+
+# Key outcomes
+outcomes:
+  - 'CLI `channel info <inbox:*>` makes no `channel.subscribe` call unless `--read-messages` is given. Its output names the P-12 reason and the flag; its JSON carries `messages_read: false`. Live check on .107, 2026-11-21: the debug build on `inbox:cacc73ea32b121dd/claude-termlink` left the `(unnamed)` row''s last_ms unchanged.'
+  - 'MCP `termlink_channel_info` behaves the same, with a `read_messages` parameter (default false).'
+  - 'A test pins the decision: inbox without the flag means no walk; inbox with the flag, or a non-inbox topic, means a walk.'
+  - 'Non-inbox output is byte-identical (existing tests pass); CLI and MCP test suites pass (2632/0); workspace clippy is clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3844.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3830-termlink-channel-info-on-an-inbox-record.md'
+  - '.tasks/completed/T-3844-hub-flags-file-shaped-posts-on-inbox-top.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T16:45:32'
+    action: 'T-3830: channel info on an inbox reads no message content by default (P-12: one reader); --read-messages / MCP read_messages opt in with a warning; live: W1 inbox unnamed row unchanged; CLI+MCP 2632/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1799 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1799
+  commits: 2
+  files_changed: 17
+  lines_added: 1072
+  lines_removed: 23
+  footprint_refreshed_at: '2026-11-21T16:26:33Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3830-termlink-channel-info-on-an-inbox-record.md
+generated_by: context-agent-hybrid

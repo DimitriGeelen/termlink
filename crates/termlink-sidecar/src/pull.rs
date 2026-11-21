@@ -367,6 +367,20 @@ impl Inner {
         if grew || baseline {
             let _ = self.store.write_state(CARDS_SEEN_STATE, &seen.into_iter().collect::<Vec<_>>().join("\n"));
         }
+        // T-3834 (RK-1): each agent's current card key, as the fingerprint the revocation list holds; then one
+        // entry per recipient this sidecar has mailed whose current key is revoked.
+        let keys: std::collections::BTreeMap<String, String> = v["cards"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|c| {
+                let agent = c["agent"].as_str()?;
+                let hex = c["signing_key"].as_str()?.strip_prefix("ed25519-pub:")?;
+                Some((agent.to_string(), termlink_session::signed_state::fingerprint_of_hex(hex)?))
+            })
+            .collect();
+        crate::revocation::store_recipient_keys(&self.store, &keys);
+        crate::revocation::raise_recipients_revoked(&self.store);
         // (3) a change of the check setting (off|log|enforce) is the operator's to know too (T-3823, T-3704 r3)
         if let Some(mode) = v["mode"].as_str() {
             let was = self.store.read_state(CARD_MODE_SEEN_STATE).ok().flatten().map(|s| s.trim().to_string());

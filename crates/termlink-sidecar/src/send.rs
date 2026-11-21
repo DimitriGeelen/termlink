@@ -507,6 +507,8 @@ impl Inner {
             let _ = self.queue.pop(qid);
             return Err(SendError::Store(e.to_string()));
         }
+        // T-3834 (RK-1): who it is addressed to, outside the chain, so status can name a revoked recipient key.
+        crate::revocation::record_sent_to(&self.store, &msg.msg_id, to);
         let sent = Sent { msg_id: msg.msg_id.clone(), conv: conv.clone(), seq, ts_ms };
         // Best effort now; the pump keeps trying. If it could not post, say WAITING.
         let r = self.run_pump();

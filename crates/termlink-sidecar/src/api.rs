@@ -1172,6 +1172,9 @@ fn status_at(
         };
         chains.insert(c.clone(), v);
     }
+    // T-3834 (RK-1): who each sent message is addressed to, and each agent's current key, read once.
+    let sent_to = crate::revocation::sent_to(store);
+    let recipient_keys = crate::revocation::recipient_keys(store);
     // The strongest stage reached per message; the word "delivered" appears only
     // for a message whose chain holds a HANDED_OVER line.
     let msgs: Vec<Value> = by_msg
@@ -1262,6 +1265,17 @@ fn status_at(
                 } else if first_ts("HANDED_OVER").is_some_and(|t| crate::fields::age_ms(t, now_ms) > dl.answer(urgent)) {
                     v["label"] = json!("UNKNOWN");
                 }
+            }
+            // T-3834 (RK-1): mail to a recipient whose current key is revoked waits (E-39: not dropped) until the
+            // operator acts; say so instead of an ordinary wait. A recipient-side answer (below) still wins.
+            if sent_here
+                && !handed
+                && v["label"] != "REJECTED BY HUB"
+                && let Some(to) = sent_to.get(m.as_str())
+                && crate::revocation::recipient_key_revoked(&recipient_keys, store, to).is_some()
+            {
+                v["label"] = json!("WAITING FOR RECIPIENT");
+                v["reason"] = json!(crate::revocation::RECIPIENT_REVOKED_REASON);
             }
             // OQ-2 E: held for an operator, on either side.
             let ev = |e: &str| rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == e);

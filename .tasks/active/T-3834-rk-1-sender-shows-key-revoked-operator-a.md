@@ -1,13 +1,21 @@
 ---
 id: T-3834
-name: "RK-1: sender shows 'key revoked, operator action needed' when the recipient's key is revoked (from T-3708, carried from T-3703 r2)"
+name: "RK-1: sender shows 'key revoked, operator action needed' when the recipient's
+  key is revoked (from T-3708, carried from T-3703 r2)"
 description: >
-  Moved out of T-3708 (P-24 slice a) on 2026-11-20: a sender-side delivery label, not a status-honesty field. Needs: (1) a recipient record per sent message (the SENT line has no recipient; adding one changes hashed chain-line content, so keep it outside the chain or design it), (2) a cache of recipient key fingerprints from hub.key_card_list (already fetched each pull pass in observe_impersonation), (3) the label WAITING FOR RECIPIENT with reason 'key revoked, operator action needed' and one needs-attention entry when the recipient's current key is in the held revocation list. Test: revoke fx-a, fx-b sends to fx-a, fx-b's status names the reason.
+  Moved out of T-3708 (P-24 slice a) on 2026-11-20: a sender-side delivery label,
+  not a status-honesty field. Needs: (1) a recipient record per sent message (the
+  SENT line has no recipient; adding one changes hashed chain-line content, so keep
+  it outside the chain or design it), (2) a cache of recipient key fingerprints from
+  hub.key_card_list (already fetched each pull pass in observe_impersonation), (3)
+  the label WAITING FOR RECIPIENT with reason 'key revoked, operator action needed'
+  and one needs-attention entry when the recipient's current key is in the held revocation
+  list. Test: revoke fx-a, fx-b sends to fx-a, fx-b's status names the reason.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T11:55:23Z
-last_update: 2026-11-20T11:55:23Z
-date_finished: null
+last_update: 2026-11-21T16:26:23Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +58,46 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-21T16:17:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3834: RK-1: sender shows 'key revoked, operator action needed' when the recipient's key is revoked (from T-3708, carried from T-3703 r2)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** RK-1, carried from T-3703 r2 and moved out of T-3708 (P-24 slice a) on 2026-11-20 as a sender-side delivery label. When the recipient's key has been revoked, the recipient's mail waits (E-39: it is not dropped). Today the sender sees only an ordinary WAITING FOR RECIPIENT, UNKNOWN or plain SENT, with nothing saying why the wait will not end on its own.
+
+**Problem / hypothesis:**
+1. The SENT chain line has no recipient. Adding one would change hashed chain-line content, so the recipient must be kept outside the chain.
+2. The recipient's current key comes from `hub.key_card_list`, which `observe_impersonation` already fetches each pull pass.
+3. The held revocation list is already in the store (`revocation::revoked`).
+
+**Goal:** a sender whose recipient's current key is held as revoked sees the reason, and its operator gets one entry.
+
+**Expected outcome:**
+1. `status` shows a message sent to such a recipient, and not yet handed over, as `WAITING FOR RECIPIENT` with `reason: "key revoked, operator action needed"`.
+2. The sender's store gets one `recipient-key-revoked` attention entry per (recipient, key).
+3. No chain line changes.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Each send records `<msg_id> <recipient>` in a store state file outside the chain (bounded, newest kept). The SENT chain line is byte-identical to before.
+- [x] Each pull pass that reads `hub.key_card_list` stores the cards' `<agent> <fingerprint>` (fingerprint as `revocation::revoked` expects; written only on change). For every recorded recipient whose current key is held as revoked, it raises one coalesced `recipient-key-revoked` entry per (recipient, key).
+- [x] `status`: a message this sidecar sent, not handed over, not REJECTED BY HUB and without a recipient-side label (refused-revoked, refused, held), whose recipient's current key is held as revoked, has `label: "WAITING FOR RECIPIENT"` and `reason: "key revoked, operator action needed"`. Otherwise labels are unchanged.
+- [x] L4 test on a real hub: fx-a and fx-b carded, fx-a revoked, fx-b sends to fx-a. fx-b's pass raises one entry, fx-b's status names the reason, a second pass adds no second entry, and the SENT line is unchanged. Sidecar suite passes (419/0); workspace clippy is clean. Negative control: with the status change removed, the test fails (the message shows a bare SENT with no label).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -138,6 +172,8 @@ date_finished: null
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3834-rt cargo test -p termlink-sidecar --test t3834_recipient_revoked > /tmp/t3834.out 2>&1 && grep -q "test result: ok. 1 passed" /tmp/t3834.out
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3834-rt cargo test -p termlink-sidecar --test t3703_revocation_sidecar > /tmp/t3834-e39.out 2>&1 && grep -q "test result: ok. 2 passed" /tmp/t3834-e39.out
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -364,3 +400,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3834-rk-1-sender-shows-key-revoked-operator-a.md
 - **Context:** Initial task creation
+
+### 2026-11-21T16:17:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

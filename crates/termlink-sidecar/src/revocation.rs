@@ -102,6 +102,67 @@ pub fn revoked(store: &Store, fingerprint: &str) -> bool {
     held_keys(store).contains(fingerprint)
 }
 
+// ---- T-3834 (RK-1): the sender sees that its recipient's key is revoked ---------------------------------
+/// `<msg_id> <recipient agent>` per sent message, newest kept. Outside the chain: chain lines are hashed.
+pub const SENT_TO_STATE: &str = "sent-recipients";
+/// `<agent> <fingerprint>` per key card on the hub, as of the last pull pass that read the card list.
+pub const RECIPIENT_KEYS_STATE: &str = "recipient-keys";
+/// The sender-side reason shown on a message whose recipient's current key is held as revoked.
+pub const RECIPIENT_REVOKED_REASON: &str = "key revoked, operator action needed";
+/// The attention kind raised once per (recipient, key).
+pub const RECIPIENT_REVOKED_KIND: &str = "recipient-key-revoked";
+const SENT_TO_KEEP: usize = 4096;
+
+/// Record who a sent message is addressed to (called right after its SENT line).
+pub fn record_sent_to(store: &Store, msg_id: &str, to: &str) {
+    if let Err(e) = store.append_state_line(SENT_TO_STATE, &format!("{msg_id} {to}"), SENT_TO_KEEP) {
+        eprintln!("termlink-sidecar: could not record the recipient of {msg_id} ({e}); its status cannot name a revoked recipient key");
+    }
+}
+
+/// msg_id -> recipient agent, for every recorded send.
+pub fn sent_to(store: &Store) -> BTreeMap<String, String> {
+    store.read_state(SENT_TO_STATE).ok().flatten().unwrap_or_default().lines()
+        .filter_map(|l| l.split_once(' ').map(|(m, a)| (m.to_string(), a.to_string())))
+        .collect()
+}
+
+/// agent -> fingerprint of its current card key.
+pub fn recipient_keys(store: &Store) -> BTreeMap<String, String> {
+    store.read_state(RECIPIENT_KEYS_STATE).ok().flatten().unwrap_or_default().lines()
+        .filter_map(|l| l.split_once(' ').map(|(a, f)| (a.to_string(), f.to_string())))
+        .collect()
+}
+
+/// Store the cards' `(agent, fingerprint)` pairs, only when they changed.
+pub fn store_recipient_keys(store: &Store, keys: &BTreeMap<String, String>) {
+    if &recipient_keys(store) == keys {
+        return;
+    }
+    let text: String = keys.iter().map(|(a, f)| format!("{a} {f}\n")).collect();
+    let _ = store.write_state(RECIPIENT_KEYS_STATE, &text);
+}
+
+/// The fingerprint of `agent`'s current key when that key is held as revoked here, else None.
+pub fn recipient_key_revoked(keys: &BTreeMap<String, String>, store: &Store, agent: &str) -> Option<String> {
+    keys.get(agent).filter(|fp| revoked(store, fp)).cloned()
+}
+
+/// One coalesced needs-attention entry per (recipient, revoked key) this sidecar has sent mail to.
+pub fn raise_recipients_revoked(store: &Store) {
+    let keys = recipient_keys(store);
+    let recipients: BTreeSet<String> = sent_to(store).into_values().collect();
+    for agent in recipients {
+        if let Some(fp) = recipient_key_revoked(&keys, store, &agent) {
+            let detail = format!(
+                "mail to {agent} waits: its current key {fp} is on the revocation list, so it cannot be delivered until the \
+                 operator issues {agent} a new key (`termlink hub key-card put`) or lifts the revocation"
+            );
+            let _ = store.attention_coalesced(RECIPIENT_REVOKED_KIND, &format!("{agent}:{fp}"), &detail);
+        }
+    }
+}
+
 /// The short sender id of a stored message (`from`, the first 16 hex of sha256(key)) matches a held key. Used
 /// where only the stored message is at hand (the hand-over re-check); a prefix match can only over-refuse.
 pub fn revoked_from(store: &Store, from: &str) -> bool {
