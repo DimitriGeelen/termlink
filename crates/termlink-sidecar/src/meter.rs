@@ -907,6 +907,19 @@ impl Meter {
         out
     }
 
+    /// T-3848: the W1 session-start hook's harness pid, applied as adapter/2's `session_start` applies
+    /// its own (B-16: a new harness instance is unregistered until it says which pid it is; pid > 1).
+    /// Call it after [`Meter::legacy_hook`] for the same session-start.
+    pub fn legacy_harness(&self, session: &str, harness_pid: Option<u64>) {
+        if !valid_session(session) {
+            return;
+        }
+        let mut g = lock(&self.inner);
+        let Some(sess) = g.sessions.get_mut(session) else { return };
+        sess.harness_pid = harness_pid.and_then(|p| u32::try_from(p).ok()).filter(|p| *p > 1);
+        sess.harness_start = sess.harness_pid.and_then(termlink_session::procinfo::start_time);
+    }
+
     /// The built W1 hooks (`ready`/`pull` ops: session-start, stop, session-end,
     /// post-tool-use) are turn events too: they move S2 (a) for the session.
     /// `transcript` is the path the deliverer resolved for it, checked like

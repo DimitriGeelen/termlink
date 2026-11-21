@@ -347,3 +347,21 @@ fn t3463_unreadable_ancestry_is_unknown_not_nested() {
     fake_proc(&p, &[(80, "claude", 70)]); // parent 70 missing: cannot tell
     assert_eq!(hook::nested_claude_at(&p, 80), None, "unknown ancestry keeps today's behaviour (join)");
 }
+
+/// T-3848: the harness pid is the nearest `claude` ancestor of the hook's parent, whether the hook ran
+/// directly or through `sh -c`; none found, or unreadable ancestry, is None.
+#[test]
+fn t3848_harness_pid_is_the_nearest_claude_ancestor() {
+    let e = Estate::create_without_hub().unwrap();
+    let p = e.root().join("proc");
+    fake_proc(&p, &[(50, "tmux: server", 1), (60, "termlink", 50), (80, "claude", 60), (90, "sh", 80), (95, "x) y", 90)]);
+    assert_eq!(hook::harness_pid_at(&p, 80), Some(80), "the hook's parent is the harness");
+    assert_eq!(hook::harness_pid_at(&p, 90), Some(80), "through sh -c");
+    assert_eq!(hook::harness_pid_at(&p, 95), Some(80), "a comm with ')' does not break the walk");
+    assert_eq!(hook::harness_pid_at(&p, 60), None, "no claude above");
+    fake_proc(&p, &[(200, "sh", 199)]);
+    assert_eq!(hook::harness_pid_at(&p, 200), None, "unreadable ancestry");
+    // request(): only session-start may carry it
+    let stop = hook::request("stop", "s", &json!({})).unwrap();
+    assert!(stop.get("harness_pid").is_none());
+}

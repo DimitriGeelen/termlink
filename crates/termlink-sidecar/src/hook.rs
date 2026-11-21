@@ -106,7 +106,15 @@ pub fn request(event: &str, session: &str, input: &Value) -> Result<Value, Strin
             }
             r
         }
-        "session-start" | "stop" | "session-end" => json!({"op": "ready", "session": session, "hook": event}),
+        "session-start" => {
+            let mut r = json!({"op": "ready", "session": session, "hook": event});
+            // T-3848: the harness pid, so the sidecar can bind S1 (adapter/2's session_start carries it too)
+            if let Some(pid) = harness_pid() {
+                r["harness_pid"] = json!(pid);
+            }
+            r
+        }
+        "stop" | "session-end" => json!({"op": "ready", "session": session, "hook": event}),
         "vendor-channel" => match vendor_tool(input.get(TOOL_ARG_KEY).and_then(Value::as_str), input) {
             Some(t) => json!({"op": "vendor-use", "session": session, "tool": t}),
             None => return Err(NOT_VENDOR.into()),
@@ -242,6 +250,35 @@ pub fn nested_claude_at(proc_root: &Path, start_pid: u32) -> Option<bool> {
         pid = rest.split_whitespace().nth(1)?.parse().ok()?;
     }
     None
+}
+
+/// T-3848: the nearest ancestor of `start_pid` (itself included) whose `comm` is `claude`: the harness
+/// that ran this hook, whether it ran the hook directly or through `sh -c`. `None` when there is none
+/// within 64 steps or the ancestry cannot be read.
+pub fn harness_pid_at(proc_root: &Path, start_pid: u32) -> Option<u32> {
+    let mut pid = start_pid;
+    for _ in 0..64 {
+        if pid <= 1 {
+            return None;
+        }
+        let dir = proc_root.join(pid.to_string());
+        if std::fs::read_to_string(dir.join("comm")).ok()?.trim() == "claude" {
+            return Some(pid);
+        }
+        let stat = std::fs::read_to_string(dir.join("stat")).ok()?;
+        let rest = &stat[stat.rfind(')')? + 1..];
+        pid = rest.split_whitespace().nth(1)?.parse().ok()?;
+    }
+    None
+}
+
+/// T-3848: [`harness_pid_at`] on this host, starting from the hook's parent.
+fn harness_pid() -> Option<u32> {
+    let root = Path::new("/proc");
+    if !root.join("self").exists() {
+        return None;
+    }
+    harness_pid_at(root, std::os::unix::process::parent_id())
 }
 
 /// T-3463: [`nested_claude_at`] on this host, starting from the hook's parent.

@@ -91,7 +91,8 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         "pull" => (Scope::Send, &["session", "hook", "tool_use_id", "boot_id", "mono_ns"]),
         "claim" => (Scope::Send, &["msg_id"]),
         "handed-over" => (Scope::Send, &["msg_id", "nonce", "final"]),
-        "ready" => (Scope::Send, &["session", "hook", "boot_id", "mono_ns"]),
+        // T-3848: session-start also carries the harness pid, so S1 can bind.
+        "ready" => (Scope::Send, &["session", "hook", "boot_id", "mono_ns", "harness_pid"]),
         // P-26 (AL-39, K-20): the PreToolUse hook reports one vendor-channel use.
         "vendor-use" => (Scope::Send, &["session", "tool", "boot_id", "mono_ns"]),
         "status" => (Scope::Status, &["msg_id", "conv"]),
@@ -527,6 +528,10 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
             {
                 let tr = (hook == "session-start").then(|| ctx.deliverer.and_then(|d| d.transcript_of(sess))).flatten();
                 m.legacy_hook(sess, hook, tr.as_deref(), crate::meter::adapter_ord(obj));
+                // T-3848: the harness pid the W1 session-start hook found, so S1 can bind
+                if hook == "session-start" {
+                    m.legacy_harness(sess, obj.get("harness_pid").and_then(Value::as_u64));
+                }
             }
             ready(obj, ctx.deliverer)
         }

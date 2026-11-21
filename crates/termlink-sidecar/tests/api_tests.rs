@@ -371,3 +371,23 @@ fn p2_ready_op_passes_the_hook_order_to_the_meter() {
     let st = call(&r, Scope::Status, json!({"op": "status"}));
     assert!(st["activity"]["sessions"]["s-3"]["turn_stopped"].is_u64(), "{st}");
 }
+
+/// T-3848: the W1 session-start hook's `harness_pid` reaches the meter, so S1 can bind (adapter/2's
+/// session_start rule: pid > 1). Without it, or with pid 1, the session stays unregistered.
+#[test]
+fn t3848_ready_session_start_hands_the_harness_pid_to_the_meter() {
+    let (r, m) = metered();
+    let pid = u64::from(std::process::id());
+    call(&r, Scope::Send, json!({"op": "ready", "session": "s-7", "hook": "session-start", "harness_pid": pid}));
+    let got = |s: &str| m.binding_facts().into_iter().find(|f| f.0 == s).map(|f| f.2);
+    assert_eq!(got("s-7"), Some(Some(pid as u32)));
+    // A later session start without a pid unregisters the harness (a new instance must say which pid it is).
+    call(&r, Scope::Send, json!({"op": "ready", "session": "s-7", "hook": "session-start"}));
+    assert_eq!(got("s-7"), Some(None));
+    call(&r, Scope::Send, json!({"op": "ready", "session": "s-8", "hook": "session-start", "harness_pid": 1}));
+    assert_eq!(got("s-8"), Some(None), "pid 1 is never a harness");
+    // Other hooks never touch it.
+    call(&r, Scope::Send, json!({"op": "ready", "session": "s-7", "hook": "session-start", "harness_pid": pid}));
+    call(&r, Scope::Send, json!({"op": "ready", "session": "s-7", "hook": "stop", "harness_pid": 99}));
+    assert_eq!(got("s-7"), Some(Some(pid as u32)));
+}
