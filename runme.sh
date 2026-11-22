@@ -1690,6 +1690,107 @@ head2 "38. P-24 live: each W1 sidecar's status is stamped and honest (T-3708)"
 p24_live_check
 
 # ---------------------------------------------------------------------------
+# 39. Origin reporting for one project, with a lockout guard (T-3850; T-3694 ruling A step 2)
+# Switching a harness to origin reporting makes every claim without a checked origin `unknown`, and
+# an unknown claim is ignored (FCW-53). On a project whose prompts cannot be proven human, that locks
+# every session out of main. The hub cannot hold the evidence beforehand: a built-mode renewal writes
+# no lease record. So the evidence is read where the origin is checked: the main holder's entry in its
+# W1 sidecar's status (`activity.sessions[<session>]`: `s1` bound, `last_prompt.origin` human).
+#   every run    -> readiness: holder, S1 bound, a checked human prompt within ORG_FRESH_S
+#   off, no go   -> skip (listed only; the switch is the operator's act)
+#   off, go, not ready -> FAILED naming every missing piece; nothing switched (the guard)
+#   off, go, ready     -> switch on, read back `origin_reporting`, record the switch time -> OK
+#   on, a human-counted record newer than the switch, or inside ORG_GRACE_S -> skip (live)
+#   on, past the grace with none -> switch OFF, read back, REVERTED counted FAILED (look at why)
+# The go is "<date>|<where it is recorded>"; empty until the operator rules (T-3694 step 5).
+# Seams (fixtures only): RUNME_ORG_TL, RUNME_ORG_GO, RUNME_ORG_PROJECT, RUNME_ORG_HARNESS,
+#   RUNME_ORG_SOCK_DIR, RUNME_ORG_STATE, RUNME_ORG_FRESH_S, RUNME_ORG_GRACE_S, RUNME_ORG_NOW_MS.
+# ---------------------------------------------------------------------------
+seam ORG_TL RUNME_ORG_TL "$(command -v termlink 2>/dev/null || echo termlink)"
+ORG_GO="${RUNME_ORG_GO-}"
+seam ORG_PROJECT RUNME_ORG_PROJECT "010-termlink"
+seam ORG_HARNESS RUNME_ORG_HARNESS "claude-code"
+seam ORG_SOCK_DIR RUNME_ORG_SOCK_DIR "/var/lib/termlink/sidecar"
+seam ORG_STATE RUNME_ORG_STATE "$PROJECT_ROOT/.context/working/origin-reporting-switched-at"
+seam ORG_FRESH_S RUNME_ORG_FRESH_S 86400
+seam ORG_GRACE_S RUNME_ORG_GRACE_S 21600
+org_now_ms() { if [ -n "${RUNME_ORG_NOW_MS:-}" ]; then echo "$RUNME_ORG_NOW_MS"; else echo $(( $(date +%s) * 1000 )); fi; }
+org_reporting_on() {  # <main status json>: prints yes|no|"" (unreadable)
+    p31_json "$1" '"yes" if "'"$ORG_HARNESS"'" in v["origin_reporting"] else "no"'
+}
+org_switch() {  # <on|off>: run the switch, then read it back; prints nothing, returns 0 when it reads back as asked
+    local flag="" want=yes st
+    [ "$1" = off ] && { flag="--off"; want=no; }
+    "$ORG_TL" main origin-reporting --project "$ORG_PROJECT" --harness "$ORG_HARNESS" $flag --by "runme-T-3850" --json >/dev/null 2>&1
+    st="$("$ORG_TL" main status --project "$ORG_PROJECT" --json 2>/dev/null)"
+    [ "$(org_reporting_on "$st")" = "$want" ]
+}
+origin_reporting_guard() {
+    local st on sess agent sc s1 po pat now missing="" since lh
+    now="$(org_now_ms)"
+    st="$("$ORG_TL" main status --project "$ORG_PROJECT" --json 2>/dev/null)"
+    on="$(org_reporting_on "$st")"
+    if [ -z "$on" ]; then
+        say "  FAILED  $ORG_PROJECT: main status unreadable (no origin_reporting field): nothing judged, nothing switched"; FAILED=$((FAILED+1)); return
+    fi
+    sess="$(p31_json "$st" 'v["holder"]["session"]')"; agent="$(p31_json "$st" 'v["holder"]["agent"]')"
+    if [ "$on" = yes ]; then
+        since="$(cat "$ORG_STATE" 2>/dev/null)"; lh="$(p31_json "$st" 'v["last_human_at_ms"]')"
+        [[ "$since" =~ ^[0-9]+$ ]] || since=0
+        if [ "$since" -eq 0 ]; then
+            # switched on outside this action: the revert clock starts the first time it is seen
+            [ "$DRY_RUN" = "1" ] || echo "$now" > "$ORG_STATE"
+            say "  skip    $ORG_PROJECT: origin reporting on ($ORG_HARNESS), switched outside this action; the ${ORG_GRACE_S}s revert clock starts now"; SKIPPED=$((SKIPPED+1)); return
+        fi
+        if [[ "$lh" =~ ^[0-9]+$ ]] && [ "$lh" -ge "$since" ] && [ "$since" -gt 0 ]; then
+            say "  skip    $ORG_PROJECT: origin reporting on ($ORG_HARNESS); a human-counted record since the switch (last_human_at_ms $lh)"; SKIPPED=$((SKIPPED+1)); return
+        fi
+        if [ "$since" -gt 0 ] && [ $(( now - since )) -le $(( ORG_GRACE_S * 1000 )) ]; then
+            say "  skip    $ORG_PROJECT: origin reporting on ($ORG_HARNESS); inside the ${ORG_GRACE_S}s grace, no human-counted record yet"; SKIPPED=$((SKIPPED+1)); return
+        fi
+        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would switch $ORG_HARNESS origin reporting OFF for $ORG_PROJECT (no human-counted record since the switch)"; DONE=$((DONE+1)); return; fi
+        if org_switch off; then
+            rm -f "$ORG_STATE"
+            say "  FAILED  REVERTED $ORG_PROJECT: origin reporting switched OFF ($ORG_HARNESS): no human-counted record since the switch, past the ${ORG_GRACE_S}s grace — claims count as built again; find why before switching again"
+        else
+            say "  FAILED  $ORG_PROJECT: origin reporting has no human-counted record since the switch, and switching it off did not read back — every claim may be ignored: switch it off by hand"
+        fi
+        FAILED=$((FAILED+1)); return
+    fi
+    # off: readiness from the holder's own sidecar
+    if [ -z "$sess" ] || [ -z "$agent" ]; then missing="no main holder"
+    else
+        sc="$(TERMLINK_SIDECAR_STATUS_SOCKET="$ORG_SOCK_DIR/$agent.status.sock" "$ORG_TL" sidecar status --json 2>/dev/null)"
+        s1="$(p31_json "$sc" 'v["activity"]["sessions"]["'"$sess"'"]["s1"]')"
+        po="$(p31_json "$sc" '(v["activity"]["sessions"]["'"$sess"'"]["last_prompt"] or {}).get("origin","")')"
+        pat="$(p31_json "$sc" '(v["activity"]["sessions"]["'"$sess"'"]["last_prompt"] or {}).get("at_ms","")')"
+        if [ -z "$sc" ]; then missing="the holder's sidecar ($agent) status unreadable"
+        else
+            [ -z "$s1" ] || [ "${s1#unknown}" != "$s1" ] && missing="S1 not bound (${s1:-no entry for $sess})"
+            if [ "$po" != human ]; then missing="${missing:+$missing; }no checked human prompt (last origin: ${po:-none})"
+            elif ! [[ "$pat" =~ ^[0-9]+$ ]] || [ $(( now - pat )) -gt $(( ORG_FRESH_S * 1000 )) ]; then missing="${missing:+$missing; }the last human prompt is older than ${ORG_FRESH_S}s"
+            fi
+        fi
+    fi
+    if [ -z "$ORG_GO" ]; then
+        say "  skip    $ORG_PROJECT: origin reporting off; no operator go recorded (readiness: ${missing:-ready})"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ -n "$missing" ]; then
+        say "  FAILED  $ORG_PROJECT: go recorded ($ORG_GO) but NOT switched — the lockout guard refuses: $missing"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would switch $ORG_HARNESS to origin reporting for $ORG_PROJECT (go: $ORG_GO; ready)"; DONE=$((DONE+1)); return; fi
+    if org_switch on; then
+        echo "$now" > "$ORG_STATE"
+        say "  OK      $ORG_PROJECT: $ORG_HARNESS switched to origin reporting and read back (go: $ORG_GO); revert check from the next run"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $ORG_PROJECT: the switch did not read back as on"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "39. Origin reporting for $ORG_PROJECT, with a lockout guard (T-3850; T-3694 step 5 waits for your go)"
+origin_reporting_guard
+
+# ---------------------------------------------------------------------------
 # ACTION 5b — acknowledge hub flap residue (T-3587; operator ruling 2026-10-26)
 #
 # After a crash loop the unit's NRestarts counter stays high once the hub is

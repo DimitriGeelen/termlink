@@ -17,7 +17,9 @@ grep_all() { grep "$@" >/dev/null; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-RUNME="$REPO_ROOT/runme.sh"
+# T-3850: a negative-control run points the suite at a mutated copy beside runme.sh (so PROJECT_ROOT is the
+# same) and never edits the operator's script.
+RUNME="${RUNME_FIXTURE_TARGET:-$REPO_ROOT/runme.sh}"
 
 PASS=0; FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  \033[0;32mPASS\033[0m  %s\n' "$1"; }
@@ -485,6 +487,31 @@ esac
 EOS
 chmod +x "$P3/tl"
 export RUNME_P31_UNITS="" RUNME_P31_TL="$P3/tl" RUNME_P31_KEYS_DIR="$P3/keys" RUNME_P12_WAIT=0 RUNME_P24_WAIT=0
+# T-3850 action 39: a fake termlink for `main status`, `main origin-reporting` and `sidecar status`.
+# The switch state lives in $ORG/on; FAKE_ORG_* shape the replies. Default: off, no go -> ordinary runs skip.
+ORG="$TMP/t3850"; mkdir -p "$ORG"
+cat > "$ORG/tl" <<EOS
+#!/usr/bin/env bash
+D="$ORG"; echo "\$*" >> "\$D/calls"
+case "\$1 \$2" in
+  "main status")
+    [ "\${FAKE_ORG_STATUS:-}" = broken ] && { echo 'not json'; exit 2; }
+    rep='[]'; [ -f "\$D/on" ] && rep='["claude-code"]'
+    lh=null; [ -n "\${FAKE_ORG_LH:-}" ] && lh="\$FAKE_ORG_LH"
+    hold='{"agent":"fx-a","session":"S-1","host":"h","pid":2}'; [ "\${FAKE_ORG_HOLDER:-}" = none ] && hold=null
+    printf '{"origin_reporting":%s,"holder":%s,"last_human_at_ms":%s}\n' "\$rep" "\$hold" "\$lh" ;;
+  "main origin-reporting")
+    [ "\${FAKE_ORG_STUCK:-}" = 1 ] && { echo '{"action":"none"}'; exit 0; }
+    case " \$* " in *" --off "*) rm -f "\$D/on" ;; *) touch "\$D/on" ;; esac; echo '{"ok":true}' ;;
+  "sidecar status")
+    [ "\${FAKE_ORG_SC:-}" = none ] && exit 2
+    s1="\${FAKE_ORG_S1:-known}"; po="\${FAKE_ORG_PO:-human}"; pat="\${FAKE_ORG_PAT:-1000000}"
+    printf '{"activity":{"sessions":{"S-1":{"s1":"%s","last_prompt":{"origin":"%s","at_ms":%s}}}}}\n' "\$s1" "\$po" "\$pat" ;;
+  *) exit 4 ;;
+esac
+EOS
+chmod +x "$ORG/tl"
+export RUNME_ORG_TL="$ORG/tl" RUNME_ORG_PROJECT="010-termlink" RUNME_ORG_HARNESS="claude-code" RUNME_ORG_GO="" RUNME_ORG_STATE="$ORG/switched-at" RUNME_ORG_NOW_MS=1000000 RUNME_ORG_FRESH_S=86400 RUNME_ORG_GRACE_S=3600 RUNME_ORG_SOCK_DIR="$ORG"
 p3_seed() {  # fresh scratch state for one W1-like unit `termlink-sidecar@u-p31.service`, agent fx-p
     rm -rf "$P3/keys" "$P3/store" "$P3"/card.* "$P3/mode" "$P3/calls" "$P3/fx-p.json"*; mkdir -p "$P3/keys" "$P3/store"
     printf '%s\n' "$(printf '12%.0s' $(seq 32))" > "$P3/keys/fx-p.pub"
@@ -1151,7 +1178,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 59 ))   # +1 no W1 units for P-24 (T-3708 action 38); +1 no W1 units for P-12 (T-3700 action 37); +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 60 ))   # +1 origin reporting off, no go (T-3850 action 39); +1 no W1 units for P-24 (T-3708 action 38); +1 no W1 units for P-12 (T-3700 action 37); +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3812,6 +3839,45 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fx-p: per_agent_accounts claim
 out=$(FAKE_P24=badlog RUNME_P31_UNITS="$P3U" run); rc=$?; x=$(s38 "$out")
 if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fx-p: latency_log 'failing"; then ok "38: a failing latency log => FAILED"; else bad "38 log" "rc=$rc: $x"; fi
 p3_seed; rm -f "$W1R/conf/u-p31.env" "$W1R/conf/termlink-sidecar@u-p31.service.env"
+
+# T-3850 action 39 — origin reporting with a lockout guard.
+s39() { echo "$1" | sed -n '/^.*39\. Origin reporting/,/^.*5b\. Acknowledge/p'; }
+org_reset() { rm -f "$ORG/on" "$ORG/switched-at" "$ORG/calls"; }
+GO="2026-11-22|T-3694 Decisions (fixture)"
+org_reset; out=$(run); x=$(s39 "$out")
+if echo "$x" | grep_all 'skip    010-termlink: origin reporting off; no operator go recorded (readiness: ready)' && [ ! -f "$ORG/on" ]; then ok "39: off, no go => listed, never switched"; else bad "39 nogo" "$x"; fi
+org_reset; out=$(FAKE_ORG_S1="unknown: no TermLink PTY session is bound" FAKE_ORG_PO=unknown run); x=$(s39 "$out")
+if echo "$x" | grep_all 'no operator go recorded (readiness: S1 not bound (unknown: no TermLink PTY session is bound); no checked human prompt (last origin: unknown))'; then ok "39: readiness names every missing piece"; else bad "39 readiness" "$x"; fi
+org_reset; out=$(RUNME_ORG_GO="$GO" FAKE_ORG_S1="unknown: x" run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  010-termlink: go recorded .* but NOT switched — the lockout guard refuses: S1 not bound' && [ ! -f "$ORG/on" ] && ! grep -q 'origin-reporting' "$ORG/calls"; then ok "39: go but S1 unbound => guard refuses, nothing switched"; else bad "39 guard s1" "rc=$rc: $x"; fi
+org_reset; out=$(RUNME_ORG_GO="$GO" FAKE_ORG_PAT=1 RUNME_ORG_NOW_MS=999999999 run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'the lockout guard refuses: the last human prompt is older than 86400s' && [ ! -f "$ORG/on" ]; then ok "39: go but the human prompt is stale => refused"; else bad "39 guard stale" "rc=$rc: $x"; fi
+org_reset; out=$(RUNME_ORG_GO="$GO" FAKE_ORG_HOLDER=none run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'the lockout guard refuses: no main holder' && [ ! -f "$ORG/on" ]; then ok "39: go but no holder => refused"; else bad "39 guard holder" "rc=$rc: $x"; fi
+org_reset; out=$(RUNME_ORG_GO="$GO" FAKE_ORG_SC=none run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "the holder's sidecar (fx-a) status unreadable" && [ ! -f "$ORG/on" ]; then ok "39: go but sidecar unreadable => refused"; else bad "39 guard sc" "rc=$rc: $x"; fi
+org_reset; out=$(RUNME_ORG_GO="$GO" run --dry-run); x=$(s39 "$out")
+if echo "$x" | grep_all '\[DRY\]   would switch claude-code to origin reporting for 010-termlink' && [ ! -f "$ORG/on" ] && [ ! -f "$ORG/switched-at" ]; then ok "39: --dry-run writes nothing"; else bad "39 dry" "$x"; fi
+org_reset; out=$(RUNME_ORG_GO="$GO" run); x=$(s39 "$out")
+if echo "$x" | grep_all 'OK      010-termlink: claude-code switched to origin reporting and read back' && [ -f "$ORG/on" ] && [ "$(cat "$ORG/switched-at")" = 1000000 ]; then ok "39: go and ready => switched, read back, switch time recorded"; else bad "39 switch" "$x"; fi
+org_reset; out=$(RUNME_ORG_GO="$GO" FAKE_ORG_STUCK=1 run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  010-termlink: the switch did not read back as on' && [ ! -f "$ORG/switched-at" ]; then ok "39: a switch that does not read back => FAILED"; else bad "39 readback" "rc=$rc: $x"; fi
+# on: the revert check
+org_reset; touch "$ORG/on"; out=$(run); x=$(s39 "$out")
+if echo "$x" | grep_all 'switched outside this action; the 3600s revert clock starts now' && [ "$(cat "$ORG/switched-at")" = 1000000 ] && [ -f "$ORG/on" ]; then ok "39: on without a switch record => clock starts, nothing reverted"; else bad "39 outside" "$x"; fi
+org_reset; touch "$ORG/on"; echo 1000000 > "$ORG/switched-at"; out=$(FAKE_ORG_LH=1000500 RUNME_ORG_NOW_MS=99000000 run); x=$(s39 "$out")
+if echo "$x" | grep_all 'a human-counted record since the switch (last_human_at_ms 1000500)' && [ -f "$ORG/on" ]; then ok "39: on with a human record since the switch => live"; else bad "39 live" "$x"; fi
+org_reset; touch "$ORG/on"; echo 1000000 > "$ORG/switched-at"; out=$(RUNME_ORG_NOW_MS=2000000 run); x=$(s39 "$out")
+if echo "$x" | grep_all 'inside the 3600s grace, no human-counted record yet' && [ -f "$ORG/on" ]; then ok "39: on, inside the grace => kept"; else bad "39 grace" "$x"; fi
+org_reset; touch "$ORG/on"; echo 1000000 > "$ORG/switched-at"; out=$(FAKE_ORG_LH=999000 RUNME_ORG_NOW_MS=9000000 run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  REVERTED 010-termlink: origin reporting switched OFF' && [ ! -f "$ORG/on" ] && [ ! -f "$ORG/switched-at" ]; then ok "39: past the grace, no human record since the switch => REVERTED (off, read back)"; else bad "39 revert" "rc=$rc: $x"; fi
+org_reset; touch "$ORG/on"; echo 1000000 > "$ORG/switched-at"; out=$(RUNME_ORG_NOW_MS=9000000 run --dry-run); x=$(s39 "$out")
+if echo "$x" | grep_all '\[DRY\]   would switch claude-code origin reporting OFF' && [ -f "$ORG/on" ]; then ok "39: --dry-run never reverts"; else bad "39 dry revert" "$x"; fi
+org_reset; touch "$ORG/on"; echo 1000000 > "$ORG/switched-at"; out=$(FAKE_ORG_STUCK=1 RUNME_ORG_NOW_MS=9000000 run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'switching it off did not read back .* switch it off by hand'; then ok "39: a revert that does not read back => FAILED, says so"; else bad "39 revert stuck" "rc=$rc: $x"; fi
+org_reset; out=$(FAKE_ORG_STATUS=broken RUNME_ORG_GO="$GO" run); rc=$?; x=$(s39 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'main status unreadable .* nothing switched' && [ ! -f "$ORG/on" ]; then ok "39: unreadable main status => FAILED, nothing switched"; else bad "39 unreadable" "rc=$rc: $x"; fi
+org_reset
 
 echo ""
 echo "----------------------------------------"
