@@ -510,6 +510,50 @@ fn t3w_repeat_is_t8_other_reason_forbidden_late_completion_conflicts() {
     assert_eq!((r["outcome"].as_str(), r["exit_code"].clone()), (Some(OUTCOME_WITHDRAWN), Value::Null));
 }
 
+/// T-3849 (AEF T-5329): withdrawn attempts per submitter per UTC day. Two submitters, two days, one withdrawal
+/// before the window and one ordinary completion (not a withdrawal) are counted correctly.
+#[test]
+fn t3849_withdrawn_stats_count_per_submitter_per_utc_day_inside_the_window() {
+    const DAY: i64 = 86_400_000;
+    let (_d, s) = store();
+    let base = 20_000 * DAY; // 2024-10-04T00:00Z
+    let by = |who: &str, now: i64| {
+        s.allocate(&AllocateRequest { dispatcher_project_agent: Some(who.into()), ..Default::default() }, now).unwrap()
+    };
+    // day 0: p1 withdraws two, p2 one; day 1: p1 one; 10 days earlier: p1 one (outside a 7-day window)
+    for (who, at) in [("p1", base + 1_000), ("p1", base + 2_000), ("p2", base + 3_000), ("p1", base + DAY + 5), ("p1", base - 10 * DAY)] {
+        let a = by(who, at);
+        s.transition(&t3w(&a, "r"), at + 1).unwrap();
+    }
+    // a completion, not a withdrawal: never counted
+    let c = by("p2", base + 4_000);
+    s.transition(&t2(&c), base + 4_001).unwrap();
+    s.transition(&t3(&c, "E1"), base + 4_002).unwrap();
+    let v = s.withdrawn_stats(base + DAY + 60_000, 7).unwrap();
+    assert_eq!(v["window_days"], 7);
+    assert_eq!(v["from_ms"], base + DAY - 6 * DAY, "00:00 UTC of the window's first day");
+    let rows: Vec<(String, String, String, i64)> = v["withdrawn_per_submitter_day"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| (r["submitter"].as_str().unwrap().into(), r["actor"].as_str().unwrap().into(), r["day_utc"].as_str().unwrap().into(), r["count"].as_i64().unwrap()))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("p1".into(), "a".into(), "2024-10-04".into(), 2),
+            ("p2".into(), "a".into(), "2024-10-04".into(), 1),
+            ("p1".into(), "a".into(), "2024-10-05".into(), 1),
+        ]
+    );
+    // a one-day window holds today only
+    let today = s.withdrawn_stats(base + DAY + 60_000, 1).unwrap();
+    assert_eq!(today["withdrawn_per_submitter_day"].as_array().unwrap().len(), 1);
+    // nothing withdrawn: an empty list, not an error
+    let (_d2, empty) = store();
+    assert_eq!(empty.withdrawn_stats(base, 7).unwrap()["withdrawn_per_submitter_day"], json!([]));
+}
+
 #[test]
 fn t3w_of_an_old_attempt_is_stale_and_a_new_attempt_may_follow() {
     let (_d, s) = store();

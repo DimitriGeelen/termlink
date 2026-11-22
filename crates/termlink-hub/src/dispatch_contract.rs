@@ -134,6 +134,14 @@ pub async fn handle_dispatch_get(id: Value, params: &Value) -> RpcResponse {
     }
 }
 
+/// T-3849: `dispatch.stats`.
+pub async fn handle_dispatch_stats(id: Value, params: &Value) -> RpcResponse {
+    match bus_or_err(&id) {
+        Ok(b) => stats_with(b, id, params, now_ms()),
+        Err(r) => r,
+    }
+}
+
 pub async fn handle_dispatch_ask(id: Value, params: &Value) -> RpcResponse {
     match bus_or_err(&id) {
         Ok(b) => ask_with(b, id, params, now_ms()),
@@ -485,6 +493,22 @@ pub(crate) fn get_with(bus: &Bus, id: Value, params: &Value) -> RpcResponse {
     }
 }
 
+/// T-3849 (AEF T-5329): withdrawn attempts per submitter per UTC day. `window_days` defaults to 7 and is
+/// clamped to 1..=90; a value that is not an integer is refused, never guessed.
+pub(crate) fn stats_with(bus: &Bus, id: Value, params: &Value, now: i64) -> RpcResponse {
+    let window = match params.get("window_days") {
+        None | Some(Value::Null) => 7,
+        Some(v) => match v.as_i64() {
+            Some(n) => n.clamp(1, 90),
+            None => return ErrorResponse::new(id, -32602, "'window_days' must be an integer").into(),
+        },
+    };
+    match bus.wc_withdrawn_stats(now, window) {
+        Ok(v) => Response::success(id, v).into(),
+        Err(e) => err(id, e),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -558,6 +582,27 @@ mod tests {
         assert_eq!((last["writer"].as_str(), last["actor"].as_str(), last["reason"].as_str()), (Some("submitter"), Some("a"), Some("superseded by D2")));
         let again = ok(transition_with(&bus, json!(3), &req, 3_000));
         assert_eq!(again["deduped"].as_bool(), Some(true));
+    }
+
+    /// T-3849 (AEF T-5329): `dispatch.stats` counts a withdrawal made over `dispatch.transition`, defaults to a
+    /// 7-day window, clamps out-of-range windows and refuses a non-integer one.
+    #[test]
+    fn dispatch_stats_counts_withdrawals_and_checks_its_window() {
+        let (_d, bus) = bus();
+        let a = ok(allocate_with(&bus, json!(1), &json!({"dispatcher": {"project_agent": "999-aef"}}), 1_000));
+        let mut req = lifecycle(&a, "done", "dispatched");
+        req["withdraw"] = json!({"actor": "aef-loop", "reason": "superseded"});
+        ok(transition_with(&bus, json!(2), &req, 2_000));
+        let v = ok(stats_with(&bus, json!(3), &json!({}), 3_000));
+        assert_eq!(v["window_days"], 7);
+        let rows = v["withdrawn_per_submitter_day"].as_array().unwrap();
+        assert_eq!(rows.len(), 1, "{v}");
+        assert_eq!((rows[0]["submitter"].as_str(), rows[0]["actor"].as_str()), (Some("999-aef"), Some("aef-loop")));
+        assert_eq!((rows[0]["day_utc"].as_str(), rows[0]["count"].as_i64()), (Some("1970-01-01"), Some(1)));
+        assert_eq!(ok(stats_with(&bus, json!(4), &json!({"window_days": 0}), 3_000))["window_days"], 1);
+        assert_eq!(ok(stats_with(&bus, json!(5), &json!({"window_days": 9999}), 3_000))["window_days"], 90);
+        let (code, _) = fail(stats_with(&bus, json!(6), &json!({"window_days": "7"}), 3_000));
+        assert_eq!(code, -32602);
     }
 
     /// T-3842 (wc v0.3.4 CC-35): this hub declares closure: never. A close is the typed refusal

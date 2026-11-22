@@ -430,6 +430,32 @@ impl WcStore {
         })
     }
 
+    /// T-3849 (AEF T-5329, risk R-043): withdrawn attempts per submitter per UTC day, so a cleanup loop or a
+    /// batch withdraw is visible without reading history. The window is the last `window_days` UTC days, today
+    /// included (from 00:00 UTC of its first day). Submitter = the dispatch's `dispatcher_project_agent`; the
+    /// withdrawal's own `actor` is shown beside it, since the two may differ.
+    pub(crate) fn withdrawn_stats(&self, now_ms: i64, window_days: i64) -> WcResult<Value> {
+        const DAY_MS: i64 = 86_400_000;
+        let from_ms = (now_ms.div_euclid(DAY_MS) - (window_days - 1)) * DAY_MS;
+        crate::run_blocking(|| {
+            let conn = self.conn.lock().expect("wc mutex poisoned");
+            let mut st = conn.prepare(
+                "SELECT COALESCE(d.dispatcher_project_agent, ''), COALESCE(h.actor, ''),
+                        strftime('%Y-%m-%d', h.ts / 1000, 'unixepoch'), COUNT(*)
+                 FROM wc_history h LEFT JOIN wc_dispatches d ON d.dispatch_id = h.dispatch_id
+                 WHERE h.cause = ?1 AND h.ts >= ?2
+                 GROUP BY 1, 2, 3 ORDER BY 3, 1, 2",
+            )?;
+            let rows = st
+                .query_map(params![OUTCOME_WITHDRAWN, from_ms], |r| {
+                    Ok(json!({"submitter": r.get::<_, String>(0)?, "actor": r.get::<_, String>(1)?,
+                              "day_utc": r.get::<_, String>(2)?, "count": r.get::<_, i64>(3)?}))
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            Ok(json!({"withdrawn_per_submitter_day": rows, "window_days": window_days, "from_ms": from_ms}))
+        })
+    }
+
     pub(crate) fn transition(&self, req: &TransitionRequest, now_ms: i64) -> WcResult<TransitionOutcome> {
         self.with_tx(|tx| transition_tx(tx, req, now_ms))
     }

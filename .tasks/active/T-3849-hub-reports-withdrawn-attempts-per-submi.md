@@ -1,13 +1,16 @@
 ---
 id: T-3849
-name: "Hub reports withdrawn attempts per submitter per UTC day (AEF T-5329, risk R-043)"
+name: "Hub reports withdrawn attempts per submitter per UTC day (AEF T-5329, risk
+  R-043)"
 description: >
-  AEF asks for a read of withdrawn attempts per submitter per UTC day so a cleanup loop or batch withdraw is visible without reading history. Data exists: wc_history (to_state withdrawn, actor, ts) joined with wc_dispatches (dispatcher_project_agent).
+  AEF asks for a read of withdrawn attempts per submitter per UTC day so a cleanup
+  loop or batch withdraw is visible without reading history. Data exists: wc_history
+  (to_state withdrawn, actor, ts) joined with wc_dispatches (dispatcher_project_agent).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-22T10:44:16Z
-last_update: 2026-11-22T10:44:39Z
-date_finished: null
+last_update: 2026-11-22T21:09:39Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +53,45 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-22T21:03:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal);
+      F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0:
+      no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3849: Hub reports withdrawn attempts per submitter per UTC day (AEF T-5329, risk R-043)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** AEF T-5329 (risk R-043, "submitter withdraws a wanted job, unseen"). The T3w withdrawal raises no operator notice, and live withdrawals happen on this hub. AEF asked for a count per submitter per UTC day (msg 928d36cb) and agreed to the proposed shape (msg ccb693db). Its `fw audit` reads the count and WARNs above its own threshold.
+
+**Problem / hypothesis:** the data exists already: each withdrawal is a `wc_history` row with `cause = 'withdrawn'`, plus `actor` and `ts`, and `wc_dispatches.dispatcher_project_agent` names the submitter. Nothing reads it out.
+
+**Goal:** a read-only RPC `dispatch.stats` returning `{"withdrawn_per_submitter_day": [{submitter, actor, day_utc, count}], "window_days": N}` over the last N UTC days (default 7, clamped 1..=90).
+
+**Expected outcome:** AEF calls `dispatch.stats` and sees each submitter's withdrawals per day.
+
+**Scope note:** RPC only. The proposed CLI form `termlink dispatch stats` would collide with `termlink dispatch [COMMAND]...` (the worker spawner), and no `dispatch.*` verb has a CLI today. AEF calls the RPC.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `WcStore::withdrawn_stats(now_ms, window_days)` counts history rows with cause `withdrawn` from 00:00 UTC of the first day of the window. It groups by (submitter = the dispatch's `dispatcher_project_agent`, actor, UTC day), ordered by day, then submitter, then actor. A test covers two submitters, two days, a row outside the window, and a non-withdrawal transition, which is not counted.
+- [x] Hub method `dispatch.stats` (protocol constant, router, hub capability list) returns the shape above. `window_days` defaults to 7, out-of-range values are clamped, and a non-integer value is refused with -32602. A hub test drives it through `withdraw`.
+- [x] Workspace tests for termlink-bus and termlink-hub pass, and workspace clippy is clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +142,8 @@ date_finished: null
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3849-verify cargo test -p termlink-bus -p termlink-hub --lib -- t3849 dispatch_stats > /tmp/.t3849-verify.out 2>&1 && grep -q 't3849_withdrawn_stats_count_per_submitter_per_utc_day_inside_the_window ... ok' /tmp/.t3849-verify.out && grep -q 'dispatch_stats_counts_withdrawals_and_checks_its_window ... ok' /tmp/.t3849-verify.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -286,6 +316,11 @@ date_finished: null
 
 ## Evolution
 
+### 2026-11-22 — RPC only, not the proposed CLI form
+- **What changed:** the shape sent to AEF named `termlink dispatch stats --json`. `termlink dispatch` is the worker spawner with a positional `[COMMAND]...`, so a `stats` subcommand would collide, and no `dispatch.*` verb has a CLI. AEF calls the RPC directly, so this is the RPC `dispatch.stats` only. The reply also carries `from_ms`, the window's start.
+- **Plan impact:** AEF must be told the CLI form does not exist.
+- **Triggered:** tests 1041/0 (bus, hub, protocol). A mutant that counts every history row fails the bus test. Live after the next runme rebuilds the hub.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -364,3 +399,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3849-hub-reports-withdrawn-attempts-per-submi.md
 - **Context:** Initial task creation
+
+### 2026-11-22T21:03:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

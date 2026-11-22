@@ -240,6 +240,11 @@ impl Bus {
         self.wc.stop(req, now_ms)
     }
 
+    /// T-3849: `dispatch.stats` (withdrawn attempts per submitter per UTC day).
+    pub fn wc_withdrawn_stats(&self, now_ms: i64, window_days: i64) -> std::result::Result<serde_json::Value, worker_contract::WcError> {
+        self.wc.withdrawn_stats(now_ms, window_days)
+    }
+
     /// T-3501: `dispatch.get`.
     pub fn wc_get(
         &self,

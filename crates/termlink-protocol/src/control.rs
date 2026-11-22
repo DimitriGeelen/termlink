@@ -294,6 +294,9 @@ pub mod method {
     /// T-3842 (wc v0.3.4 §3.3 close): close a dispatch. The hub declares `closure: never`, so this
     /// always answers the typed refusal `CLOSURE_NOT_SUPPORTED` and writes nothing (Execute).
     pub const DISPATCH_CLOSE: &str = "dispatch.close";
+    /// T-3849 (AEF T-5329): withdrawn attempts per submitter per UTC day over `window_days` (default 7).
+    /// Read only; writes nothing.
+    pub const DISPATCH_STATS: &str = "dispatch.stats";
     /// T-3503 answer path (contract §5): a worker asks (nonce), the dispatcher answers
     /// (supervisor token), the worker acks `received|applied`. Interact.
     /// There is deliberately NO `dispatch.resolve` method: T7d is a hub-host CLI only
