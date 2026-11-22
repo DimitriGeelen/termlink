@@ -25317,3 +25317,21 @@ scan_id: R-be8c57d6
 task_id: T-3848
 payload:
   task_file: .tasks/active/T-3848-w1-session-start-hook-reports-harnesspid.md
+---
+kind: scan_emitted
+timestamp: '2026-11-22T12:30:23Z'
+scan_id: R-b571926f
+task_id: T-3850
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-22T12:30:23Z'
+scan_id: R-b571926f
+task_id: T-3850
+payload:
+  task_file: .tasks/active/T-3850-runme-action-39-origin-reporting-switch-.md
