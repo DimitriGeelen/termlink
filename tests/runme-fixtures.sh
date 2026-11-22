@@ -602,7 +602,15 @@ cat > "$AE/src/bin/fw" <<'EOS'
 #!/usr/bin/env bash
 # fake AEF `fw upgrade [--dry-run] <project>` (T-3778 fixture); knobs FAKE_AEFU_*
 [ "$1" = upgrade ] || exit 9
-[ "$2" = --dry-run ] && { echo "3 change(s) would be made"; exit 0; }
+if [ "$2" = --dry-run ]; then
+  # T-3851: FAKE_AEFU_DRY_WRITE=inside writes an upgrade path (must refuse); =outside plays a concurrent writer
+  # (a cron audit) elsewhere in the checkout (must not refuse)
+  case "${FAKE_AEFU_DRY_WRITE:-}" in
+    inside) echo "leak" > "$3/.agentic-framework/lib/dry-leak.py" ;;
+    outside) mkdir -p "$3/.context/audits" && echo "audit row" > "$3/.context/audits/concurrent.yaml" ;;
+  esac
+  echo "3 change(s) would be made"; exit 0
+fi
 P="$2"; S="$(cd "$(dirname "$0")/.." && pwd)"
 [ -n "${FAKE_AEFU_UP_RC:-}" ] && { echo "x" > "$P/.agentic-framework/lib/half-written.py"; echo "upgrade broke"; exit "$FAKE_AEFU_UP_RC"; }
 echo "new upstream file" > "$P/.agentic-framework/lib/new-upstream.py"
@@ -3561,6 +3569,20 @@ for c in clobber oldver keep uprc doctor; do
         ok "T-3778: $c => FAILED, every changed path rolled back, rc 1 (control)"
     else bad "T-3778 $c" "rc=$rc: $x"; fi
 done
+
+# T-3851: the dry-run check counts only the upgrade's own paths. A dry run that writes one is refused and rolled
+# back; a concurrent writer elsewhere (the cron audit of 2026-11-22 13:04Z) neither refuses nor gets committed.
+aefu_state fresh; h0=$(aefu_head); out=$(FAKE_AEFU_DRY_WRITE=inside run); rc=$?; x=$(s11a "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fw upgrade --dry-run exited 0 or changed files' \
+   && [ ! -e "$AP/.agentic-framework/lib/dry-leak.py" ] && aefu_untouched "$h0"; then
+    ok "T-3851: a dry run that writes an upgrade path => refused, rolled back, rc 1 (control)"
+else bad "T-3851 dry inside" "rc=$rc: $x"; fi
+aefu_state fresh; out=$(FAKE_AEFU_DRY_WRITE=outside run); rc=$?; x=$(s11a "$out")
+if echo "$x" | grep_all 'OK      upgraded to' && [ -e "$AP/.context/audits/concurrent.yaml" ] \
+   && ! git -C "$AP" log -1 --name-only --format= | grep_all 'concurrent.yaml'; then
+    ok "T-3851: a concurrent write outside the upgrade's paths during the dry run => upgraded, the write left uncommitted"
+else bad "T-3851 dry outside" "rc=$rc: $x"; fi
+rm -f "$AP/.context/audits/concurrent.yaml"
 
 for c in div side dirty stale notag; do
     aefu_state fresh; h0=$(aefu_head); envs=()

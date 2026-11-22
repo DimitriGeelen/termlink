@@ -2479,7 +2479,9 @@ aefu_upgrade() {
 
     (cd "$AEFU_PROJECT" && "${ENVU[@]}" timeout 900 "$W/aef/bin/fw" upgrade --dry-run "$AEFU_PROJECT") > "$W/upgrade-dry.log" 2>&1; rc=$?
     aefu_git status --porcelain --untracked-files=all > "$W/porcelain-dry" 2>&1
-    if [ "$rc" != 0 ] || ! cmp -s "$W/porcelain-before" "$W/porcelain-dry"; then
+    # T-3851: only the paths an upgrade writes count. The operator's run of 2026-11-22 13:04Z was refused because a
+    # cron audit wrote .context/audits/* during the dry run; a concurrent writer elsewhere is not the dry run's doing.
+    if [ "$rc" != 0 ] || ! cmp -s <(aefu_upgrade_paths < "$W/porcelain-before") <(aefu_upgrade_paths < "$W/porcelain-dry"); then
         aefu_rollback "$W/porcelain-before"
         say "  FAILED  fw upgrade --dry-run exited $rc or changed files (log: $W/upgrade-dry.log); rolled back"; FAILED=$((FAILED+1)); return
     fi
