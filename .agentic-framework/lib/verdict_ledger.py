@@ -123,7 +123,10 @@ from lib import judge_verdict  # noqa: E402
 from lib import review_cost  # noqa: E402
 from lib import review_policy  # noqa: E402
 from lib import task_commits  # noqa: E402
+from lib import verdict_format  # noqa: E402
+from lib import vote_checker  # noqa: E402
 from lib import delegation_widening  # noqa: E402
+from lib import evidence_need  # noqa: E402
 from lib.delegation import (  # noqa: E402
     GENERATED_ANNOTATION_RE,
     REVIEWER_JUDGES,
@@ -199,6 +202,9 @@ GREEN, AMBER, RED, ESCALATE = "green", "amber", "red", "escalate"
 #: criterion to another seat kind, and only then the operator. Its guidance (the reason) is
 #: mandatory, like every non-green.
 NOT_EVALUATED = "not-evaluated"
+#: T-5294: not an outcome a row records — the state of a verdict/1 row whose vote fails its own
+#: mechanical check (vote_checker.checkable). Such a row counts neither green nor red.
+NOT_CHECKABLE = "not-checkable"
 OUTCOMES = (GREEN, AMBER, RED, ESCALATE, NOT_EVALUATED)
 #: Fewest seats that must have EVALUATED a criterion for a multi-seat (rung-5) panel to close it
 #: when any of its seats did not.
@@ -378,6 +384,17 @@ def _commit_rows_once(root: Path, paths: list[str], identity: str, message: str,
     subprocess.run(["git", "reset", "-q", "--", *paths], cwd=str(root), env=env,
                    capture_output=True, text=True)
     return "", err + " (the ledger paths were unstaged; the row stays uncommitted on disk)"
+
+
+def _brief_text(drec: dict) -> str:
+    """The review dispatch's brief.md ('' when it cannot be read)."""
+    wd = str(drec.get("wdir") or "")
+    if not wd:
+        return ""
+    try:
+        return (Path(wd) / "brief.md").read_text(errors="replace")
+    except OSError:
+        return ""
 
 
 def _brief_criteria(drec: dict) -> set[int]:
@@ -1324,6 +1341,14 @@ def verdict_hash(row: dict) -> str:
     body = {"outcome": row.get("outcome"), "guidance": row.get("guidance", ""),
             "evidence": row.get("evidence"), "evidence_sha256": row.get("evidence_sha256") or {},
             "ac_digest": row.get("ac_digest"), "revision": row.get("revision", "")}
+    if "format" in row:
+        # T-5292: a verdict/1 row's hash also covers its format and parsed structure. A row
+        # without `format` (every row before T-5292) hashes exactly as it always did.
+        body["format"] = row.get("format")
+        body["structured"] = row.get("structured")
+    if "check" in row:
+        # T-5293: the mechanical check of a verdict/1 vote is covered too, only when present.
+        body["check"] = row.get("check")
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -1390,8 +1415,9 @@ def _worker_session(wdir: Path) -> str:
                 ev = json.loads(line)
             except ValueError:
                 continue
-            # claude: session_id; codex --json: thread_id; opencode --format json: sessionID.
-            for key in ("session_id", "thread_id", "sessionID"):
+            # claude: session_id; codex --json: thread_id; opencode --format json: sessionID;
+            # antigravity stream-json (T-5309): conversation_id.
+            for key in ("session_id", "thread_id", "sessionID", "conversation_id"):
                 if isinstance(ev, dict) and str(ev.get(key) or "").strip():
                     return str(ev[key]).strip()
     except OSError:
@@ -1674,6 +1700,65 @@ def parse_harness_verdicts(text: str) -> dict[int, dict]:
     return {n: v for n, v in out.items() if n not in bad}
 
 
+def parse_harness_vote(text: str, *, task: str, crits: list) -> tuple[dict[int, dict], dict]:
+    """T-5292: a harness seat's printed `verdict/1` vote, for a run whose brief asked for it.
+    Returns ({criterion index: {outcome, why, guidance, block, structured}}, problems) where
+    `problems` is verdict_format's map (VOTE and Human AC number keys). `crits` is the brief's
+    [(criterion index, Human AC number)]. Strict: a criterion with any fault, or every criterion
+    when the vote as a whole has one, is absent — never coerced into a verdict."""
+    by_ac = {ac: idx for idx, ac in crits}
+    parsed, problems = verdict_format.parse_vote(text, task=task, expected_acs=list(by_ac))
+    out: dict[int, dict] = {}
+    for ac, st in verdict_format.accepted(parsed, problems).items():
+        c = st["criterion"]
+        out[by_ac[ac]] = {"outcome": c["vote"], "why": c["conclusion"], "guidance": c["guidance"],
+                          "block": parsed["criteria"][ac]["text"], "structured": st}
+    return out, problems
+
+
+def _vote_check(root: Path, drec: dict, structured: dict, revision: str, criterion_text: str) -> dict:
+    """T-5293: vote_checker's result for one recorded verdict/1 criterion. The seat's run record
+    is its dispatch dir's result.jsonl (harness events or claude stream-json)."""
+    try:
+        wd = str(drec.get("wdir") or "")
+        seat = Path(wd) if wd and Path(wd).is_dir() else None
+        out = vote_checker.safe_check(structured, root, revision, seat,
+                                      task=str(drec.get("task") or ""), criterion_text=criterion_text)
+        out["worker_kind"] = str(drec.get("worker_kind") or "")
+        return out
+    except Exception as e:  # noqa: BLE001 — recording never fails because the checker did
+        return {"checker": vote_checker.CHECKER, "error": f"{type(e).__name__}: {e}"}
+
+
+def check_vote_report(path: Path, *, task: str, ac: int, outcome: str) -> tuple[dict | None, str]:
+    """T-5292: a self-recording seat's evidence report for Human AC#`ac` must hold one valid
+    `verdict/1` vote whose section for that criterion votes `outcome`. Returns (structure, '')
+    or (None, why). On refusal the reason is appended to the report, after the vote, so the
+    report says why its criterion got no verdict."""
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return None, f"evidence report {path} is unreadable: {e}"
+    parsed, problems = verdict_format.parse_vote(text, task=task, expected_acs=[ac])
+    st = verdict_format.accepted(parsed, problems).get(ac)
+    why = ""
+    if st is None:
+        why = (f"the evidence report is not a valid {verdict_format.FORMAT} vote for AC{ac}:\n"
+               + verdict_format.problem_text(problems, ac))
+    elif st["criterion"]["vote"] != outcome:
+        why = (f"the report's AC{ac} section votes {st['criterion']['vote']}, but {outcome} is "
+               f"being recorded")
+        st = None
+    if why:
+        try:
+            with Path(path).open("a", encoding="utf-8") as fh:
+                fh.write(f"\n\n## {verdict_format.FORMAT} check: refused (no verdict recorded)\n\n"
+                         f"{why}\n")
+        except OSError:
+            pass
+    return st, why
+
+
 def _freeze_seat_evidence(root: Path, task: str, did: str, paths: list[str]) -> list[str]:
     """T-5178: per-dispatch copies of the screenshots a harness seat cited, as a claude seat makes
     them itself (brief, T-4514): `REPORT_DIR/<task>/<stem>-<dispatch><ext>`. The originals under
@@ -1753,17 +1838,26 @@ def record_for_worker(dispatch_id: str, *, wdir: str, secret: str = "",
         output = ""
     shas = {n: _file_sha(Path(here) / n) for n in ("result.md", "result.jsonl")
             if (Path(here) / n).is_file()}
-    printed = parse_harness_verdicts(output)
+    problems: dict = {}
+    if verdict_format.brief_format(brief) == verdict_format.FORMAT:
+        # T-5292: the brief asked for verdict/1, so only that is read, strictly.
+        printed, problems = parse_harness_vote(output, task=str(drec["task"]), crits=crits)
+        if not verdict_format.attempted(output):
+            # No attempt at a vote (empty output, a provider error): no verdict, not a refused
+            # one — the seat stays eligible to count as unavailable (T-4490).
+            problems = {}
+    else:
+        printed = parse_harness_verdicts(output)
     # T-3940: the lock spans every append below AND the commit, so no other writer's row can
     # land between them and be committed under this worker's identity.
     with _ledger_lock(root):
         return _record_for_worker_locked(root, did, drec, kind, here, brief, crits, rung, output,
-                                         shas, printed)
+                                         shas, printed, problems)
 
 
 def _record_for_worker_locked(root: Path, did: str, drec: dict, kind: str, here: str, brief: str,
                               crits: list, rung: str, output: str, shas: dict,
-                              printed: dict) -> dict:
+                              printed: dict, problems: dict | None = None) -> dict:
     task = str(drec["task"])
     ctx = _task_ctx(root, task)
     identity = worker_identity(did)
@@ -1772,6 +1866,24 @@ def _record_for_worker_locked(root: Path, did: str, drec: dict, kind: str, here:
     touched: list[str] = []
     for idx, ac in crits:
         v = printed.get(idx)
+        if v is None and problems:
+            # T-5292: the seat's verdict/1 vote does not hold for this criterion. No row; the
+            # evidence report records the seat's output and why it gave no verdict.
+            why = (f"not a valid {verdict_format.FORMAT} vote for AC{ac}:\n"
+                   + verdict_format.problem_text(problems, ac))
+            rep = Path(REPORT_DIR) / task / f"AC{ac}-{did}.md"
+            (root / rep).parent.mkdir(parents=True, exist_ok=True)
+            (root / rep).write_text(
+                f"# Reviewer evidence — {task} AC#{ac} (REFUSED: no verdict)\n\n"
+                f"- dispatch: `{did}`\n- worker kind: `{kind}`\n- seat: `{seat}`\n"
+                + "".join(f"- {n} sha256: `{h}`\n" for n, h in sorted(shas.items()))
+                + f"\n## {verdict_format.FORMAT} check: refused\n\n{why}\n"
+                f"\n## The worker's full output (result.md)\n\n```\n{_ANSI_RE.sub('', output).strip()}\n```\n")
+            touched.append(str(rep))
+            _refuse_row(root, task, "verdict-format", why, ac=ac, reviewer=f"{identity}:{seat}",
+                        dispatch_id=did)
+            res["refused"].append({"ac": ac, "why": why})
+            continue
         if v is None:
             res["refused"].append({"ac": ac, "why": "no unambiguous printed verdict"})
             continue
@@ -1799,8 +1911,10 @@ def _record_for_worker_locked(root: Path, did: str, drec: dict, kind: str, here:
         try:
             rec = record(task, ac, v["outcome"], reviewer=f"{identity}:{seat}", rung=rung,
                          guidance=guidance, evidence=[str(rep)] + seen, digest=criterion_digest(crit),
-                         dispatch_id=did, run_id=str(drec.get("run_id") or ""), root=root)
+                         dispatch_id=did, run_id=str(drec.get("run_id") or ""), root=root,
+                         structured=v.get("structured"))
             res["recorded"].append({"ac": ac, "id": rec["id"], "outcome": rec["outcome"]})
+            touched.extend(vote_checker.crops(rec.get("check")))
         except VerdictRefused as e:
             res["refused"].append({"ac": ac, "why": str(e)})
     if not touched:
@@ -1824,7 +1938,8 @@ def record_and_commit(task_id: str, ac_index: int, outcome: str, *, identity: st
     root = root or _root()
     with _ledger_lock(root):
         rec = record(task_id, ac_index, outcome, root=root, **kw)
-        sha, err = _commit_rows(root, _ledger_paths(root, kw.get("evidence")), identity,
+        extra = list(kw.get("evidence") or []) + vote_checker.crops(rec.get("check"))
+        sha, err = _commit_rows(root, _ledger_paths(root, extra), identity,
                                 f"{task_id}: reviewer verdict", email=email, ids=[rec["id"]],
                                 task=task_id, dispatch_id=str(kw.get("dispatch_id") or ""))
     if err:
@@ -2620,6 +2735,15 @@ def _structural_fault(row: dict) -> str:
         return "judgement block judges a different criterion than the row names"
     if row["verdict"] != jv.get("state"):
         return "row verdict disagrees with its judgement"
+    if "format" in row:
+        # T-5292: only rows that carry a format are checked for it; older rows are unchanged.
+        if row["format"] != verdict_format.FORMAT:
+            return f"row has an unknown verdict format {row['format']!r}"
+        st = row.get("structured")
+        if (not isinstance(st, dict) or st.get("format") != verdict_format.FORMAT
+                or st.get("ac") != row["ac"]
+                or (st.get("criterion") or {}).get("vote") != row["outcome"]):
+            return "row's structured vote does not agree with the row (format, criterion, outcome)"
     return ""
 
 
@@ -2833,12 +2957,21 @@ def _is_render_review(ctx: "_Ctx", crit) -> bool:
             and bool(_RENDER_REVIEW_RE.search(criterion_body(crit))))
 
 
+def _needs_view(ctx: "_Ctx", crit) -> bool:
+    """T-5353: does this criterion's evidence need a proven view of screenshots of pages? The
+    judge's own test (`evidence_need.needs_view`: render, or names a page whatever its class), so
+    the judge, `_run_fault` and the vote checker never disagree on which criteria it covers."""
+    return evidence_need.needs_view(_is_render_review(ctx, crit), crit.title, criterion_body(crit))
+
+
 def _run_fault(ctx: "_Ctx", row: dict, crit, recording: bool) -> tuple[str, str] | None:
-    """A green's run requirements (T-3580 round 2): a panel-rung claim and a render criterion
-    both need a signed run; a render green needs every required page seen (verified screenshot
-    evidence cited)."""
+    """A green's run requirements (T-3580 round 2): a panel-rung claim and a criterion that needs
+    screenshots (T-5353 `_needs_view`: render, or names a page) both need a signed run, and such a
+    green needs every required page seen (verified screenshot evidence cited). The T-4202 Visual
+    Verification checklist stays a render-only requirement: it is a render-task artefact."""
     root = ctx.root
     render = _is_render_review(ctx, crit)
+    view = render or _needs_view(ctx, crit)
     claimed = str(row.get("run_id") or "")
     run, _bind, why = run_for_dispatch(root, str(row["dispatch_id"]))
     if why:
@@ -2848,18 +2981,21 @@ def _run_fault(ctx: "_Ctx", row: dict, crit, recording: bool) -> tuple[str, str]
             return "run-unbound", f"the row claims run {claimed!r} but its dispatch is not bound to it"
         if str(row["rung"]).startswith("rung-5"):
             return "panel-needs-run", "a rung-5 panel verdict must belong to a registered review run"
-        if render:
-            return "render-needs-run", ("a render criterion needs a review run that recorded the "
+        if view:
+            return "render-needs-run", (("a render criterion" if render else
+                                         "a criterion that names a page")
+                                        + " needs a review run that recorded the "
                                         "pages required and their capture results")
         return None
     if run.get("task") != ctx.task_id or row["ac"] not in (run.get("acs") or []):
         return "run", f"run {run.get('run_id')!r} does not cover {ctx.task_id} AC#{row['ac']}"
     if claimed != run["run_id"]:
         return "run-unbound", f"the row names run {claimed!r}, its dispatch is bound to {run['run_id']!r}"
-    if render:
+    if view:
         pages = (run.get("pages") or {}).get(str(row["ac"])) or []
         if not pages:
-            return "unseen-page", "no required page was recorded for this render criterion"
+            return "unseen-page", ("no required page was recorded for this "
+                                   + ("render criterion" if render else "page-naming criterion"))
         caps = {c.get("page"): c for c in run.get("captures") or []}
         cited = set((row.get("evidence_sha256") or {}).values())
         for p in pages:
@@ -2871,7 +3007,8 @@ def _run_fault(ctx: "_Ctx", row: dict, crit, recording: bool) -> tuple[str, str]
                 return "unseen-page", f"the screenshot of {p!r} is not cited as evidence"
         # T-4214: the T-4202 evidence. Every checklist state at every configured width must have a
         # verified shot, the Visual Verification checklist must pass, and each shot must be cited.
-        return _visual_fault(run.get("visual"), cited)
+        if render:
+            return _visual_fault(run.get("visual"), cited)
     return None
 
 
@@ -3446,8 +3583,10 @@ def satisfying_verdict(ctx: _Ctx, crit) -> tuple[dict | None, str]:
     # T-3986: a not-evaluated row is no verdict, so the LATEST EVALUATED row decides. Every row
     # from that one to the end is still validated first: an invalid trailing not-evaluated row
     # is `unknown` like any invalid latest row, and cannot be skipped to reach an older green.
+    # T-5294: a verdict/1 vote that fails its own mechanical check is no verdict either — it
+    # counts neither green nor red — so it is passed over exactly like a not-evaluated row.
     k = len(mine) - 1
-    while k > 0 and mine[k].get("outcome") == NOT_EVALUATED:
+    while k > 0 and not _counts(mine[k], ctx, crit):
         k -= 1
     for row in mine[k + 1:]:
         f = _fault(ctx, row, crit, led.intro(row["id"]))
@@ -3462,12 +3601,33 @@ def satisfying_verdict(ctx: _Ctx, crit) -> tuple[dict | None, str]:
     if last.get("outcome") == NOT_EVALUATED:
         return None, (f"not-evaluated: no reviewer has evaluated this criterion ({last.get('id')}: "
                       f"{last.get('guidance', '')}) — reassign it to a seat kind that can")
+    ok, reasons = vote_checker.checkable(last, render=_needs_view(ctx, crit))
+    if not ok:
+        return None, (f"{NOT_CHECKABLE}: the latest vote {last.get('id')} ({last.get('outcome')}) "
+                      f"fails its check and counts neither green nor red — "
+                      f"{'; '.join(reasons)} — reassign it to another seat kind")
     if last.get("outcome") != GREEN:
         return None, f"latest verdict is {last.get('outcome')!r}"
     why = _panel_fault(ctx, crit, last, mine)
     if why:
         return None, why
     return last, ""
+
+
+def _counts(row: dict, ctx: "_Ctx | None" = None, crit=None) -> bool:
+    """T-5294: does this (valid) row count as a verdict at all? A not-evaluated row and a verdict/1
+    vote that fails its own check (vote_checker.checkable) count neither green nor red."""
+    return row.get("outcome") != NOT_EVALUATED and not not_checkable_reasons(row, ctx, crit)
+
+
+def not_checkable_reasons(row: dict, ctx: "_Ctx | None" = None, crit=None) -> list[str]:
+    """T-5294: why a verdict/1 row does not count ([] when it does, or for an old-format row).
+    T-5327: given the task `ctx` and the row's criterion `crit`, a criterion that needs screenshots
+    (T-5353 `_needs_view`, the test the judge and the run/page rules use: render, or names a page)
+    in a non-panel row also needs a logged view — attached-at-launch alone is not checkable.
+    Without them the rule is not applied."""
+    view = bool(ctx is not None and crit is not None and _needs_view(ctx, crit))
+    return vote_checker.checkable(row, render=view)[1]
 
 
 def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
@@ -3606,6 +3766,12 @@ def _panel_state(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> tuple[str, di
             # did evaluate decide, and there must be enough of them (checked below).
             not_evaluated.append(s["seat"])
             continue
+        nc = not_checkable_reasons(r, ctx, crit)
+        if nc:
+            # T-5294: the seat's vote fails its own check (the T-5262 seat that voted red on a
+            # screenshot it never opened). Like not-evaluated: neither blocks nor counts.
+            not_evaluated.append(f"{s['seat']} ({NOT_CHECKABLE}: {'; '.join(nc)})")
+            continue
         if r.get("outcome") != GREEN:
             return f"panel-incomplete: seat {s['seat']!r} of run {run['run_id']} is {r.get('outcome')!r}", {}
         drec, _ = dispatch_record(root, str(r["dispatch_id"]))
@@ -3630,8 +3796,9 @@ def _panel_state(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> tuple[str, di
         seats = ", ".join(s for s, _ in unavailable)
         if not_evaluated:
             return (f"panel-incomplete: seat(s) {seats} of run {run['run_id']} unavailable and "
-                    f"seat(s) {', '.join(not_evaluated)} not-evaluated — a green-degraded close "
-                    f"needs every missing seat UNAVAILABLE, never a not-evaluated"), {}
+                    f"seat(s) {', '.join(not_evaluated)} not-evaluated or not-checkable — a "
+                    f"green-degraded close needs every missing seat UNAVAILABLE, never a "
+                    f"not-evaluated"), {}
         cls = ctx.classify(crit)
         if cls.delegation_class != REVIEWER_JUDGES:
             return (f"panel-incomplete: seat(s) {seats} of run {run['run_id']} unavailable — a "
@@ -3645,10 +3812,10 @@ def _panel_state(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> tuple[str, di
     if not_evaluated:
         if len(run["seats"]) < 2:
             return (f"not-evaluated: the only seat of run {run['run_id']} did not evaluate this "
-                    f"criterion — reassign it to a seat kind that can"), {}
+                    f"criterion ({', '.join(not_evaluated)}) — reassign it to a seat kind that can"), {}
         if evaluating < MIN_EVALUATING_SEATS or len(vendors) < MIN_EVALUATING_SEATS:
             return (f"not-evaluated: seat(s) {', '.join(not_evaluated)} of run {run['run_id']} did "
-                    f"not evaluate this criterion; {evaluating} seat(s) across {len(vendors)} "
+                    f"not evaluate this criterion (or their vote is not checkable); {evaluating} seat(s) across {len(vendors)} "
                     f"vendor(s) did, and a panel closes only on at least {MIN_EVALUATING_SEATS} "
                     f"evaluating seats of distinct vendors — reassign the criterion to another "
                     f"seat kind, then the operator"), {}
@@ -3673,7 +3840,7 @@ def _task_ctx(root: Path, task_id: str) -> _Ctx | None:
 def record(task_id: str, ac_index: int, outcome: str, *, reviewer: str, rung: str,
            guidance: str = "", evidence: list[str] | None = None,
            digest: str = "", dispatch_id: str = "", run_id: str = "",
-           root: Path | None = None) -> dict:
+           root: Path | None = None, structured: dict | None = None) -> dict:
     """Append a verdict for Human criterion `ac_index` of `task_id`, or raise VerdictRefused.
 
     Every refusal is written to the refusal ledger before it is raised. `digest` is what the
@@ -3714,6 +3881,25 @@ def record(task_id: str, ac_index: int, outcome: str, *, reviewer: str, rung: st
                f"dispatch {dispatch_id!r} was briefed on Human AC#{', AC#'.join(map(str, sorted(named)))}"
                f", not AC#{ac_index} — record the Human AC number from the criterion heading, "
                f"not the criterion's position in the brief")
+
+    # T-5292: a dispatch whose brief asked for verdict/1 records only a structured vote. A harness
+    # seat's vote was parsed by the runtime (`structured`); a self-recording seat's is read from
+    # its own evidence report AC<N>-*.md. A brief without the marker keeps the old path.
+    if verdict_format.brief_format(_brief_text(drec)) == verdict_format.FORMAT and structured is None:
+        reps = [e for e in evidence
+                if re.fullmatch(rf"{re.escape(str(REPORT_DIR))}/{re.escape(task_id)}/AC{ac_index}-[^/]+\.md",
+                                e.strip().removeprefix("./"))]
+        if len(reps) != 1:
+            refuse("verdict-format", f"the brief asked for a {verdict_format.FORMAT} vote: cite exactly "
+                                     f"one evidence report {REPORT_DIR}/{task_id}/AC{ac_index}-<id>.md "
+                                     f"(cited: {len(reps)})")
+        structured, why = check_vote_report(root / reps[0].strip().removeprefix("./"), task=task_id, ac=ac_index,
+                                            outcome=outcome)
+        if structured is None:
+            refuse("verdict-format", why)
+    elif structured is not None and (structured.get("ac") != ac_index
+                                     or (structured.get("criterion") or {}).get("vote") != outcome):
+        refuse("verdict-format", "the structured vote names another criterion or outcome than the row")
 
     path, sub = _find_task(root, task_id)
     if path is None:
@@ -3791,6 +3977,11 @@ def record(task_id: str, ac_index: int, outcome: str, *, reviewer: str, rung: st
     }
     if run_id.strip():
         rec["run_id"] = run_id.strip()
+    if structured is not None:
+        rec["format"], rec["structured"] = verdict_format.FORMAT, structured
+        # T-5293: measure what the vote cites and record it. Never changes whether it counts
+        # (slice 3, T-5294), and a fault inside the checker never stops the recording.
+        rec["check"] = _vote_check(root, drec, structured, revision, crit.title)
     if wide is not None:
         rec["widened_by"], rec["ruling"] = wide["id"], str(wide.get("ruling") or "")
     # Not committed yet, and no completion yet: the runtime signs one when the worker exits.
@@ -4184,7 +4375,7 @@ def audit(root: Path | None = None) -> tuple[int, list[str]]:
     if not n and not led.torn and not led.faults and not led.missing \
             and not _read(APPLIED, root) and not comps_exist:
         return 0, downs + ["verdict ledger: empty or absent (path is off until a review dispatch writes rows)"]
-    out, bad, acked, voided = [], 0, 0, 0
+    out, bad, acked, voided, unchecked = [], 0, 0, 0, 0
     acks, ack_lines = _committed_acks(root)
     for ln in ack_lines:
         if ln.startswith("FAIL"):
@@ -4253,12 +4444,22 @@ def audit(root: Path | None = None) -> tuple[int, list[str]]:
             bad += 1
             out.append(f"FAIL {rid} ({task}): {f[0].replace('-', ' ')} — {f[1]}"
                        + (f" [acknowledgement not honoured: {why}]" if why else ""))
+            continue
+        nc = not_checkable_reasons(r)
+        if nc:
+            # T-5294: a valid verdict/1 row whose vote fails its own check. Not a fault (the row
+            # is what the seat said), but it never counts as green or red; say why.
+            unchecked += 1
+            out.append(f"WARN {NOT_CHECKABLE}: {rid} ({task}) AC#{r.get('ac')} {r.get('outcome')} "
+                       f"never counts — " + "; ".join(nc))
     out += downs
-    code = 2 if bad else AUDIT_WARN if acked or voided else 0
+    code = 2 if bad else AUDIT_WARN if acked or voided or unchecked else 0
     # T-4979 (ring20): the exit code is a three-way contract, so the summary names it. Exit 3 is
     # not a failure: test `rc -eq 2` for "a row does not verify".
     out.append(f"verdict ledger: {n} row(s), {bad} failure(s), {acked} acknowledged refusal(s), "
-               f"{voided} void/provisional row(s) — exit {code}: {AUDIT_EXIT_MEANING[code]}")
+               f"{voided} void/provisional row(s)"
+               + (f", {unchecked} not-checkable vote(s)" if unchecked else "")
+               + f" — exit {code}: {AUDIT_EXIT_MEANING[code]}")
     return code, out
 
 

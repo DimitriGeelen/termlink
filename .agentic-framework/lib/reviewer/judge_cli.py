@@ -59,11 +59,13 @@ if str(_HERE.parent) not in sys.path:
     sys.path.insert(0, str(_HERE.parent))
 
 from lib import dispatch_tokens  # noqa: E402
+from lib import evidence_need  # noqa: E402
 from lib import large_file_limit  # noqa: E402
 from lib import review_model_preflight  # noqa: E402
 from lib import review_policy  # noqa: E402
 from lib import task_commits  # noqa: E402
 from lib import verdict_ledger as vl  # noqa: E402
+from lib import verdict_format  # noqa: E402
 from lib.delegation import (  # noqa: E402
     OPERATOR_ONLY,
     REVIEWER_JUDGES,
@@ -76,6 +78,21 @@ sys.path.insert(0, str(_HERE.parent / "agents" / "ux-review"))
 sys.path.insert(0, str(_HERE.parent / "agents" / "context"))
 import ux_shots  # noqa: E402
 import visual_checklist  # noqa: E402
+
+
+def _fwc(args, root=None):
+    """Printed fw command, `cd <root> && <fw path> <args>` (T-5304, lib/fw_command.py)."""
+    try:
+        from lib.fw_command import user_command
+    except ImportError:
+        import os as _os
+        import sys as _sys
+        _base = _os.path.abspath(__file__)
+        for _ in range(3):
+            _base = _os.path.dirname(_base)
+        _sys.path.insert(0, _base)
+        from lib.fw_command import user_command
+    return user_command(args, root)
 
 COST_LEDGER = review_policy.COST_LEDGER
 EVIDENCE_DIR = Path(".context/working/judge-evidence")
@@ -135,22 +152,9 @@ def _load_task(task_id: str, root: Path) -> dict | None:
         return None
 
 
-# T-4978 (ring20): a criterion that describes what an app page shows ("[REVIEW] /classic SSL
-# Certificates widget shows 4 tiles ...") classifies taste or unclassified when its task does not
-# touch AEF's own web/ layout, so `render` stays False and a seat that cannot see images sat it.
-# `page` is the judge's own, wider question: does the criterion name a route of the app? It only
-# decides who may sit the criterion (vision); the ledger's render rules still key on `render`.
-_PAGE_ROUTE_RE = re.compile(r"(?<![\w/.:~-])/([a-z][\w-]*)(?:/[\w-]+)*(?![\w/.-])", re.IGNORECASE)
-_NOT_A_PAGE = {"tmp", "opt", "etc", "usr", "var", "root", "home", "dev", "proc", "bin", "srv", "mnt",
-               "api"}
-
-
-def names_page(text: str) -> bool:
-    """True when `text` names an app route (`/classic`, `/cicd/builds`) or a URL with a path.
-    Filesystem roots and /api/ endpoints are not pages; neither is a token with a file suffix."""
-    if re.search(r"https?://[\w.<>-]+(?::\d+)?/[a-z]", text, re.IGNORECASE):
-        return True
-    return any(m.group(1).lower() not in _NOT_A_PAGE for m in _PAGE_ROUTE_RE.finditer(text))
+# T-4978 (ring20) / T-5353: `names_page` (does the criterion name a route of the app?) lives in
+# lib/evidence_need.py, the one decision point the judge, the ledger and the vote checker share.
+names_page = evidence_need.names_page
 
 
 # T-5209 (T-5199 GO): a criterion whose evidence is images — an image file or a screenshot — is
@@ -164,9 +168,18 @@ def names_image(text: str) -> bool:
     return bool(_IMAGE_EVIDENCE_RE.search(text))
 
 
+# T-5352: the ONE test for "this criterion is judged on screenshots of pages" (render, or names a
+# page whatever its class). `_gather_evidence` captures the pages and gathers the Visual
+# Verification shots for exactly these, the brief lists them, and `is_image_evidence` builds on it.
+# T-5353: it lives in lib/evidence_need.py so the ledger (`_run_fault`) and the vote checker
+# (`checkable`, ATTACHED_ONLY) ask the same question; this name delegates, it does not copy.
+needs_screenshots = evidence_need.needs_screenshots
+
+
 def is_image_evidence(c: dict) -> bool:
-    """The judge's image-evidence test for a planned criterion (older dicts carry no `image`)."""
-    return bool(c.get("image") or c.get("render") or c.get("page"))
+    """The judge's image-evidence test for a planned criterion (older dicts carry no `image`):
+    screenshots of pages (`needs_screenshots`), or image files the criterion names."""
+    return bool(needs_screenshots(c) or c.get("image"))
 
 
 def _partition(task_data: dict, root: Path, task_id: str,
@@ -649,17 +662,17 @@ def _gather_evidence(root: Path, task_id: str, task_data: dict, criteria: list[d
     `captures` is the per-page result the ledger will be given: {'page', 'ok', 'sha256', 'path',
     'error'}. A page with no verified screenshot is `ok: False` whatever else was captured, so a
     partial capture is preserved rather than collapsed into a single pass/fail."""
-    needed = any(c["render"] for c in criteria)
+    screened = [c for c in criteria if needs_screenshots(c)]   # T-5352: render OR page
+    needed = bool(screened)
     ev = {"needed": needed, "pages": [], "shots": [], "error": "", "captures": [], "partial": []}
     if not needed:
         return ev
-    render = [c for c in criteria if c["render"]]
-    ev["pages"] = _pages_for(root, task_id, task_data["text"], render)
+    ev["pages"] = _pages_for(root, task_id, task_data["text"], screened)
     # T-5151: a route found only as a changed blueprint's GET route (not named by the
     # criterion) that answers a bare GET with 4xx needs a query or a body (/ask, /ask/stream,
     # /search/load-conversation): it is not a page on its own. Requiring a screenshot of it made
     # every seat return not-evaluated on T-3786. Pages the criterion names stay required.
-    named = {p for c in render for p in _criterion_pages(root, c.get("body") or "")}
+    named = {p for c in screened for p in _criterion_pages(root, c.get("body") or "")}
     ev["not_pages"] = _bare_get_refusals(_watchtower_url(root), [p for p in ev["pages"] if p not in named])
     ev["pages"] = [p for p in ev["pages"] if p not in ev["not_pages"]]
     ev["visual"] = _gather_visual(root, task_id, task_data)
@@ -910,20 +923,15 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
             "",
             "When you finish, the dispatch runtime records the verdicts you PRINT, under your own "
             "reviewer identity, with your full output as the evidence report, and signs your "
-            "completion. Only the format below is read: a criterion you do not print exactly once, "
-            "or print twice with different verdicts, gets no verdict at all.",
+            "completion. Only the vote format below is read (T-5292): print exactly ONE vote "
+            "block; a criterion whose section is missing or malformed gets no verdict at all.",
             "",
             "## Output format (printed — this IS your record)",
             "",
-            "For each criterion print, starting at the beginning of a line:",
-            "```",
-            "N. [AC] <criterion short>",
-            "VERDICT: green | amber | red | escalate | not-evaluated",
-            "WHY: <what you checked, with evidence; why a human is needed; or why you could not evaluate>",
-            "GUIDANCE: <what is needed next, mandatory for non-green>",
-            "```",
-            "N is the criterion number above (`### Criterion N`). End with: 'Summary: N green, M "
-            "amber, K red, J escalate, I not-evaluated'. A green from a run that fails or times out "
+            *verdict_format.brief_lines(task_id, [c["ac_index"] for c in criteria], printed=True),
+            "Each vote is one of: green | amber | red | escalate | not-evaluated (the same five "
+            "outcomes as above). After `===END===` you may end with: 'Summary: N green, M amber, "
+            "K red, J escalate, I not-evaluated'. A green from a run that fails or times out "
             "does not count.",
         ]
         if operator_only:
@@ -945,11 +953,16 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
         "",
         *[f"- Criterion {c['index']} → `--ac {c['ac_index']}`" for c in criteria],
         "",
-        f"1. Write your evidence report to `{REPORT_DIR}/{task_id}/AC<N>-$FW_SIDECAR_AGENT_ID.md` "
-        "(what you checked and found). Copy (`cp`) any screenshot you cite into the same directory "
-        "as `<name>-$FW_SIDECAR_AGENT_ID.png` and cite that copy. Files already in that directory "
+        f"1. Write your evidence report to `{REPORT_DIR}/{task_id}/AC<N>-$FW_SIDECAR_AGENT_ID.md`: "
+        "your vote in the verdict/1 format below (section `## AC<N>`, whose Vote is the outcome "
+        "you record), then any free notes after `===END===`. `record` reads it strictly and "
+        "refuses a report that is not a valid vote, writing the reason into it. Copy (`cp`) any screenshot you cite into the same directory "
+        "as `<name>-$FW_SIDECAR_AGENT_ID.png` and cite that copy, where `<name>` is the source "
+        "file's name unchanged (`designer@1920.png` → `designer@1920-$FW_SIDECAR_AGENT_ID.png`, "
+        "never `designer-1920-…`): your view of the source counts for the copy only under that "
+        "name (T-5353). Files already in that directory "
         "are other runs' recorded evidence: never move, rename, overwrite or delete them (T-4514).",
-        f"2. Compute the digest you read: `bin/fw reviewer verdict digest {task_id} --ac <N>`",
+        f"2. Compute the digest you read: `{_fwc('reviewer verdict digest ' + str(task_id) + ' --ac <N>')}`",
         "3. Record it (replace <N>, <OUTCOME>, <DIGEST>, <REPORT>; run it exactly as written, so "
         "the shell expands `$FW_SIDECAR_AGENT_ID`):",
         "",
@@ -969,18 +982,13 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
         "Do not edit the task file, do not tick anything, do not touch any file outside "
         f"`{REPORT_DIR}/{task_id}/` and the ledger. Never use a bypass flag.",
         "",
+        *verdict_format.brief_lines(task_id, [c["ac_index"] for c in criteria], printed=False),
         "## Output format (printed)",
         "",
-        "After recording, print for each criterion:",
-        "```",
-        "N. [AC] <criterion short>",
-        "VERDICT: green | amber | red | escalate | not-evaluated",
-        "WHY: <what you checked, with evidence; why a human is needed; or why you could not evaluate>",
-        "GUIDANCE: <what is needed next, mandatory for non-green>",
-        "```",
-        "End with: 'Summary: N green, M amber, K red, J escalate, I not-evaluated'. The printed "
-        "text is for the "
-        "operator's reading only; the ledger row is the record.",
+        "After recording, print your vote once more, as ONE block in the same format covering "
+        "every criterion above, and end with: 'Summary: N green, M amber, K red, J escalate, "
+        "I not-evaluated'. The printed text is for the operator's reading only; the ledger row "
+        "is the record.",
     ]
     if operator_only:
         lines += ["", "Not yours (operator-only, never judge): " +
@@ -1091,7 +1099,15 @@ _VERDICT_LINE = re.compile(r"^\s*(\d+)\.\s*\[[^\]]*\].*?\n\s*VERDICT:\s*([\w-]+)
 
 def _parse_printed(output: str, criteria: list[dict]) -> dict[int, str]:
     """Printed verdict per criterion `index`, for REPORTING only. Anything not exactly one
-    of the outcomes (vl.OUTCOMES) is `unknown`."""
+    of the outcomes (vl.OUTCOMES) is `unknown`. Output holding a verdict/1 block is read with the
+    strict reader (T-5292): a refused criterion is `unknown`."""
+    if verdict_format.BEGIN in (output or ""):
+        parsed, problems = verdict_format.parse_vote(
+            output, expected_acs=[c.get("ac_index", c["index"]) for c in criteria])
+        ok = verdict_format.accepted(parsed, problems)
+        return {c["index"]: (ok[c.get("ac_index", c["index"])]["criterion"]["vote"]
+                             if c.get("ac_index", c["index"]) in ok else UNKNOWN)
+                for c in criteria}
     found = {int(n): v.lower() for n, v in _VERDICT_LINE.findall(output or "")}
     return {c["index"]: (found.get(c["index"]) if found.get(c["index"]) in vl.OUTCOMES else UNKNOWN)
             for c in criteria}
@@ -1244,7 +1260,13 @@ def _collect(root: Path, task_id: str, dispatch_id: str, criteria: list[dict],
                 res.update(source="ledger-row-invalid", why="criterion gone")
             else:
                 f = vl._fault(ctx, row, crit, intro)
-                if f is None:
+                nc = vl.not_checkable_reasons(row, ctx, crit) if f is None else []
+                if f is None and nc:
+                    # T-5294: the seat's verdict/1 vote fails its own check: it counts neither
+                    # green nor red. Report what it voted and why it does not count.
+                    res.update(outcome=vl.NOT_CHECKABLE, vote=row["outcome"], not_checkable=nc,
+                               why=f"{vl.NOT_CHECKABLE}: {'; '.join(nc)}")
+                elif f is None:
                     res["outcome"] = row["outcome"]
                 else:
                     res.update(source="ledger-row-invalid", why=f"{f[0]}: {f[1]}", fault=f[0])
@@ -1271,20 +1293,26 @@ def _final(root: Path, task_id: str, judged: list[dict], dispatches: list[dict],
         seat_res = [r for d in dispatches if d.get("dispatch_id") for r in d["results"]
                     if r["ac"] == c["ac_index"]]
         # T-3986: the last seat that EVALUATED decides; not-evaluated seats only report.
-        evaluated = [r for r in seat_res if r["outcome"] != vl.NOT_EVALUATED
+        evaluated = [r for r in seat_res if r["outcome"] not in (vl.NOT_EVALUATED, vl.NOT_CHECKABLE)
                      and not (degradable and r.get("unavailable"))]
         last = (evaluated or seat_res or [{"outcome": UNKNOWN, "why": "no seat was dispatched"}])[-1]
         if last["outcome"] in _CLEARS:
             good, why = (vl.satisfying_verdict(ctx, crits[c["ac_index"]])
                          if ctx and c["ac_index"] in crits else (None, "criterion gone"))
             outcomes[c["ac_index"]] = (vl.GREEN if good else
-                                       vl.NOT_EVALUATED if why.startswith("not-evaluated") else UNKNOWN)
+                                       vl.NOT_EVALUATED if why.startswith(("not-evaluated",
+                                                                           vl.NOT_CHECKABLE))
+                                       else UNKNOWN)
             if not good:
                 whys[c["ac_index"]] = why
             elif degradable:
                 deg = vl.green_degraded_of(ctx, crits[c["ac_index"]], good)
                 if deg:
                     whys[c["ac_index"]] = f"{vl.GREEN_DEGRADED}: {deg}"
+        elif last["outcome"] == vl.NOT_CHECKABLE:
+            # T-5294: no seat gave a checkable vote: like not-evaluated, the reassignment's case.
+            outcomes[c["ac_index"]] = vl.NOT_EVALUATED
+            whys[c["ac_index"]] = last.get("why") or vl.NOT_CHECKABLE
         else:
             outcomes[c["ac_index"]] = last["outcome"]
             if last.get("why"):
@@ -1479,7 +1507,7 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
             seats=[{"seat": s["seat"], "vendor": s["vendor"],
                     "brief_sha256": vl.brief_digest(briefs[s["seat"]])} for s in seats],
             required_vendors=required,
-            pages={str(c["ac_index"]): evidence["pages"] for c in judged if c["render"]},
+            pages={str(c["ac_index"]): evidence["pages"] for c in judged if needs_screenshots(c)},
             captures=evidence["captures"], visual=evidence.get("visual"),
             inputs=imp["inputs"], reason=reason + (f"; {note}" if note else ""),
             degraded=degraded, rung_due=due, revision=revision, root=root)
@@ -1495,7 +1523,10 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
     degradable = rung >= 5 and vl.green_degraded_enabled(root)
 
     def _stops(r: dict) -> bool:
-        return r["outcome"] not in _CLEARS and not (degradable and r.get("unavailable"))
+        # T-5294: a vote that fails its own check is no verdict, so it does not stop the panel
+        # either (T-5262: one unchecked red stopped a panel the other seats were passing).
+        return (r["outcome"] not in (*_CLEARS, vl.NOT_CHECKABLE)
+                and not (degradable and r.get("unavailable")))
 
     per_seat = RUNG_COST.get(rung, 2.0) / (PANEL_SIZE if rung >= 5 else 1)
     for s in plan["dispatch"]:
@@ -1588,9 +1619,18 @@ def _flag_uncommitted(res: dict) -> None:
 
 
 def _not_evaluated_kinds(res: dict, ac: int) -> set[str]:
-    """Worker kinds whose seat in `res` returned not-evaluated for Human AC#`ac`."""
+    """Worker kinds whose seat in `res` returned not-evaluated for Human AC#`ac`, or a vote that
+    fails its own check (T-5294: not-checkable is treated like not-evaluated)."""
     return {d.get("kind", "") for d in res.get("dispatches") or [] for r in d.get("results") or []
-            if r["ac"] == ac and r["outcome"] == vl.NOT_EVALUATED and d.get("kind")}
+            if r["ac"] == ac and r["outcome"] in (vl.NOT_EVALUATED, vl.NOT_CHECKABLE) and d.get("kind")}
+
+
+def _not_checkable(res: dict, ac: int) -> dict[str, str]:
+    """{worker kind: reasons} for the seats in `res` whose verdict/1 vote for Human AC#`ac` fails
+    its own check (T-5294) — treated like not-evaluated by the reassignment."""
+    return {d["kind"]: "; ".join(r.get("not_checkable") or []) for d in res.get("dispatches") or []
+            for r in d.get("results") or []
+            if r["ac"] == ac and r["outcome"] == vl.NOT_CHECKABLE and d.get("kind")}
 
 
 def _unavailable(res: dict, ac: int) -> dict[str, str]:
@@ -1623,6 +1663,7 @@ def judge_with_reassign(task_id: str, root: Path, **kw) -> dict:
             continue
         excluded = _not_evaluated_kinds(res, ac) | set(_unavailable(res, ac))
         unavailable = _unavailable(res, ac)
+        not_checkable = _not_checkable(res, ac)
         # No kind of THIS run said not-evaluated or unavailable (the ledger's not-evaluated came
         # from an older run): an identical re-run would learn nothing, so it is not reassigned blind.
         for _ in range((MAX_UNAVAILABLE_REASSIGN if unavailable else MAX_REASSIGN) if excluded else 0):
@@ -1632,8 +1673,10 @@ def judge_with_reassign(task_id: str, root: Path, **kw) -> dict:
                     "why": sub.get("error") or (sub.get("why") or {}).get(ac, ""),
                     # the kinds that made this run necessary, and any this run lost too
                     "unavailable": {**unavailable, **_unavailable(sub, ac)}}
+            step["not_checkable"] = _not_checkable(sub, ac)
             res["reassigned"].append(step)
             unavailable.update(step["unavailable"])
+            not_checkable.update(step["not_checkable"])
             res.setdefault("dispatches", []).extend(sub.get("dispatches") or [])
             if sub.get("error"):
                 break
@@ -1653,13 +1696,15 @@ def judge_with_reassign(task_id: str, root: Path, **kw) -> dict:
         # takes the normal path instead.
         if res["outcomes"][ac] in (vl.NOT_EVALUATED, UNKNOWN):
             names = ", ".join(f"{k} ({v})" for k, v in sorted(unavailable.items()))
+            ncs = ", ".join(f"{k} ({v})" for k, v in sorted(not_checkable.items()))
             prior = res.get("why", {}).get(ac, "")
-            if prior.startswith("unavailable:"):   # already named above, from the last seat
+            if prior.startswith(("unavailable:", vl.NOT_CHECKABLE)):   # already named below
                 prior = ""
             res.setdefault("why", {})[ac] = (
                 f"OPERATOR: no seat kind could evaluate this criterion (reassigned excluding "
                 f"{', '.join(sorted(excluded)) or 'nothing'})"
                 + (f"; unavailable: {names}" if names else "")
+                + (f"; {vl.NOT_CHECKABLE}: {ncs}" if ncs else "")
                 + f" — {prior or 'no evaluating verdict'}")
     # T-4010 holds when nothing was recorded at all; a reassigned seat that recorded a verdict
     # means the panel did reach one, so the refusal no longer applies.
@@ -1708,13 +1753,17 @@ def _print_result(res: dict) -> None:
               + (f" FAILED: {d['error']}" if d.get("error") else "")
               + (f" [{d['status']}]" if d.get("status") else ""))
         for r in d["results"]:
-            print(f"  AC#{r['ac']}: {r['outcome']} ({r['source']}){' ' + r['flag'] if r.get('flag') else ''}"
+            out = (f"{vl.NOT_CHECKABLE} ({'; '.join(r['not_checkable'])}), voted {r.get('vote')}"
+                   if r.get("not_checkable") else r["outcome"])
+            print(f"  AC#{r['ac']}: {out} ({r['source']}){' ' + r['flag'] if r.get('flag') else ''}"
                   + (f" unavailable: {r['unavailable']}" if r.get("unavailable") else ""))
     for st in res.get("reassigned") or []:
         unav = ", ".join(f"{k} ({v})" for k, v in sorted((st.get("unavailable") or {}).items()))
         print(f"  reassigned AC#{st['ac']} (excluding {', '.join(st['excluded']) or 'none'}): "
               f"{st['outcome']}{' - ' + st['why'] if st['why'] else ''}"
-              + (f" [unavailable: {unav}]" if unav else ""))
+              + (f" [unavailable: {unav}]" if unav else "")
+              + "".join(f" [{vl.NOT_CHECKABLE} {k}: {v}]"
+                        for k, v in sorted((st.get("not_checkable") or {}).items())))
     for ac, why in sorted((res.get("why") or {}).items()):
         print(f"  final AC#{ac}: {res['outcomes'][ac]} - {why}")
     if res.get("no_seat_recorded"):

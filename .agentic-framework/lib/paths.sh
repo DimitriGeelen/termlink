@@ -461,26 +461,10 @@ fw_task_view_dirs() {
     done
 }
 
-# Context-aware fw command path (T-1102/T-1143)
-# Returns the right form for copy-pasteable commands shown to users:
-#   - Framework repo: bin/fw
-#   - Consumer with shim: fw
-#   - Consumer without shim: .agentic-framework/bin/fw
-_fw_cmd() {
-    if [ "$PROJECT_ROOT" = "$FRAMEWORK_ROOT" ]; then
-        echo "bin/fw"
-    elif command -v fw &>/dev/null; then
-        echo "fw"
-    else
-        echo ".agentic-framework/bin/fw"
-    fi
-}
-
-# Emit a full copy-pasteable command with cd prefix (T-609/T-1102)
-# Usage: _emit_user_command "inception decide T-XXX go"
-_emit_user_command() {
-    echo "cd $PROJECT_ROOT && $(_fw_cmd) $1"
-}
+# Printed fw command builder (T-1102/T-1143; rule T-5302, builder T-5303).
+# _fw_cmd / _fw_quote_word / _emit_user_command live in lib/fw-command.sh
+# (T-5304) so bin/fw, which cannot source this file, sources the same builder.
+source "$(dirname "${BASH_SOURCE[0]}")/fw-command.sh"
 
 # T-4406: fw_refuse_fs_root — writers refuse an empty or "/" root.
 source "$(dirname "${BASH_SOURCE[0]}")/fs-root-guard.sh"

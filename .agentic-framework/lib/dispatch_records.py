@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Local backend of the shared dispatched-worker contract, wc/0.3.3 (T-4802).
+"""Local backend of the shared dispatched-worker contract, wc/0.3.3 plus v0.3.4 T3w (T-4802, T-5312).
 
 The §6.2 dispatch-records store: one JSON record per dispatch, every write under
 an exclusive flock, crash-atomic by temp file + fsync + rename + directory fsync.
 It implements the §3 transition table (T1, T2, T3, T3b, T-RECLAIM, T4, T5, T6,
-T6b, T7a-T7d, T8), the closed fence_reject list, per-attempt fencing, the no-overlap
+T6b, T7a-T7d, T8, and the v0.3.4 withdrawal T3w), the closed fence_reject list, per-attempt fencing, the no-overlap
 rule of §4.3 and the §3.3 outcome derivation with refusal ahead of rule 1.
 
 Scope (T-4801 option A): store plus conformance adapter only. Nothing in
@@ -16,7 +16,9 @@ Not implemented, on purpose:
   running-path write), answers, waits and acks are not;
 - registry_epoch (I7): the local backend has no registry; its `lost` comes from
   a liveness probe plus absence of evidence after G (§6.3);
-- dispatch closure (v0.3.4 draft §4.7): dispatches stay open, as on the hub.
+- dispatch closure (v0.3.4 §4.7): this backend declares `closure: never` (CLOSURE), as the
+  hub does. Dispatches stay open; a close is answered with the typed refusal
+  `closure_not_supported` and changes nothing (A3, T-5321).
 
 Time, the lock clock, the liveness probe and the worker-dir evidence reader are
 all injected, so tests never sleep and never touch real processes.
@@ -44,9 +46,19 @@ CONTRACT_VERSION = "wc/0.3"
 BACKEND = "local"
 
 STATES = ("dispatched", "running", "done", "lost", "unknown")
-OUTCOMES = ("succeeded", "failed", "refused", "handback-malformed", "paused")
+OUTCOMES = ("succeeded", "failed", "refused", "handback-malformed", "paused", "withdrawn")
+#: Outcomes a consumer may count as finished work (success or failure). `paused`,
+#: `withdrawn` and any outcome this reader does not know are terminal and NOT finished
+#: work (§2 reader rule, v0.3.4).
+FINISHED_OUTCOMES = ("succeeded", "failed", "refused", "handback-malformed")
+#: Writers that may withdraw (§3.2 `submitter`: the holder of the attempt's credentials).
+#: The sweep writer never withdraws; there is no operator path in v0.3.4.
+WITHDRAW_WRITERS = ("submitter", "dispatcher", "supervisor")
 FENCE_REASONS = ("stale_attempt", "bad_nonce", "bad_credential", "stale_gen",
                  "cas_mismatch", "forbidden_transition", "done_conflict", "dispatch_closed")
+#: §2 closure declaration (v0.3.4 A3): this backend never closes a dispatch.
+CLOSURE = "never"
+CLOSURE_REFUSAL = "closure_not_supported"
 STOP_CAUSES = ("deadline_stop", "revoked", "operator_stop")
 TERMINAL = ("done", "lost")
 RANK = {"dispatched": 0, "running": 1, "unknown": 2, "lost": 3, "done": 4}
@@ -154,6 +166,21 @@ def _none(notices=0, **values):
     if values:
         out["values"] = values
     return out
+
+
+def classify_fence_reject(reason) -> dict:
+    """The §2 client rule for a `fence_reject` this client received (v0.3.4 A3, T-5321).
+
+    Every fence_reject is a typed refusal of that write and is never retried: the spec defines
+    no retry for any reason, and a reason this client does not know (one added by a later
+    revision within wc/0.3) is in particular not retryable. Never raises on the value.
+    Returns {"ok": True, "values": {"typed_refusal": <reason>, "retryable": False, "known": bool}}.
+    """
+    if isinstance(reason, dict):
+        reason = reason.get("fence_reject")
+    name = reason if isinstance(reason, str) and reason else repr(reason)
+    return {"ok": True, "notices": 0,
+            "values": {"typed_refusal": name, "retryable": False, "known": name in FENCE_REASONS}}
 
 
 class _Reject(Exception):
@@ -307,6 +334,11 @@ class Store:
         att["state"] = to
         if to != "done":
             att["outcome"] = None
+        else:
+            # §5.5: a terminal attempt closes its open questions (the answer channel itself,
+            # and so the bounce of un-acked answers, is not implemented by this backend)
+            for q in att.get("questions", []):
+                q.setdefault("closed_at", entry["ts"])
         if to in ("running", "unknown", "lost", "done"):
             att["probe"]["absent_since"] = None
 
@@ -427,6 +459,9 @@ class Store:
                 raise _Reject(_fence("stale_attempt"))
             self._check_proof(record, att, nonce=nonce, credential=credential, writer=writer, op="start",
                               gen=supervisor_gen, running_path=True, backend=backend)
+            if att["state"] == "done" and att["outcome"] == "withdrawn":
+                # CC-27: T2 lost the race to T3w through the CAS; the supervisor launches nothing
+                raise _Reject(self._log_reject(record, attempt, "cas_mismatch", writer, "start"))
             if att["state"] != "dispatched":
                 self._cas_fail(record, att, "running", writer, "start")
             self._move(att, "running", writer, "T2")
@@ -500,6 +535,54 @@ class Store:
             result = self._complete_from_state(record, att, evidence, writer, "complete")
             box["changed"] = result.get("response") != "T8"
             return result
+        return self._mutate(dispatch_id, fn)
+
+    # ── close (v0.3.4 §3.3, A3): closure: never ────────────────────────
+    closure = CLOSURE
+
+    def close(self, dispatch_id, attempt=None, *, credential=None, reason=None, writer=None) -> dict:
+        """A closure: never backend answers every close with the typed refusal
+        `closure_not_supported` (§3.3 close, A3): no lock, no read, no write, nothing appended,
+        so `closed` stays null and a later T1 is still accepted. Never a no-op success."""
+        return {"refused": CLOSURE_REFUSAL, "notices": 0}
+
+    # ── T3w: withdrawal (v0.3.4) ───────────────────────────────────────
+    def withdraw(self, dispatch_id, attempt, *, reason, actor, nonce, credential, supervisor_gen,
+                 writer="submitter", backend=None) -> dict:
+        """T3w dispatched -> done{withdrawn}: the submitter takes back an attempt that never started.
+
+        Fenced like any lifecycle write (nonce, credential, supervisor_gen, CAS on `dispatched`,
+        all under the dispatch lock). running -> cas_mismatch; done/lost/unknown ->
+        forbidden_transition, except an identical repeat of this withdrawal, which is T8."""
+        if not isinstance(reason, str) or not reason or not isinstance(actor, str) or not actor:
+            return {"error": "bad_withdraw"}
+        digest = _sha256(reason)
+
+        def fn(record, box):
+            att = self._attempt(record, attempt)
+            if att is None:
+                raise _Reject(_fence("stale_attempt"))
+            if writer not in WITHDRAW_WRITERS:
+                # the sweep writer (hub) and the worker never withdraw (§3.2)
+                raise _Reject(self._log_reject(record, attempt, "bad_credential", writer, "withdraw"))
+            self._check_proof(record, att, nonce=nonce, credential=credential, writer=writer, op="withdraw",
+                              backend=backend)
+            if supervisor_gen != att["supervisor_gen"]:
+                raise _Reject(self._log_reject(record, attempt, "stale_gen", writer, "withdraw"))
+            state = att["state"]
+            if state == "done" and att["outcome"] == "withdrawn" and att["evidence_digest"] == digest:
+                return {"ok": True, "response": "T8", "notices": 0}           # T8: nothing appended
+            if state == "running":
+                raise _Reject(self._log_reject(record, attempt, "cas_mismatch", writer, "withdraw"))
+            if state != "dispatched":                                        # done, lost, unknown
+                raise _Reject(self._log_reject(record, attempt, "forbidden_transition", writer, "withdraw"))
+            # dispatched implies the current attempt (I6: every earlier attempt is terminal)
+            self._move(att, "done", writer, "T3w", evidence_digest=digest, actor=actor, reason=reason)
+            att.update({"outcome": "withdrawn", "exit_code": None, "handback": None, "attested": False,
+                        "attested_by": None, "evidence_digest": digest,
+                        "result": {"kind": "none", "value": None, "persisted_at": None}})
+            box["changed"] = True
+            return _accepted("T3w")                                          # no operator notice
         return self._mutate(dispatch_id, fn)
 
     # ── sweep writer: T4, T6, T6b, T7a, T7c ────────────────────────────
@@ -646,7 +729,7 @@ class Store:
                 self._finish(record, att, evidence, "operator", "T7d")
                 att["history"][-1].update(log)
             else:
-                if outcome not in OUTCOMES:
+                if outcome not in OUTCOMES or outcome == "withdrawn":   # only T3w writes withdrawn
                     return {"error": "bad_resolve"}
                 self._move(att, "done", "operator", "T7d", **log)
                 att.update({"outcome": outcome, "attested": True, "attested_by": actor,
@@ -659,10 +742,14 @@ class Store:
 
     # ── consumers and reads ────────────────────────────────────────────
     def consume(self, dispatch_id, attempt, *, consumer) -> dict:
-        """An evaluation-layer consumer naming (dispatch, attempt, result): paused or attested is refused."""
+        """An evaluation-layer consumer naming (dispatch, attempt, result).
+
+        Refused: paused, attested, withdrawn, and any outcome this reader does not know
+        (§2 reader rule: terminal, never finished work)."""
         record = self.load(dispatch_id)
         att = self._attempt(record, attempt) if record else None
-        if att is None or att["state"] != "done" or att["outcome"] == "paused" or att["attested"]:
+        if att is None or att["state"] != "done" or att["outcome"] not in FINISHED_OUTCOMES \
+                or att["attested"]:
             return {"refused": "not_finished_work", "notices": 0}
         return {"ok": True, "notices": 0, "values": {"dispatch_id": dispatch_id, "attempt": attempt,
                                                      "result": att["result"]}}
@@ -685,6 +772,7 @@ class _Adapter:
 
     capabilities = {"supervisor_gen", "caller_chosen_ids"}
     equivalent_routes: set = set()
+    closure = CLOSURE
 
     def __init__(self, params: dict | None = None):
         self.params = {**DEFAULTS, **(params or {})}
@@ -875,6 +963,17 @@ class _Adapter:
                                        supervisor_gen=step.get("supervisor_gen"),
                                        backend=None if backend is None else
                                        (BACKEND if backend == "under_test" else backend))
+        if op == "withdraw":
+            return self.store.withdraw(did, n, reason=args.get("reason"), actor=args.get("actor", "submitter"),
+                                       nonce=self._sym(step.get("nonce")),
+                                       credential=self._sym(step.get("credential")),
+                                       supervisor_gen=step.get("supervisor_gen", 1),
+                                       writer=writer or "submitter")
+        if op == "close":
+            return self.store.close(did, n, credential=self._sym(step.get("credential")),
+                                    reason=args.get("reason"), writer=writer)
+        if op == "client_reject":
+            return classify_fence_reject(args.get("reason"))
         if op == "confirm_end":
             return self.store.confirm_end(did, n)
         if op == "sweep":
@@ -962,6 +1061,9 @@ class _Adapter:
                 "result_kind": (att["result"] or {}).get("kind"),
                 "evidence_digest": att["evidence_digest"],
                 "questions": len(att["questions"]), "answers": {},
+                # T-5317: who wrote the latest history entry and why (a T3w carries actor, reason)
+                "last_actor": att["history"][-1].get("actor") if att["history"] else None,
+                "last_reason": att["history"][-1].get("reason") if att["history"] else None,
             }
             for e in att["history"]:
                 if e.get("cause"):
@@ -975,7 +1077,84 @@ class _Adapter:
             "dispatch_count": len(self.store.dispatch_ids()),
             "history_causes": causes,
             "new_dispatch_retry_of": (new_rec or {}).get("retry_of_dispatch_id"),
+            # v0.3.4 §2 reader fields: closure: never, so these are always null / empty
+            "closed": (record or {}).get("closed"),
+            "dispatch_history": list((record or {}).get("dispatch_history", [])),
         }
+
+
+
+# ── T-5329: withdrawals per submitter per UTC day (read-only) ─────────
+def _submitter(record: dict, entry: dict) -> str:
+    """Submitter of a T3w: the record's dispatcher.session, else the withdraw actor, else "unknown"."""
+    session = ((record.get("dispatcher") or {}).get("session"))
+    if isinstance(session, str) and session:
+        return session
+    actor = entry.get("actor")
+    return actor if isinstance(actor, str) and actor else "unknown"
+
+
+def withdrawal_counts(root: str | Path = ".context/dispatch-records") -> dict | None:
+    """Count T3w withdrawals per (submitter, UTC day YYYY-MM-DD) in a local store (T-5329, R-043).
+
+    Read-only: does not construct a Store (its constructor creates the directory), takes
+    no lock and writes nothing. A plain read of a record file is safe because every write
+    is a whole-file rename. Returns None when the directory does not exist. Counted: every
+    history entry with transition "T3w"; an attempt whose outcome is "withdrawn" with no
+    T3w entry (a record from a writer that kept no history) counts once, dated by its last
+    history entry or the record's created_at. Unreadable records raise ValueError."""
+    import datetime
+    base = Path(root)
+    if not base.is_dir():
+        return None
+    counts: dict = {}
+
+    def day(ts):
+        return datetime.datetime.fromtimestamp(int(ts), tz=datetime.timezone.utc).strftime("%Y-%m-%d")
+
+    for path in sorted(base.glob("D-*.json")):
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"unreadable record {path.name}: {exc}") from exc
+        for att in record.get("attempts") or []:
+            history = att.get("history") or []
+            t3w = [e for e in history if e.get("transition") == "T3w"]
+            if not t3w and att.get("outcome") == "withdrawn":
+                ts = history[-1].get("ts") if history else record.get("created_at")
+                t3w = [{"ts": ts if ts is not None else 0}]
+            for entry in t3w:
+                key = (_submitter(record, entry), day(entry.get("ts") or 0))
+                counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _withdrawals_cli(argv) -> int:
+    """`withdrawals --root DIR --threshold N`: exit 0 none over, 1 some over, 2 error."""
+    import argparse
+    ap = argparse.ArgumentParser(prog="dispatch_records.py withdrawals")
+    ap.add_argument("--root", default=".context/dispatch-records")
+    ap.add_argument("--threshold", type=int, default=5)
+    try:
+        args = ap.parse_args(argv)
+        counts = withdrawal_counts(args.root)
+    except SystemExit:
+        return 2
+    except Exception as exc:                                   # noqa: BLE001 — graded by the audit
+        print(f"ERROR {exc}")
+        return 2
+    if counts is None:
+        print(f"INFO no local dispatch records at {args.root} (local backend not wired)")
+        return 0
+    over = sorted((k, n) for k, n in counts.items() if n > args.threshold)
+    for (sub, d), n in sorted(counts.items()):
+        print(f"COUNT {sub} {d} {n}")
+    for (sub, d), n in over:
+        print(f"OVER {sub} {d} {n}")
+    total = sum(counts.values())
+    print(f"withdrawals: {total} in {len(counts)} submitter-day(s), {len(over)} over {args.threshold}/day")
+    return 1 if over else 0
+
 
 
 def conformance_adapter(params: dict | None = None):
@@ -984,3 +1163,11 @@ def conformance_adapter(params: dict | None = None):
     adapter = _Adapter(params)
     atexit.register(lambda: adapter._tmp and shutil.rmtree(adapter._tmp, ignore_errors=True))
     return adapter
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "withdrawals":
+        sys.exit(_withdrawals_cli(sys.argv[2:]))
+    print("usage: dispatch_records.py withdrawals [--root DIR] [--threshold N]", file=sys.stderr)
+    sys.exit(2)

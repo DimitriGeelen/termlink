@@ -112,6 +112,35 @@ def collect(limit: int = DEFAULT_LIMIT, *, reader=strict_reader,
     return rows[:limit] if limit and limit > 0 else rows
 
 
+def inbox_lock() -> dict:
+    """T-5281: is our own inbox bound to an agent's key? One cheap hub call.
+
+    Our reads are unsigned (010's sidecar peek is not adopted), so a bind cuts
+    this project off from its mail. Returns {"state", "detail", "lines"}:
+    "bound" -> a WARN line; "unbound" -> no lines; "unknown" -> a "not checked"
+    line, never an OK.
+    """
+    state, detail = inbox.own_inbox_bound()
+    return {"state": state, "detail": detail, "lines": lock_lines(state, detail)}
+
+
+def lock_lines(state: str, detail: str) -> list[str]:
+    """The human lines for an inbox-lock state (shared by alerts and doctor)."""
+    if state == "bound":
+        return [f"WARN: our inbox is locked (bound to {detail}): AEF's reads are "
+                f"unsigned, so the hub refuses them and no mail arrives (T-5281)",
+                "  Ask the operator who bound it; unbinding (or signed reads) is "
+                "needed before mail flows again."]
+    if state == "at-risk":
+        return [f"WARN: our inbox is likely to be locked first ({detail}): AEF's reads "
+                f"are unsigned and would be refused after a bind (T-5281)",
+                "  Before anyone binds it: decide signed reads or leave reading to the "
+                "signed reader."]
+    if state == "unbound":
+        return []
+    return [f"inbox lock: not checked ({detail})"]
+
+
 def mark_seen(rows: list[dict]) -> None:
     """Record the listed messages as shown, so the prompt hook and a later
     `alerts` call do not repeat them."""

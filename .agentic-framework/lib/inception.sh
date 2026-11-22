@@ -3,6 +3,7 @@
 # Manages exploration-phase work: problem definition, assumptions, go/no-go
 
 # Ensure _fw_cmd/_emit_user_command are available (T-1143)
+declare -F _emit_user_command >/dev/null 2>&1 || source "$(dirname "${BASH_SOURCE[0]}")/fw-command.sh" 2>/dev/null || true  # printed-command builder (T-5304)
 [[ -z "${_FW_PATHS_LOADED:-}" ]] && source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/paths.sh" 2>/dev/null || true
 
 # Anchored AC / Recommendation section extraction (T-3148, sibling to
@@ -32,6 +33,13 @@ do_inception() {
         retrofit-rec|retrofit-recommendations)
             do_inception_retrofit_recommendations "$@"
             ;;
+        lifecycle)
+            # T-5227: per step count, median days in step, overdue; --overdue = the routing
+            PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/inception_lifecycle.py" "$@"
+            ;;
+        wait)
+            do_inception_wait "$@"
+            ;;
         ""|-h|--help)
             show_inception_help
             ;;
@@ -54,6 +62,12 @@ show_inception_help() {
     echo "                                    Re-record a mistaken decision, also on a"
     echo "                                    completed inception (operator-only, logged, T-4324);"
     echo "                                    defer reopens it, parked in active/ (T-4918)"
+    echo "  lifecycle [--json] [--overdue]    Inception lifecycle map (T-5227): per step the"
+    echo "                                    count, median days in step and overdue count;"
+    echo "                                    --overdue lists overdue inceptions by owner"
+    echo "  wait <T-XXX> agent|peer|operator [--revisit YYYY-MM-DD]"
+    echo "                                    Record who holds the next step (default revisit"
+    echo "                                    today + 7); stamps step_entered_at (T-5227)"
     echo "  sweep [--dry-run]                 Retroactively finalize inceptions with"
     echo "                                    recorded decisions but unchecked Human ACs"
     echo "  retrofit-rec [--apply]            T-1716 retrofit: scan active inceptions"
@@ -67,6 +81,8 @@ show_inception_help() {
     echo "                                    for decision) until every IW question is disposed (T-5226)"
     echo "  start --rationale '<reason>'      Required under \$CLAUDECODE=1 (T-1715)"
     echo "  start --i-am-human                Bypass filing-time gate (logged)"
+    echo "  start --waiting-on agent|peer|operator  Who holds the next step (default agent, T-5227)"
+    echo "  start --revisit-at YYYY-MM-DD     When it comes back (default filing date + 7)"
     echo "  decide --rationale '<reason>'     Required: explain the decision"
     echo ""
     echo -e "${BOLD}Examples:${NC}"
@@ -74,6 +90,30 @@ show_inception_help() {
     echo "    --rationale 'Why this is worth exploring (evidence)'"
     echo "  fw inception status"
     echo "  fw inception decide T-085 go --rationale 'All assumptions validated'"
+}
+
+do_inception_wait() {
+    # T-5227: set waiting_on / revisit_at / step_entered_at on an open inception.
+    local task_id="${1:-}" on="${2:-}" revisit=""
+    shift 2 2>/dev/null || true
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --revisit|--revisit-at) revisit="$2"; shift 2 ;;
+            *) echo -e "${RED}Unknown option: $1${NC}" >&2; return 1 ;;
+        esac
+    done
+    if [ -z "$task_id" ] || [ -z "$on" ]; then
+        echo "Usage: fw inception wait T-XXX agent|peer|operator [--revisit YYYY-MM-DD]" >&2
+        return 1
+    fi
+    local task_file
+    task_file=$(find_task_file "$task_id" active)
+    if [ -z "$task_file" ] || [ ! -f "$task_file" ]; then
+        echo -e "${RED}No active task $task_id${NC}" >&2
+        return 1
+    fi
+    python3 "$FRAMEWORK_ROOT/lib/inception_lifecycle.py" --set-wait "$task_file" "$on" \
+        ${revisit:+--revisit "$revisit"}
 }
 
 do_inception_start() {
@@ -92,9 +132,12 @@ do_inception_start() {
     local rationale=""
     local i_am_human=false
     local origin=""   # T-3897
+    local waiting_on="" revisit_at=""   # T-5227
     while [[ $# -gt 0 ]]; do
         case $1 in
             --owner) owner="$2"; shift 2 ;;
+            --waiting-on) waiting_on="$2"; shift 2 ;;
+            --revisit-at) revisit_at="$2"; shift 2 ;;
             --recommendation) recommendation="$2"; shift 2 ;;
             --rationale) rationale="$2"; shift 2 ;;
             --i-am-human) i_am_human=true; shift ;;
@@ -128,7 +171,7 @@ do_inception_start() {
             echo -e "(not ready for decision) until every IW question is disposed." >&2
             echo "" >&2
             echo -e "Correct invocation:" >&2
-            echo -e "  fw inception start '$name' \\" >&2
+            echo -e "  $(_emit_user_command "inception start '$name'") \\" >&2
             echo -e "    --rationale '<one-paragraph reason citing evidence>'" >&2
             echo "" >&2
             echo -e "See CLAUDE.md §Inception Discipline (T-5226)." >&2
@@ -172,7 +215,8 @@ do_inception_start() {
         --name "$name" \
         --description "Inception: $name" \
         --type inception \
-        --owner "$owner" ${origin:+--origin "$origin"} 2>&1) || rc=$?
+        --owner "$owner" ${origin:+--origin "$origin"} \
+        ${waiting_on:+--waiting-on "$waiting_on"} ${revisit_at:+--revisit-at "$revisit_at"} 2>&1) || rc=$?
 
     echo "$output"
     if [ "$rc" -ne 0 ]; then
@@ -194,10 +238,10 @@ do_inception_start() {
         echo -e "${YELLOW}Next steps:${NC}"
         echo "1. Fill in Problem Statement, Constraints, Plan, Criteria"
         echo "2. Register assumptions:"
-        echo "     fw assumption add 'Users want X' --task $task_id"
+        echo "     $(_emit_user_command "assumption add 'Users want X' --task $task_id")"
         echo "3. Conduct exploration (spikes, prototypes, research)"
         echo "4. Record decision via Watchtower:"
-        echo "     fw task review $task_id"
+        echo "     $(_emit_user_command "task review $task_id")"
     fi
 }
 
@@ -564,7 +608,7 @@ do_inception_decide() {
         echo -e "What applies instead:" >&2
         echo -e "  • Ruling belongs to an unchecked Human AC on this task:" >&2
         echo -e "      $(_emit_user_command "task review $task_id")" >&2
-        echo -e "    (human ticks the AC, then 'fw task update $task_id --status work-completed')" >&2
+        echo -e "    (human ticks the AC, then: $(_emit_user_command "task update $task_id --status work-completed"))" >&2
         echo -e "  • Ruling is a design choice worth recording:" >&2
         echo -e "      $(_emit_user_command "context add-decision --task $task_id")" >&2
         echo -e "  • The task genuinely IS an exploration — fix its frontmatter first:" >&2
@@ -915,7 +959,7 @@ EOF
     if [ "$decision" = "defer" ]; then
         echo ""
         "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --horizon later --skip-sovereignty --reason "Inception decision: DEFER — parking task" 2>&1 || \
-            echo -e "${YELLOW}Note: horizon update failed; recover with: bin/fw inception sweep${NC}" >&2
+            echo -e "${YELLOW}Note: horizon update failed; recover with: $(_emit_user_command "inception sweep")${NC}" >&2
     fi
 
     # Complete task if go or no-go (not defer)

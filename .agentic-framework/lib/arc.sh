@@ -58,9 +58,17 @@
 #   tag <slug-or-id> T-XXXX                # link task to arc (bidirectional)
 #   close <slug-or-id> [--decision "..."]  # mark closed
 #   migrate <slug> --anchor T-XXXX         # seed from related_tasks + legacy tags
+#   owner <slug-or-id> on [--wake notice|worker] | off
+#                                          # T-5251: opt the arc into the owner role
+#                                          # (journal: true + owner: block)
+#   journal <slug-or-id> tried|decided|next|outside [--field ...]
+#                                          # T-5251: append to the arc journal
+#   resume <slug-or-id>                    # T-5251: check + brief + set focus
+#   (no handover verb: resume is the takeover, T-5224 IW-3)
 #
 # Source order (PROJECT_ROOT must be set by caller — bin/fw or test harness).
 
+declare -F _emit_user_command >/dev/null 2>&1 || source "$(dirname "${BASH_SOURCE[0]}")/fw-command.sh" 2>/dev/null || true  # printed-command builder (T-5304)
 set -u
 
 PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
@@ -172,6 +180,22 @@ _arc_require_status() {
 
 _arc_path() {
     echo "${ARCS_DIR}/$1.yaml"
+}
+
+# T-5313: a standing arc (`standing: true`, e.g. the risk arc) never closes —
+# it holds mitigation tasks for as long as the project lives. close and
+# abandon refuse it for every caller; un-standing it is an edit to the arc
+# YAML, which is the operator's decision.
+_arc_refuse_standing() {
+    local id="$1" verb="$2" f
+    f="$(_arc_path "$id")"
+    if grep -qE '^standing:[[:space:]]*true[[:space:]]*(#.*)?$' "$f" 2>/dev/null; then
+        echo "Error: 'fw arc ${verb}' refused — arc '$id' is a standing arc (standing: true) and never closes (T-5313)." >&2
+        echo "       It holds mitigation tasks; finish or move those tasks instead." >&2
+        echo "       To retire it, the operator removes 'standing: true' from $(_arc_path "$id") first." >&2
+        return 1
+    fi
+    return 0
 }
 
 _arc_exists() {
@@ -423,7 +447,7 @@ arc_create() {
     if [ -z "$headline_mechanic" ]; then
         echo "Error: --headline-mechanic is required (§ACD/G-062)." >&2
         echo "  Describe the user-observable deliverable in one sentence:" >&2
-        echo "    fw arc create $id --name \"$name\" \\" >&2
+        echo "    $(_emit_user_command "arc create $id --name \"$name\"") \\" >&2
         echo "      --headline-mechanic \"<who> <does what> <observes what user-visible result>\"" >&2
         echo "  Example: \"agent dispatches a task without --model → orchestrator picks based on task_type and history → user watches the decision on /orchestrator\"" >&2
         return 2
@@ -493,7 +517,7 @@ YAML
     if [ "$start_now" = "1" ]; then
         echo "  status: in-progress (created with --start)"
     else
-        echo "  status: draft (use 'fw arc start ${id}' to begin)"
+        echo "  status: draft (use: $(_emit_user_command "arc start ${id}")  to begin)"
     fi
     return 0
 }
@@ -546,7 +570,7 @@ YAML
     _arc_validate_id "$id" || return 2
 
     if ! _arc_exists "$id"; then
-        echo "Error: arc '$id' not found. Create it with: fw arc create $id --name \"...\"" >&2
+        echo "Error: arc '$id' not found. Create it with: $(_emit_user_command "arc create $id --name \"...\"")" >&2
         return 1
     fi
 
@@ -564,7 +588,7 @@ arc_list() {
     current="$(_arc_current_focus)"
 
     if [ ! -d "$ARCS_DIR" ] || ! ls "$ARCS_DIR"/*.yaml >/dev/null 2>&1; then
-        echo "No arcs registered. Create one with: fw arc create <id> --name \"...\""
+        echo "No arcs registered. Create one with: $(_emit_user_command "arc create <id> --name \"...\"")"
         return 0
     fi
 
@@ -600,6 +624,14 @@ arc_show() {
     current="$(_arc_current_focus)"
 
     cat "$f"
+    echo ""
+    # T-5251: owner role / journal state, read the same way 'fw arc owner' writes it.
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_owner.py" state "$id" 2>/dev/null || true
+    # T-5252: today's wake count against the arc's daily wake limit (owner on only).
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_wake.py" today "$id" 2>/dev/null || true
+    # T-5253: consequential decisions waiting for approval (silent when the arc keeps no journal).
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_journal.py" pending "$id" 2>/dev/null \
+        | grep -v "no consequential decision is waiting" || true
     echo ""
     echo "─── Tasks tagged arc:${id} ───"
     local found=0
@@ -825,6 +857,7 @@ arc_close() {
     # draft → closed is REFUSED — start the arc first (or abandon it via
     # fw arc abandon, T-1854). closed/abandoned arcs cannot be re-closed.
     _arc_require_status "$id" "close" "in-progress" || return 1
+    _arc_refuse_standing "$id" "close" || return 1
 
     # T-1671 §ACD/G-062 Default-to-OPEN agent gate. Mirrors lib/inception.sh
     # do_inception_decide (T-1259/T-1260): closure decisions belong to the
@@ -876,14 +909,14 @@ arc_close() {
         echo "" >&2
         echo "  Correct flow:" >&2
         if [ -n "$anchor" ]; then
-            echo "    1. Agent: bin/fw task review ${anchor}" >&2
+            echo "    1. Agent: $(_emit_user_command "task review ${anchor}")" >&2
         else
-            echo "    1. Agent: bin/fw task review <arc-anchor-task>" >&2
+            echo "    1. Agent: $(_emit_user_command "task review <arc-anchor-task>")" >&2
         fi
         echo "    2. Human: open the Watchtower URL, review the demo evidence," >&2
-        echo "       run 'bin/fw arc close ${id} --demo <path> --decision \"...\"'" >&2
+        echo "       run '$(_emit_user_command "arc close ${id} --demo <path> --decision \"...\"")'" >&2
         echo "" >&2
-        if [ -n "$wt_url" ]; then echo "  Arc detail: ${wt_url}/arcs/${id}" >&2; else echo "  No Watchtower reachable for this project (start one with: fw serve)." >&2; fi
+        if [ -n "$wt_url" ]; then echo "  Arc detail: ${wt_url}/arcs/${id}" >&2; else echo "  No Watchtower reachable for this project (start one with: $(_emit_user_command "serve"))." >&2; fi
         echo "" >&2
         echo "  Overrides (mirror T-1259 inception-decide): --i-am-human (human typing" >&2
         echo "  into an agent session, rare); --from-watchtower (Flask backend)." >&2
@@ -914,10 +947,10 @@ arc_close() {
     if [ -z "$demo" ]; then
         echo "Error: --demo is required to close an arc (§ACD/G-062)." >&2
         echo "  Provide wire-level evidence the headline mechanic fired:" >&2
-        echo "    fw arc close $id --demo <path-to-meta.json|stream-json|screencast> --decision \"...\"" >&2
-        echo "    fw arc close $id --demo <https://watchtower-url-showing-mechanic-state> --decision \"...\"" >&2
+        echo "    $(_emit_user_command "arc close $id --demo <path-to-meta.json|stream-json|screencast> --decision \"...\"")" >&2
+        echo "    $(_emit_user_command "arc close $id --demo <https://watchtower-url-showing-mechanic-state> --decision \"...\"")" >&2
         echo "  Or — if this arc has no runtime mechanic — bypass with explicit justification:" >&2
-        echo "    fw arc close $id --demo none --justification \"<≥30 chars explaining why no demo applies>\" --decision \"...\"" >&2
+        echo "    $(_emit_user_command "arc close $id --demo none --justification \"<≥30 chars explaining why no demo applies>\" --decision \"...\"")" >&2
         if grep -q "^headline_mechanic:" "$f" 2>/dev/null; then
             echo "  Headline mechanic for this arc:" >&2
             grep "^headline_mechanic:" "$f" | sed 's/^/    /' >&2
@@ -1002,6 +1035,7 @@ arc_abandon() {
     # T-1852 state-machine guard: draft and in-progress can be abandoned.
     # closed and abandoned arcs cannot be re-abandoned.
     _arc_require_status "$id" "abandon" "draft" "in-progress" || return 1
+    _arc_refuse_standing "$id" "abandon" || return 1
 
     # T-1671 §ACD/G-062 Default-to-OPEN agent gate. Abandonment is a closure
     # decision — same authority weight as arc_close + inception decide. Mirror
@@ -1024,14 +1058,14 @@ arc_abandon() {
         echo "" >&2
         echo "  Correct flow:" >&2
         if [ -n "$anchor" ]; then
-            echo "    1. Agent: bin/fw task review ${anchor}" >&2
+            echo "    1. Agent: $(_emit_user_command "task review ${anchor}")" >&2
         else
-            echo "    1. Agent: bin/fw task review <arc-anchor-task>" >&2
+            echo "    1. Agent: $(_emit_user_command "task review <arc-anchor-task>")" >&2
         fi
         echo "    2. Human: open the Watchtower URL, review the reasoning," >&2
-        echo "       run 'bin/fw arc abandon ${id} --reason \"...\"'" >&2
+        echo "       run '$(_emit_user_command "arc abandon ${id} --reason \"...\"")'" >&2
         echo "" >&2
-        if [ -n "$wt_url" ]; then echo "  Arc detail: ${wt_url}/arcs/${id}" >&2; else echo "  No Watchtower reachable for this project (start one with: fw serve)." >&2; fi
+        if [ -n "$wt_url" ]; then echo "  Arc detail: ${wt_url}/arcs/${id}" >&2; else echo "  No Watchtower reachable for this project (start one with: $(_emit_user_command "serve"))." >&2; fi
         echo "" >&2
         echo "  Overrides (mirror T-1259 inception-decide): --i-am-human (human typing" >&2
         echo "  into an agent session, rare); --from-watchtower (Flask backend)." >&2
@@ -1044,7 +1078,7 @@ arc_abandon() {
         echo "Error: --reason \"<≥30 chars>\" is required." >&2
         echo "  Abandonment is a final-state event — capture WHY in enough detail" >&2
         echo "  that a reader 6 months from now can understand the call:" >&2
-        echo "    fw arc abandon $id --reason \"<detailed rationale, ≥30 chars>\"" >&2
+        echo "    $(_emit_user_command "arc abandon $id --reason \"<detailed rationale, ≥30 chars>\"")" >&2
         return 2
     fi
 
@@ -1104,7 +1138,7 @@ arc_migrate() {
     done
     [ -n "$id" ] || { echo "Usage: fw arc migrate <arc-id> --anchor T-XXXX" >&2; return 2; }
     _arc_validate_id "$id" || return 2
-    _arc_exists "$id" || { echo "Error: arc '$id' not found — create first with 'fw arc create'" >&2; return 1; }
+    _arc_exists "$id" || { echo "Error: arc '$id' not found — create first with: $(_emit_user_command "arc create <id>")" >&2; return 1; }
 
     local seeded=0
     # 1. Pull anchor's related_tasks.
@@ -1210,6 +1244,34 @@ Verbs:
                             Legacy verb: seed constituent_tasks from anchor's
                             related_tasks and legacy from-T-XXXX tags (idempotent).
                             T-1851: prefer task-side arc_id: + 'fw arc tag'.
+  owner <id> on [--wake notice|worker] [--decision-review operator|reviewer|either] | off
+                            T-5251: switch the arc's owner role on (journal: true
+                            plus an owner: block; wake defaults to notice) or off
+                            (journal: false; the journal file is kept). Other YAML
+                            fields and comments are left as they were.
+  journal <id> tried|decided|next|outside [fields]
+                            T-5251: append one journal entry (lib/arc_journal.py).
+                            tried: --text --result | decided: --text --reason
+                            [--consequential] | next: --step --owner [--deadline
+                            YYYY-MM-DD] | outside: --text --reason --where.
+                            Any kind: --task T-XXXX, --by WHO (default: this
+                            agent/session id). Refused unless 'fw arc owner <id> on'.
+  approve <id> <entry-id> --words "<operator's words>"
+                            T-5253: approve a consequential journal decision
+                            (J-<n>, or J@<line> for an older row). Operator-only:
+                            refused under \$CLAUDECODE=1 unless --i-am-human (logged).
+                            Reviewer route: --dispatch-id <review dispatch> --outcome
+                            green, accepted only when the arc's decision_review is
+                            reviewer|either and the dispatch is a signed review
+                            dispatch. Until approved, the arc is not resumable.
+  resume <id>               T-5251: take over an arc. Runs the resumability check,
+                            prints the brief (findings, latest decisions, next step
+                            with owner and deadline, open member tasks), sets arc
+                            focus, and task focus when the next step names an active
+                            task. Exit 0 resumable, 1 not. There is no handover verb.
+  wake-sweep                T-5252: wake the owner of every opted-in arc whose
+                            latest next-step deadline has passed (once per
+                            deadline; daily per-arc wake limit). Run by cron.
 
 Examples:
   fw arc create orchestrator-rethink --name "Orchestrator routing rethink" --anchor T-1641 \\
@@ -1288,7 +1350,7 @@ arc_demo_check() {
         http://*|https://*)
             echo "indeterminate: demo_evidence is a URL ($demo)." >&2
             echo "  Validating it needs the network, which this check does not use." >&2
-            echo "  Verify at close time: bin/fw arc close $id --demo '$demo'" >&2
+            echo "  Verify at close time: $(_emit_user_command "arc close $id --demo '$demo'")" >&2
             return 2 ;;
     esac
 
@@ -1421,7 +1483,7 @@ arc_review() {
             echo "    **Recommendation:** CLOSE | KEEP-OPEN" >&2
             echo "    **Rationale:** why — what shipped, what remains" >&2
             echo "    **Evidence:** the demo (docs/reports/... or URL) and the checks behind it" >&2
-            echo "  Bypass (logged Tier-2): FW_ALLOW_EMPTY_RECOMMENDATION=1 fw arc review $id" >&2
+            echo "  Bypass (logged Tier-2): cd $(_fw_quote_word "$PROJECT_ROOT") && FW_ALLOW_EMPTY_RECOMMENDATION=1 $(_fw_cmd) arc review $id" >&2
             return 1
         fi
     fi
@@ -1468,6 +1530,141 @@ except ImportError:
     echo ""
 }
 
+# ─── T-5251 (T-5224 slice 2): owner opt-in, journal, resume ────────────────
+# The owner role is opt-in per arc (T-5224 IW-3). The logic lives in
+# lib/arc_owner.py (YAML edit, brief) and lib/arc_journal.py (journal, check);
+# these verbs are thin wrappers so the CLI and any Python caller agree.
+
+# Who writes a journal entry when --by is not given: the sidecar/agent id the
+# session runs under, else the session id, else "agent".
+_arc_journal_author() {
+    if [ -n "${FW_SIDECAR_AGENT_ID:-}" ]; then printf '%s' "$FW_SIDECAR_AGENT_ID"; return; fi
+    if [ -n "${FW_AGENT_ID:-}" ]; then printf '%s' "$FW_AGENT_ID"; return; fi
+    local sf="${PROJECT_ROOT}/.context/working/session.yaml" sid=""
+    [ -f "$sf" ] && sid=$(awk '/^session_id:/ {print $2; exit}' "$sf" | tr -d '"'"'"'')
+    printf '%s' "${sid:-agent}"
+}
+
+arc_owner() {
+    local id="${1:-}" mode="${2:-}"
+    if [ -z "$id" ] || [ -z "$mode" ] || [ "$id" = "--help" ] || [ "$id" = "-h" ]; then
+        echo "Usage: fw arc owner <arc-id> on [--wake notice|worker] [--decision-review operator|reviewer|either] | off" >&2
+        return 2
+    fi
+    shift 2
+    case "$mode" in
+        on|off) ;;
+        *) echo "Error: fw arc owner: mode must be 'on' or 'off', got '$mode'" >&2; return 2;;
+    esac
+    local wake="" review=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --wake) wake="${2:-}"; shift 2 || { echo "Error: --wake needs notice|worker" >&2; return 2; };;
+            --wake=*) wake="${1#--wake=}"; shift;;
+            --decision-review) review="${2:-}"; shift 2 || { echo "Error: --decision-review needs operator|reviewer|either" >&2; return 2; };;
+            --decision-review=*) review="${1#--decision-review=}"; shift;;
+            *) echo "Error: fw arc owner: unknown argument '$1'" >&2; return 2;;
+        esac
+    done
+    id="$(_arc_normalize_input "$id")"
+    _arc_exists "$id" || { echo "Error: arc '$id' not found" >&2; return 1; }
+    local args=(set "$id" "$mode")
+    [ -n "$wake" ] && args+=(--wake "$wake")
+    [ -n "$review" ] && args+=(--decision-review "$review")   # T-5253
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_owner.py" "${args[@]}"
+}
+
+arc_journal() {
+    local id="${1:-}" kind="${2:-}"
+    if [ -z "$id" ] || [ -z "$kind" ] || [ "$id" = "--help" ] || [ "$id" = "-h" ]; then
+        echo "Usage: fw arc journal <arc-id> tried|decided|next|outside [--text ..] [--result ..]" >&2
+        echo "         [--reason ..] [--step ..] [--owner ..] [--deadline YYYY-MM-DD] [--where ..]" >&2
+        echo "         [--task T-XXXX] [--consequential] [--category skip-step|accept-failed-check|defer|change-scope|other] [--by WHO]" >&2
+        return 2
+    fi
+    shift 2
+    case "$kind" in
+        tried|decided|next|outside) ;;
+        event) echo "Error: 'event' entries are written by update-task.sh on status changes, not by hand." >&2; return 2;;
+        *) echo "Error: fw arc journal: kind must be tried|decided|next|outside, got '$kind'" >&2; return 2;;
+    esac
+    id="$(_arc_normalize_input "$id")"
+    _arc_exists "$id" || { echo "Error: arc '$id' not found" >&2; return 1; }
+    local enabled
+    enabled=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_owner.py" state "$id" --json 2>/dev/null \
+        | python3 -c 'import json,sys; print("1" if json.load(sys.stdin).get("journal") else "0")' 2>/dev/null)
+    if [ "$enabled" != "1" ]; then
+        echo "Error: arc '$id' is not switched on for the owner role, so it keeps no journal." >&2
+        echo "       Switch it on first: $(_emit_user_command "arc owner $id on")" >&2
+        return 1
+    fi
+    local by="" args=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --by) by="${2:-}"; shift 2 || { echo "Error: --by needs a value" >&2; return 2; };;
+            --by=*) by="${1#--by=}"; shift;;
+            *) args+=("$1"); shift;;
+        esac
+    done
+    [ -n "$by" ] || by="$(_arc_journal_author)"
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_journal.py" append "$id" "$kind" --by "$by" "${args[@]}"
+}
+
+arc_resume() {
+    local id="${1:-}"
+    if [ -z "$id" ] || [ "$id" = "--help" ] || [ "$id" = "-h" ]; then
+        echo "Usage: fw arc resume <arc-id>" >&2
+        return 2
+    fi
+    id="$(_arc_normalize_input "$id")"
+    _arc_exists "$id" || { echo "Error: arc '$id' not found" >&2; return 1; }
+    local json rc
+    json=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_owner.py" brief "$id" --json)
+    rc=$?
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+        return "$rc"
+    fi
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_owner.py" brief "$id" || true
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_wake.py" today "$id" 2>/dev/null || true  # T-5252
+    echo ""
+    arc_focus "$id" || return 2
+    local focus_task
+    focus_task=$(printf '%s' "$json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("focus_task") or "")')
+    if [ -n "$focus_task" ] && [ "$rc" -ne 0 ]; then
+        # T-5251: a stale next step is worse than none (1409's load test sent
+        # fresh agents to the wrong step). Only a resumable arc moves task focus.
+        echo "Task focus NOT moved to ${focus_task}: the arc is not resumable — fix the journal first (fw arc journal ${id} decided|next ...) or get each consequential decision listed above approved (fw arc approve, T-5253), then run fw arc resume ${id} again"
+    elif [ -n "$focus_task" ]; then
+        if PROJECT_ROOT="$PROJECT_ROOT" "${_ARC_FW_ROOT}/agents/context/context.sh" focus "$focus_task" >/dev/null 2>&1; then
+            echo "Task focus → ${focus_task} (named by the latest next step)"
+        else
+            echo "Warning: could not set task focus to ${focus_task}; run: $(_emit_user_command "context focus ${focus_task}")" >&2
+        fi
+    fi
+    return "$rc"
+}
+
+# ─── T-5253 (T-5224 slice 4): approval of consequential decisions ──────────
+# The operator route is operator-only: lib/arc_journal.py refuses it under
+# $CLAUDECODE=1 unless --i-am-human (logged to .gate-bypass-log.yaml), the same
+# shape as `fw inception decide` (T-1259). The reviewer route is evidence-based:
+# a signed review dispatch from the review-dispatch registry with outcome green,
+# and only on arcs whose owner.decision_review is reviewer or either.
+arc_approve() {
+    local id="${1:-}" ref="${2:-}"
+    if [ -z "$id" ] || [ -z "$ref" ] || [ "$id" = "--help" ] || [ "$id" = "-h" ]; then
+        echo "Usage: fw arc approve <arc-id> <entry-id> --words \"<operator's words>\" [--i-am-human]" >&2
+        echo "       $(_emit_user_command "arc approve <arc-id> <entry-id> --dispatch-id <review dispatch> --outcome green")" >&2
+        echo "  Operator route: operator-only (refused under agent control)." >&2
+        echo "  Reviewer route: only when the arc's owner.decision_review is reviewer or either." >&2
+        return 2
+    fi
+    shift 2
+    id="$(_arc_normalize_input "$id")"
+    _arc_exists "$id" || { echo "Error: arc '$id' not found" >&2; return 1; }
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_journal.py" approve "$id" "$ref" "$@"
+}
+
 arc_dispatch() {
     local verb="${1:-help}"
     shift || true
@@ -1491,6 +1688,11 @@ arc_dispatch() {
         set-scoped-weight) arc_set_scoped_weight "$@";; # T-1977 (arc-006)
         show-suggestions) arc_show_suggestions "$@";;   # T-1926 (arc-006)
         rescore)          arc_rescore          "$@";;   # T-2076 (T-2065 GO): re-estimate member BVP
+        owner)            arc_owner            "$@";;   # T-5251 (T-5224 slice 2)
+        journal)          arc_journal          "$@";;   # T-5251
+        resume)           arc_resume           "$@";;   # T-5251
+        approve)          arc_approve          "$@";;   # T-5253 (T-5224 slice 4)
+        wake-sweep)       PROJECT_ROOT="$PROJECT_ROOT" python3 "${_ARC_LIB_DIR}/arc_wake.py" sweep "$@";;  # T-5252 (cron)
         help|--help|-h) arc_help;;
         *) echo "Unknown verb: $verb" >&2; arc_help; return 2;;
     esac
@@ -1626,7 +1828,7 @@ PY
     if [ -n "$existing_ts" ]; then
         echo "Error: driver '$name' already in scoped_drivers (approved at $existing_ts)." >&2
         echo "  To re-approve with a different weight, first remove it:" >&2
-        echo "    fw arc remove-driver $id \"$name\" --rationale \"<≥30 chars why>\"" >&2
+        echo "    $(_emit_user_command "arc remove-driver $id \"$name\" --rationale \"<≥30 chars why>\"")" >&2
         return 1
     fi
 
@@ -1691,7 +1893,7 @@ for r in d.get("reviewed") or []:
 PYREPORT
             echo "" >&2
             echo "  Re-run the review after fixing it:" >&2
-            echo "    fw arc review-driver $id \"$name\" --dry-run" >&2
+            echo "    $(_emit_user_command "arc review-driver $id \"$name\" --dry-run")" >&2
             echo "" >&2
             echo "  Overrides (the operator-approval path, now the exception — T-3429/D-586):" >&2
             echo "    --i-am-human       human typing into an agent session" >&2
@@ -1791,7 +1993,7 @@ PY
     # weight immediately. Failure surfaces a WARN but does NOT roll back the
     # approval — sovereignty boundary is the approval, not the rescore.
     if ! arc_rescore "$id"; then
-        echo "  WARN: rescore reported a failure (driver approval stands). Re-run: fw arc rescore $id" >&2
+        echo "  WARN: rescore reported a failure (driver approval stands). Re-run: $(_emit_user_command "arc rescore $id")" >&2
     fi
     return 0
 }
@@ -2022,7 +2224,7 @@ else:
         if [ "$_wrev_rc" -ne 0 ]; then
             echo "Error: scoped driver '$name' did not pass review — weight unchanged." >&2
             echo "  A weight change is a calibration change; the reviewer gates it (D-586 pattern)." >&2
-            echo "  Preview the verdict: fw arc review-driver $id \"$name\" --dry-run" >&2
+            echo "  Preview the verdict: $(_emit_user_command "arc review-driver $id \"$name\" --dry-run")" >&2
             echo "  Override as yourself: --i-am-human / --from-watchtower" >&2
             return 1
         fi
@@ -2711,7 +2913,7 @@ arc_instantiate() {
             rm -f "$(_arc_path "$slug")"
             echo "Error: no task was created; arc '$slug' removed again (${gone_id:-its id} stays retired)" >&2
         else
-            echo "Error: some tasks of arc '$slug' were not created; see fw task id reconcile" >&2
+            echo "Error: some tasks of arc '$slug' were not created; see: $(_emit_user_command "task id reconcile")" >&2
         fi
         return "$rc"
     fi

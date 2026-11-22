@@ -263,7 +263,7 @@ CRONEOF
                         echo "  Source: $CRON_SOURCE (in sync)"
                     fi
                 else
-                    echo "  ⚠ No project source file — run 'fw audit schedule install' to generate"
+                    echo "  ⚠ No project source file — run: $(_emit_user_command "audit schedule install")  to generate"
                 fi
 
                 echo ""
@@ -283,9 +283,9 @@ CRONEOF
                 echo "Cron schedule: NOT INSTALLED"
                 if [ -f "$CRON_SOURCE" ]; then
                     echo "  Project source exists: $CRON_SOURCE"
-                    echo "  Install with: fw audit schedule install"
+                    echo "  Install with: $(_emit_user_command "audit schedule install")"
                 else
-                    echo "  Install with: fw audit schedule install"
+                    echo "  Install with: $(_emit_user_command "audit schedule install")"
                 fi
             fi
             ;;
@@ -1930,6 +1930,9 @@ for d in ('active', 'completed'):
         status_val=$(awk -F': ' '/^status:/ {sub(/^status:[[:space:]]*/, ""); print; exit}' "$af" \
                      | tr -d ' "' | head -c 32)
         [ "$status_val" = "in-progress" ] || continue
+        # T-5313: a standing arc (standing: true, e.g. the risk arc) never closes
+        # and is quiet between mitigation tasks by design — not stale.
+        grep -qE '^standing:[[:space:]]*true[[:space:]]*(#.*)?$' "$af" && continue
 
         arc_numeric=$(awk -F': ' '/^id:/ {sub(/^id:[[:space:]]*/, ""); print; exit}' "$af" \
                       | tr -d ' "' | head -c 32)
@@ -3305,6 +3308,8 @@ _audit_collect() {
 }
 [ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ] && \
     _audit_prefetch vl env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" audit
+[ -f "$FRAMEWORK_ROOT/lib/codex_render_backing.py" ] && \
+    _audit_prefetch crb env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/codex_render_backing.py" audit
 [ -f "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" ] && \
     _audit_prefetch hat env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" audit
 [ -f "$FRAMEWORK_ROOT/lib/accepted_miss.py" ] && \
@@ -3349,6 +3354,57 @@ else
     fail "Reviewer-verdict ledger: lib/verdict_ledger.py is missing — the ledger is UNVERIFIED" \
          "verdict validation code unavailable" \
          "Restore it: bin/fw vendor self (or fw upgrade)"
+fi
+
+# T-5341 (Risk R-NEW-3): codex can vote green on a render criterion without opening the
+# screenshots; in a rung-5 panel attached-only proof still counts. Each committed codex render
+# green must have a peer seat in the same run, on the same criterion, that voted green with a
+# logged view of the images (vote_checker's rule). Read-only, WARN-only, starts no dispatch.
+if [ -f "$FRAMEWORK_ROOT/lib/codex_render_backing.py" ]; then
+    _audit_collect crb
+    _crb_out=$_PF_OUT
+    _crb_rc=$_PF_RC
+    if [ "$_crb_rc" -eq 0 ]; then
+        pass "Codex render greens: $(echo "$_crb_out" | tail -1 | sed 's/^codex render greens: //') — every counted one backed by a viewing peer (T-5341)"
+    elif [ "$_crb_rc" -eq 1 ]; then
+        _crb_n=$(echo "$_crb_out" | grep -c '^UNBACKED' || true)
+        warn "Codex render greens: ${_crb_n} not backed by a viewing peer — $(echo "$_crb_out" | tail -1) (T-5341)" \
+             "$(echo "$_crb_out" | grep '^UNBACKED' | sed 's/^UNBACKED //' | tr '\n' ';')" \
+             "Re-judge each named task with a seat that logs a view: bin/fw reviewer judge T-XXX"
+    else
+        warn "Codex render greens: not checked (rc=$_crb_rc) (T-5341)" \
+             "$(echo "$_crb_out" | tail -2 | tr '\n' ';')" \
+             "Run: python3 lib/codex_render_backing.py audit"
+    fi
+else
+    warn "Codex render greens: not checked — lib/codex_render_backing.py is missing (T-5341)" \
+         "backing check code unavailable" \
+         "Restore it: bin/fw vendor self (or fw upgrade)"
+fi
+
+# T-5329 (Risk R-043): a T3w withdrawal raises no operator notice, so a cleanup loop or a
+# batch withdraw can end wanted jobs, visible only in record history. Count withdrawals per
+# submitter per UTC day in AEF's local dispatch-records store and WARN above the threshold.
+# Read-only, never FAILs. Live withdrawals happen on TermLink's hub; this reads the local store.
+if [ -f "$FRAMEWORK_ROOT/lib/dispatch_records.py" ]; then
+    _wd_thr="$(fw_config WITHDRAWALS_WARN_PER_DAY 5 2>/dev/null)"
+    case "$_wd_thr" in ''|*[!0-9]*) _wd_thr=5 ;; esac
+    _wd_rc=0
+    _wd_out=$(python3 "$FRAMEWORK_ROOT/lib/dispatch_records.py" withdrawals \
+        --root "$PROJECT_ROOT/.context/dispatch-records" --threshold "$_wd_thr" 2>&1) || _wd_rc=$?
+    if [ "$_wd_rc" -eq 0 ] && echo "$_wd_out" | grep -q '^INFO '; then
+        info "Withdrawals per submitter/day: no local dispatch records (local backend not wired) (T-5329)"
+    elif [ "$_wd_rc" -eq 0 ]; then
+        pass "Withdrawals per submitter/day: $(echo "$_wd_out" | tail -1 | sed 's/^withdrawals: //') (T-5329)"
+    elif [ "$_wd_rc" -eq 1 ]; then
+        warn "Withdrawals per submitter/day: $(echo "$_wd_out" | grep -c '^OVER') submitter-day(s) over ${_wd_thr} — $(echo "$_wd_out" | grep '^OVER' | sed 's/^OVER //' | paste -sd ';' -) (T-5329)" \
+             "T3w raises no operator notice; a burst may be a cleanup loop ending wanted jobs" \
+             "Inspect: python3 lib/dispatch_records.py withdrawals --root .context/dispatch-records --threshold ${_wd_thr}"
+    else
+        warn "Withdrawals per submitter/day: not checked (rc=$_wd_rc) (T-5329)" \
+             "$(echo "$_wd_out" | tail -2 | tr '\n' ';')" \
+             "Run: python3 lib/dispatch_records.py withdrawals --root .context/dispatch-records"
+    fi
 fi
 
 # T-3695: the PreToolUse Human-AC tick guard is a TEXT gate (Write|Edit diffed, Bash shell
@@ -4335,7 +4391,11 @@ PY
     # graded on its own (fields 19-21: fallback state, graded-run label, note).
     local _us_prepush=0
     _audit_is_prepush_scope && _us_prepush=1
-    _parsed=$(python3 - "$_report" "$_baseline" "${PROJECT_ROOT:-}" "$_us_prepush" <<'PYEOF' 2>/dev/null
+    # T-5342: argv[5] = files that passed at this pre-push (check_prepush_range_tests);
+    # their reds in the graded report are stale and do not count for this push.
+    local _us_passed=""
+    [ "$_us_prepush" = 1 ] && [ "${FW_UNIT_SUITE_KIND:-unit}" = unit ] && _us_passed="${_FW_RANGE_PASSED:-}"
+    _parsed=$(python3 - "$_report" "$_baseline" "${PROJECT_ROOT:-}" "$_us_prepush" "$_us_passed" <<'PYEOF' 2>/dev/null
 import sys, os, glob, yaml, datetime
 def _incomplete(r):
     # T-3794: why a run is no basis for a pre-push grade ("" = complete enough).
@@ -4401,6 +4461,32 @@ try:
             break
         if fb_state == "missing":
             fb_note += "; no complete run on record (LAST-COMPLETE.yaml or a dated report in %s)" % rdir
+    # T-5342: drop reds whose file passed at this pre-push, in the graded run
+    # and in LATEST (whose recorded reds are otherwise merged in above).
+    passed_now = set(x for x in (sys.argv[5] if len(sys.argv) > 5 else "").split(",") if x)
+    cleared, cleared_files = 0, set()
+    def _red_file(leg, n):
+        n = str(n)
+        if leg == "bats":
+            return n.split(": ", 1)[0]
+        return os.path.basename(n.split("::", 1)[0].split(": ", 1)[0])
+    if passed_now:
+        for rep_ in ([d] if d is latest else [d, latest]):
+            for g in ("bats", "pytest"):
+                lg = (rep_.get("legs") or {}).get(g) or {}
+                keep = []
+                for n in lg.get("failed") or []:
+                    if _red_file(g, n) in passed_now:
+                        if rep_ is d:
+                            cleared += 1
+                            cleared_files.add(_red_file(g, n))
+                    else:
+                        keep.append(n)
+                if "failed" in lg:
+                    lg["failed"], lg["failed_count"] = keep, len(keep)
+        if cleared and not any(((d.get("legs") or {}).get(g) or {}).get("failed") for g in ("bats", "pytest")) \
+                and not any(((d.get("legs") or {}).get(g) or {}).get("error") for g in ("bats", "pytest")):
+            d["runner_exit"] = 0
     # T-4875: reds whose file passed its one retry in the graded run. A red the
     # (incomplete) LATEST recorded again is not a flake: it failed twice.
     flaky = set()
@@ -4505,14 +4591,16 @@ try:
         fd = os.path.join(os.path.dirname(sys.argv[1]), fd)
         if root and fd.startswith(root + "/"):
             fd = fd[len(root) + 1:]
-    print("%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%s|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%d|%s" % (
+    rcommit = str((d.get("revision") or {}).get("commit") or "") if isinstance(d.get("revision"), dict) else ""
+    print("%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%s|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%s|%s" % (
         total, failed, rc, age_h, to, tos,
         "; ".join(shown).replace("|", "/"), ran,
         ", ".join(ftimed).replace("|", "/"), partial,
         bl_state, n_base, len(new), len(expired), _bound(new), _bound(expired),
         sd.replace("|", "/"), fd.replace("|", "/"),
         fb_state, fb_label.replace("|", "/"), fb_note.replace("|", "/"),
-        len(flaked), _bound(flaked)))
+        len(flaked), _bound(flaked), cleared, ", ".join(sorted(cleared_files)).replace("|", "/"),
+        rcommit))
 except Exception:
     pass
 PYEOF
@@ -4528,11 +4616,29 @@ PYEOF
     local _us_total _us_failed _us_rc _us_age _us_timedout _us_timeout_s _us_names
     local _us_ran _us_ftimed _us_partial
     local _us_bl _us_nbase _us_nnew _us_nexp _us_new _us_exp _us_dir _us_fdir
-    local _us_fb _us_fblabel _us_fbnote _us_nflaky _us_flaky
+    local _us_fb _us_fblabel _us_fbnote _us_nflaky _us_flaky _us_ncleared _us_cleared _us_commit
     IFS='|' read -r _us_total _us_failed _us_rc _us_age _us_timedout _us_timeout_s _us_names \
         _us_ran _us_ftimed _us_partial _us_bl _us_nbase _us_nnew _us_nexp _us_new _us_exp _us_dir _us_fdir \
-        _us_fb _us_fblabel _us_fbnote _us_nflaky _us_flaky <<< "$_parsed"
+        _us_fb _us_fblabel _us_fbnote _us_nflaky _us_flaky _us_ncleared _us_cleared _us_commit <<< "$_parsed"
     local _us_label="$_us_name${_us_dir:+ ($_us_dir)}"
+    # T-5342 (G-138 option b): at pre-push with a known range, every line names
+    # the graded report's commit and how many pushed commits are newer than it.
+    if [ "$_us_prepush" = 1 ] && [ "${FW_UNIT_SUITE_KIND:-unit}" = unit ] && [ -n "${_FW_RANGE_SPEC:-}" ]; then
+        local _us_newer=0 _us_r _us_c _us_stale
+        if [ -n "$_us_commit" ] && git -C "$PROJECT_ROOT" cat-file -e "${_us_commit}^{commit}" 2>/dev/null; then
+            for _us_r in $_FW_RANGE_SPEC; do
+                _us_c=$(git -C "$PROJECT_ROOT" rev-list --count "$_us_r" "^$_us_commit" 2>/dev/null) || _us_c=0
+                _us_newer=$(( _us_newer + ${_us_c:-0} ))
+            done
+            _us_stale="report commit ${_us_commit:0:9}, ${_us_newer} pushed commit(s) newer than it"
+        else
+            _us_stale="report commit ${_us_commit:-unknown}${_us_commit:+ (not in this repo)}, pushed commits newer than it: unknown"
+        fi
+        _us_label="$_us_label [$_us_stale]"
+    fi
+    if [ "${_us_ncleared:-0}" -gt 0 ]; then
+        info "$_us_label: ${_us_ncleared} stale red(s) not counted for this push — their file(s) passed at pre-push: ${_us_cleared} (T-5342)"
+    fi
 
     # T-3794: pre-push, incomplete LATEST, nothing complete to grade instead.
     # WARN would let the push through on a run that measured almost nothing.
@@ -4640,6 +4746,104 @@ PYEOF
          "report parsed but recorded zero tests across both legs — a harness error, not a green corpus (T-3302)" \
          "Run manually and read the output: $_us_rerun"
 }
+
+# T-5342 (G-138): at pre-push, RUN the unit test files the pushed range touches.
+# The ratchet above grades the last nightly report and runs nothing, so commits
+# made after it pushed with their tests never run (2026-11-20: 12 reds, one a
+# real regression), and a stale red then blocked the fix's push. Selection and
+# runner: agents/audit/unit_suite_range.py. The range comes from the pre-push
+# hook (FW_PUSH_RANGE, space-separated A..B); an older installed hook passes
+# none, so it falls back to @{upstream}..HEAD — except inside a test harness,
+# where an audit run must not start running the real suite. Budget:
+# PREPUSH_RANGE_TEST_BUDGET seconds (0 = off; the runner sets 0 in every test it
+# starts, so a test that runs the pre-push audit cannot recurse).
+# Sets _FW_RANGE_SPEC and _FW_RANGE_PASSED for check_unit_suite_report.
+_FW_RANGE_SPEC="" _FW_RANGE_PASSED=""
+check_prepush_range_tests() {
+    _audit_is_prepush_scope || return 0
+    local _rt_budget _rt_range="${FW_PUSH_RANGE:-}" _rt_src="pushed range (pre-push hook)"
+    _rt_budget="$(fw_config PREPUSH_RANGE_TEST_BUDGET 120 2>/dev/null)"
+    [[ "$_rt_budget" =~ ^[0-9]+$ ]] || _rt_budget=120
+    if [ "$_rt_budget" -eq 0 ]; then
+        info "Range unit tests off at pre-push (PREPUSH_RANGE_TEST_BUDGET=0) (T-5342)"
+        return 0
+    fi
+    if [ -z "$_rt_range" ]; then
+        if [ -n "${BATS_TEST_FILENAME:-}${PYTEST_CURRENT_TEST:-}" ]; then
+            info "Range unit tests not run — no FW_PUSH_RANGE, and inside a test harness (T-5342)"
+            return 0
+        fi
+        _rt_range="@{upstream}..HEAD"
+        _rt_src="fallback @{upstream}..HEAD — the installed pre-push hook passed no FW_PUSH_RANGE (fw git install-hooks updates it)"
+    fi
+    local _rt_suite="${FW_UNIT_SUITE_DIR:-$PROJECT_ROOT/tests/unit}"
+    if [ ! -d "$_rt_suite" ]; then
+        info "Range unit tests: no suite directory at $_rt_suite (T-5342)"
+        return 0
+    fi
+    _FW_RANGE_SPEC="$_rt_range"
+    local _rt_out _rt_args=() _r
+    _rt_out=$(mktemp -t fw-rangetest-XXXXXX.json 2>/dev/null) || {
+        warn "Range unit tests NOT RUN — mktemp failed (T-5342)" "No result file could be created" "Check TMPDIR, re-push"
+        return 0
+    }
+    for _r in $_rt_range; do _rt_args+=(--range "$_r"); done
+    local _rt_t0=$SECONDS
+    python3 "$FRAMEWORK_ROOT/agents/audit/unit_suite_range.py" run --root "$PROJECT_ROOT" \
+        --suite-dir "$_rt_suite" --budget "$_rt_budget" \
+        --file-timeout "${FW_UNIT_SUITE_FILE_TIMEOUT:-900}" "${_rt_args[@]}" --out "$_rt_out" \
+        < /dev/null 2>/dev/null
+    local _rt_secs=$(( SECONDS - _rt_t0 ))
+    local _rt_bl="${FW_UNIT_SUITE_BASELINE:-$CONTEXT_DIR/audits/unit-suite/baseline.yaml}"
+    local _g
+    _g=$(python3 "$FRAMEWORK_ROOT/agents/audit/unit_suite_range.py" grade --result "$_rt_out" --baseline "$_rt_bl" 2>/dev/null)
+    rm -f "$_rt_out"
+    local _st _nsel _nran _npass _nnew _new _nbase _base _nfl _fl _nun _un _ncut _cut _err _passed _nchg _blok
+    IFS='|' read -r _st _nsel _nran _npass _nnew _new _nbase _base _nfl _fl _nun _un _ncut _cut _err _passed _nchg _blok <<< "$_g"
+    if [ -z "$_g" ] || [ "${_st:-}" = error ]; then
+        warn "Range unit tests NOT RUN — ${_err:-the selector produced no result} (T-5342)" \
+             "Range: $_rt_range ($_rt_src). The pushed commits' tests are unmeasured, not green" \
+             "Run by hand: python3 agents/audit/unit_suite_range.py run --range '$_rt_range'"
+        return 0
+    fi
+    local _rt_head="Range unit tests ($_rt_range: $_nchg changed file(s), $_nsel test file(s) selected, ${_rt_secs}s, budget ${_rt_budget}s)"
+    local _rt_cutnote=""
+    [ "${_ncut:-0}" -gt 0 ] && _rt_cutnote=" $_ncut more matched over the cap and were not selected: $_cut."
+    if [ "${_nsel:-0}" -eq 0 ]; then
+        info "$_rt_head — no unit test file is changed by or names a file changed in the range (T-5342)"
+        return 0
+    fi
+    _FW_RANGE_PASSED="$_passed"
+    if [ "${_nnew:-0}" -gt 0 ]; then
+        fail "$_rt_head: ${_nnew} red(s) not in the ratchet baseline — graded like a NEW red (T-5342)" \
+             "Measured on the working tree at push. Red: $_new.${_rt_cutnote}" \
+             "Fix the red before pushing, or file a task for it (one bug = one task); re-run one file: bats <file> / python3 -m pytest <file>"
+    fi
+    if [ "${_nfl:-0}" -gt 0 ]; then
+        warn "$_rt_head: ${_nfl} red(s) passed on the one retry — suspected flaky (T-5342, T-4875)" \
+             "Suspected flaky: $_fl" "Investigate each (T-4866); file a task per flaky test"
+    fi
+    if [ "${_nbase:-0}" -gt 0 ]; then
+        warn "$_rt_head: ${_nbase} BASELINED red(s) still red (T-5342, T-3621)" \
+             "Baselined: $_base" "Fix them via their owning tasks (owner: in the baseline)"
+    fi
+    if [ "${_nun:-0}" -gt 0 ]; then
+        warn "$_rt_head: ${_nun} selected file(s) NOT RUN or not finished within the budget (T-5342)" \
+             "Not determined, not green: $_un.${_rt_cutnote}" \
+             "Run them by hand before relying on this push, or raise PREPUSH_RANGE_TEST_BUDGET (bin/fw config set PREPUSH_RANGE_TEST_BUDGET <seconds>)"
+    fi
+    if [ "${_nnew:-0}" -eq 0 ] && [ "${_nfl:-0}" -eq 0 ] && [ "${_nbase:-0}" -eq 0 ] && [ "${_nun:-0}" -eq 0 ]; then
+        if [ "${_ncut:-0}" -gt 0 ]; then
+            warn "$_rt_head: all $_npass selected green, but $_ncut matching file(s) were over the cap and not run (T-5342)" \
+                 "Partial coverage, not green:${_rt_cutnote}" \
+                 "Push in smaller ranges, or run the cut files by hand before relying on this push"
+        else
+            pass "$_rt_head: all $_npass green (T-5342)"
+        fi
+    fi
+    return 0
+}
+check_prepush_range_tests
 check_unit_suite_report
 
 # T-4634: tests/integration ran in no gate — not at commit, not at pre-push, not
@@ -4862,6 +5066,32 @@ check_vec_index_ignored() {
          "Run: fw upgrade (adds the rules to .context/working/.gitignore); if tracked: git rm --cached .context/working/fw-vec-index.db (T-3861)"
 }
 check_vec_index_ignored
+
+# T-5271: the fleet cockpit's /drop page writes operator files (possibly
+# sensitive) into .context/inbox/files/. A project that does not ignore the path,
+# or already tracks a file under it, can publish a dropped file. WARN, never FAIL.
+check_inbox_files_ignored() {
+    [ -f "$FRAMEWORK_ROOT/lib/inbox-files-gitignore.sh" ] || return 0
+    # shellcheck source=/dev/null
+    source "$FRAMEWORK_ROOT/lib/inbox-files-gitignore.sh"
+    local _out _tr _first
+    if _out=$(fw_inbox_files_problems "$PROJECT_ROOT"); then
+        return 0
+    fi
+    if grep -qx 'not-ignored' <<<"$_out"; then
+        warn "Dropped files can be committed: .context/inbox/files/ is not gitignored" \
+             "git check-ignore --no-index .context/inbox/files/x finds no rule" \
+             "Run: fw upgrade (adds /inbox/files/ to .context/.gitignore) (T-5271)"
+    fi
+    _tr=$(sed -n 's/^tracked //p' <<<"$_out")
+    if [ -n "$_tr" ]; then
+        _first=$(head -1 <<<"$_tr")
+        warn "Dropped files TRACKED by git: $(grep -c . <<<"$_tr") under .context/inbox/files/" \
+             "First: $_first" \
+             "Untrack without deleting: git rm --cached $(printf '%q' "$_first") (and each other path from: git ls-files .context/inbox/files) (T-5271)"
+    fi
+}
+check_inbox_files_ignored
 
 # T-2680 (T-2679 Slice 1). A grep that pins a YAML key at an exact indent, or a
 # `grep -c` on a .context/ store whose failure is folded into 0, reads "none"
@@ -6231,6 +6461,30 @@ if [ -f "$FRAMEWORK_ROOT/lib/approval_queue_age.py" ]; then
     fi
 fi
 
+# T-5259 (T-4649 slice 0): project extensions. Every modification of the framework
+# in a project is the project operator's recorded decision (.framework-extensions.yaml).
+# INFO lists the register; WARN: a registered path that does not exist, a
+# .fwvendor-preserve.yaml entry with no decision behind it, a vendored file the
+# vendor stamp shows locally modified with no decision. Silent with nothing to say.
+# FAIL (T-5262): a csrf-exemption refused or missing at Watchtower startup, or
+# whose proving test file does not exist.
+if [ -f "$FRAMEWORK_ROOT/lib/extensions.py" ]; then
+    _ext_rows=$(python3 "$FRAMEWORK_ROOT/lib/extensions.py" --project "$PROJECT_ROOT" audit 2>&1) && _ext_rc=0 || _ext_rc=$?
+    if [ "$_ext_rc" -ne 0 ]; then
+        warn "Project extensions check could not run" \
+             "lib/extensions.py audit exited $_ext_rc: $(printf '%s' "$_ext_rows" | head -1)" \
+             "Run: python3 lib/extensions.py --project . audit"
+    elif [ -n "$_ext_rows" ]; then
+        while IFS=$'\t' read -r _ext_lvl _ext_title _ext_ev _ext_mit; do
+            case "$_ext_lvl" in
+                INFO) info "$_ext_title" ;;
+                WARN) warn "$_ext_title" "$_ext_ev" "$_ext_mit" ;;
+                FAIL) fail "$_ext_title" "$_ext_ev" "$_ext_mit" ;;  # T-5262: csrf-exemption
+            esac
+        done <<< "$_ext_rows"
+    fi
+fi
+
 echo ""
 fi # end enforcement
 
@@ -6656,6 +6910,34 @@ PYEOF
     else
         pass "Gaps register: no gaps being watched"
     fi
+
+    # T-5313: risk entries (type: risk) — validate the scoring fields and the
+    # mitigation rule (any score >= 6 on an assessed open risk needs a
+    # mitigation_task in the standing arc 'risk'). lib/risk_register.py.
+    _rr_py="$FRAMEWORK_ROOT/lib/risk_register.py"
+    if [ -f "$_rr_py" ]; then
+        _rr_rc=0
+        _rr_out=$(python3 "$_rr_py" --path "$GAPS_FILE" --root "$PROJECT_ROOT" 2>&1) || _rr_rc=$?
+        _rr_errs=$(grep '^ERROR ' <<<"$_rr_out" || true)
+        _rr_warns=$(grep '^WARN  ' <<<"$_rr_out" || true)
+        _rr_sum=$(tail -1 <<<"$_rr_out")
+        if [ "$_rr_rc" -ne 0 ]; then
+            [ -n "$_rr_errs" ] && echo "$_rr_errs" | sed 's/^/    /'
+            fail "Risk register invalid: $_rr_sum" \
+                 "Risk entries in concerns.yaml carry out-of-range scores, unknown actors or wrong arithmetic" \
+                 "Fix the entries listed above (python3 lib/risk_register.py; template .tasks/templates/risk-matrix.md)"
+        elif [ -n "$_rr_warns" ]; then
+            echo "$_rr_warns" | sed 's/^/    /'
+            # T-5314: one block, three kinds of WARN line from risk_register.py —
+            # score >= 6 with no mitigation_task; mitigation_task not found;
+            # mitigation_task not in the standing arc 'risk'.
+            warn "Risk register: mitigation rule not met (see lines above)" \
+                 "Each risk at score >= 6 needs a mitigation_task, and that task must exist in the standing arc 'risk'" \
+                 "No mitigation_task: file one with arc_id: risk and set mitigation_task: on the risk. Not found: correct the id or file the task. Not in the arc: set arc_id: risk on that task"
+        else
+            pass "Risk register: $_rr_sum"
+        fi
+    fi
 else
     echo -e "  ${CYAN}SKIP${NC}  No concerns register (.context/project/concerns.yaml)"
 fi
@@ -6962,6 +7244,36 @@ if command -v inception_handoff_blockers >/dev/null 2>&1; then
     fi
 fi
 unset _c6b_f _c6b_kind _c6b_id
+
+# C-006c (T-5227): the daily inception routing. An inception whose revisit date has
+# passed on a step someone owns is listed under that owner: agent (handover next
+# actions), peer (a reminder the agent sends), operator (fw operator pending and the
+# approvals page). One reader: lib/inception_lifecycle.py overdue_by_owner.
+_c6c_out=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/inception_lifecycle.py" \
+    --overdue 2>/dev/null) || _c6c_out="__error__"
+if [ "$_c6c_out" = "__error__" ]; then
+    warn "C-006c: inception lifecycle check could not run" \
+         "lib/inception_lifecycle.py --overdue failed" \
+         "Run: bin/fw inception lifecycle --overdue"
+elif [ -n "$_c6c_out" ]; then
+    for _c6c_owner in agent peer operator; do
+        _c6c_n=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/inception_lifecycle.py" \
+            --overdue --json --owner "$_c6c_owner" 2>/dev/null \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); print(sum(len(v) for v in d.values()))' 2>/dev/null || echo 0)
+        [ "${_c6c_n:-0}" -gt 0 ] || continue
+        case "$_c6c_owner" in
+            agent)    _c6c_route="handover next actions" ;;
+            peer)     _c6c_route="the agent reminds the peer (fw sidecar send)" ;;
+            operator) _c6c_route="fw operator pending and the approvals page" ;;
+        esac
+        warn "C-006c: $_c6c_n overdue inception(s) waiting on the $_c6c_owner" \
+             "Revisit date passed (T-5227); routed to: $_c6c_route" \
+             "List them: bin/fw inception lifecycle --overdue --owner $_c6c_owner"
+    done
+else
+    pass "C-006c: No inception is past its revisit date"
+fi
+unset _c6c_out _c6c_owner _c6c_n _c6c_route
 
 echo ""
 fi # end oe-research
@@ -7301,6 +7613,13 @@ for _rid in $_ctl013_recheck; do
         case " $recent_completed " in *" $_rf "*) ;; *) recent_completed="$recent_completed $_rf" ;; esac
     done
 done
+# T-5268: append-only history, one row per line run or skipped, so an unattended
+# run can be matched to an incident later (.context/audits/verify-queue/history.jsonl,
+# shared with verify-queue). Never fails the audit.
+_ctl013_history() {  # task line outcome reason
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/unattended_verification.py" history \
+        --runner ctl-013 --task "$1" --line "$2" --outcome "$3" --reason "$4" >/dev/null 2>&1 || true
+}
 for task_file in $recent_completed; do
     [ -f "$task_file" ] || continue
     task_id=$({ grep "^id:" "$task_file" 2>/dev/null || true; } | head -1 | sed 's/id: //' | tr -d ' ')
@@ -7343,15 +7662,24 @@ for task_file in $recent_completed; do
         cmd_fail=0
         cmd_skipped=0
         cmd_isolated_pass=0
+        _skip_reasons=()
         for cmd in "${verify_cmds[@]}"; do
-            # T-1870/L-391: a verification line that invokes `bin/fw audit`
-            # (or `fw audit`) cannot run during CTL-013 — we're already inside
-            # the audit lock, so the nested call exits "Another audit is
-            # already running" and any downstream grep fails. Skip rather
-            # than report a false positive. Safe pattern in such tasks:
-            # grep the most recent saved audit YAML instead.
-            if echo "$cmd" | grep -qE '(\bbin/)?fw +audit\b'; then
+            # T-5268: one predicate decides, for both unattended rails (this one
+            # and verify-queue / CTL-013b), whether a stored line may run outside
+            # its close: lib/unattended_verification.py. It refuses a nested-audit
+            # invocation (`fw audit`, T-1870/L-391 — we hold the audit lock, so the nested
+            # call always fails), destructive and outward-facing lines, HTTP
+            # writes, process control (kill/pkill/systemctl stop, 0506 P25), and
+            # any line the author marked `# needs: fixture`. A skip is counted
+            # as skipped, never as a pass. If the predicate cannot run, the line
+            # is skipped too (fail closed: this runs unattended on a live host).
+            _uv_rc=0
+            _uv_why=$(python3 "$FRAMEWORK_ROOT/lib/unattended_verification.py" check "$cmd" 2>/dev/null) || _uv_rc=$?
+            if [ "$_uv_rc" -ne 0 ]; then
+                [ "$_uv_rc" -eq 3 ] || _uv_why="unattended-run predicate unavailable (rc=$_uv_rc)"
                 cmd_skipped=$((cmd_skipped + 1))
+                _skip_reasons+=("$_uv_why")
+                _ctl013_history "$task_id" "$cmd" skipped "$_uv_why"
                 continue
             fi
             if [ -n "${FW_AUDIT_VERIFY_DEBUG:-}" ]; then
@@ -7379,6 +7707,11 @@ for task_file in $recent_completed; do
                     # parent-shell coupling); brace-group sidesteps it.
                     _eval_rc=0
                     { eval "$cmd"; } >"$_aud_out" 2>&1 || _eval_rc=$?
+                fi
+                if [ "$_eval_rc" -eq 0 ]; then
+                    _ctl013_history "$task_id" "$cmd" pass ""
+                else
+                    _ctl013_history "$task_id" "$cmd" fail "rc=$_eval_rc"
                 fi
                 if [ "$_eval_rc" -eq 0 ]; then
                     cmd_pass=$((cmd_pass + 1))
@@ -7412,8 +7745,10 @@ for task_file in $recent_completed; do
                     fi
                 fi
                 if [ "$_eval_rc" -eq 0 ]; then
+                    _ctl013_history "$task_id" "$cmd" pass ""
                     cmd_pass=$((cmd_pass + 1))
                 else
+                    _ctl013_history "$task_id" "$cmd" fail "rc=$_eval_rc"
                     cmd_fail=$((cmd_fail + 1))
                     # T-1395: FW_AUDIT_VERIFY_DEBUG=1 dumps captured output (T-1475).
                 fi
@@ -7421,14 +7756,25 @@ for task_file in $recent_completed; do
         done
         if [ "$cmd_fail" -eq 0 ]; then
             _notes=""
-            [ "$cmd_skipped" -gt 0 ] && _notes="${_notes}${_notes:+, }$cmd_skipped skipped — nested-audit invocation"
+            if [ "$cmd_skipped" -gt 0 ]; then
+                # One note per distinct reason, with its count (T-5268).
+                _skip_summary=$(printf '%s\n' "${_skip_reasons[@]}" | sort | uniq -c | \
+                    awk '{n=$1; $1=""; sub(/^ /,""); printf "%s%s skipped — %s", (NR>1?", ":""), n, $0}')
+                _notes="${_notes}${_notes:+, }${_skip_summary}"
+            fi
             [ "$cmd_isolated_pass" -gt 0 ] && _notes="${_notes}${_notes:+, }$cmd_isolated_pass passed only in isolation — OBS-022 bats env-contam"
-            if [ -n "$_notes" ]; then
+            if [ "$cmd_pass" -eq 0 ] && [ "$cmd_skipped" -gt 0 ]; then
+                # T-5268: nothing ran, so nothing was verified. A skip that reads as a
+                # PASS is the vacuous-green class (verify_queue.py UNSAFE note).
+                info "CTL-013: $task_id not re-run unattended — every line skipped ($_notes)"
+                _ctl013_results+=("$task_id SKIPPED")
+            elif [ -n "$_notes" ]; then
                 pass "CTL-013: $task_id verification re-run: $cmd_pass/$((cmd_pass + cmd_fail)) pass ($_notes)"
+                _ctl013_results+=("$task_id PASS")
             else
                 pass "CTL-013: $task_id verification re-run: $cmd_pass/$((cmd_pass + cmd_fail)) pass"
+                _ctl013_results+=("$task_id PASS")
             fi
-            _ctl013_results+=("$task_id PASS")
         else
             warn "CTL-013: $task_id verification re-run: $cmd_fail command(s) failing" \
                  "Verification commands that passed at completion now fail" \
@@ -7499,6 +7845,15 @@ except Exception: print(-1)" 2>/dev/null || echo -1)
     vq_checked=$(echo "$vq_json" | python3 -c "import json,sys
 try: print(json.load(sys.stdin).get('checked', 0))
 except Exception: print(0)" 2>/dev/null || echo 0)
+    # T-5268: name each line the shared predicate refused (INFO, never a pass).
+    while IFS= read -r _vq_skip; do
+        [ -n "$_vq_skip" ] && info "CTL-013b: $_vq_skip"
+    done < <(echo "$vq_json" | python3 -c "import json,sys
+try: d=json.load(sys.stdin)
+except Exception: sys.exit(0)
+for r in d.get('results', []):
+    for s in r.get('skips', []):
+        print(f\"{r['task']} line skipped ({s['why']}): {s['line'][:100]}\")" 2>/dev/null || true)
     if [ "$vq_red" = "-1" ]; then
         info "CTL-013b: review-queue verification re-run produced no verdict (skipped)"
     elif [ "$vq_red" = "0" ]; then
@@ -9709,7 +10064,7 @@ else
         done
         echo ""
         echo -e "${CYAN}Consider creating a practice to address these recurring issues.${NC}"
-        echo "Run: fw context add-learning \"description\" --task T-XXX"
+        echo "Run: $(_emit_user_command "context add-learning \"description\" --task T-XXX")"
     else
         echo -e "${GREEN}No repeated issues in last ${TREND_WINDOW_DAYS} days (across ${#past_audits[@]} audits).${NC}"
     fi

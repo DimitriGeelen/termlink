@@ -890,17 +890,17 @@ Not all improvement comes from failures. When you notice a practice repeating ad
 The `fw` command is the single entry point for all framework operations. It resolves paths, sets environment variables, and routes to agents.
 
 ```bash
-fw help              # Show all commands
-fw version           # Show version and paths
-fw doctor            # Check framework health
-fw audit             # Run compliance audit
-fw context init      # Initialize session
-fw git commit -m "T-XXX: description"
-fw handover --commit # Generate and commit handover
-fw task create --name "Fix bug" --type build --owner human
+.agentic-framework/bin/fw help              # Show all commands
+.agentic-framework/bin/fw version           # Show version and paths
+.agentic-framework/bin/fw doctor            # Check framework health
+.agentic-framework/bin/fw audit             # Run compliance audit
+.agentic-framework/bin/fw context init      # Initialize session
+.agentic-framework/bin/fw git commit -m "T-XXX: description"
+.agentic-framework/bin/fw handover --commit # Generate and commit handover
+.agentic-framework/bin/fw task create --name "Fix bug" --type build --owner human
 ```
 
-**Path resolution:** in this project the launcher is `.agentic-framework/bin/fw` (the vendored copy — there is no `bin/fw` at the project root). It finds the framework via its own location and `.framework.yaml` in the project root.
+**Path resolution:** in this project the launcher is `.agentic-framework/bin/fw` (the vendored copy — there is no `bin/fw` at the project root). It finds the framework via its own location and `.framework.yaml` in the project root. The code blocks in this file use that launcher. Where a sentence only names a command (`fw task update`), that is shorthand for it: a command you run or print is `cd <absolute project root> && .agentic-framework/bin/fw <args>`, never bare `fw` (T-5302 — the framework's own output prints the same form).
 
 ## Agents
 
@@ -928,13 +928,13 @@ The framework includes agents for common operations. Each agent has a bash scrip
 
 ```bash
 # Change status (auto-triggers healing if issues)
-fw task update T-015 --status issues --reason "API timeout"
+.agentic-framework/bin/fw task update T-015 --status issues --reason "API timeout"
 
 # Complete a task (auto: date_finished, move to completed/, generate episodic)
-fw task update T-015 --status work-completed
+.agentic-framework/bin/fw task update T-015 --status work-completed
 
 # Change owner
-fw task update T-015 --owner human
+.agentic-framework/bin/fw task update T-015 --owner human
 ```
 
 ### Audit Agent
@@ -1140,6 +1140,7 @@ Each component has a YAML card in `.fabric/components/` with: id, name, type, su
 - Amber: propose only small, bounded tasks and small workers; commit first
 - Red: propose only wrap-up actions (commit, learnings, handover); spawn none
 - Stop: handover immediately, no new work
+- **A stop or handover recommendation names the live band and free tokens.** In Green and Amber, a long session, many tasks closed, or "the next session starts clean" is not a reason to stop: propose the next valuable work. A recommendation made before a compaction is stale; re-derive it from `checkpoint.sh budget` (T-5347). An account or subscription usage notice (weekly or 5-hour limit, "94% used") is a different limit: report it to the operator with the figure and reset time, and do not stop or hand over on it yourself (T-5349).
 - The bands are one ladder from the spawn reserve R, not fixed percentages: at the 800K default they sit at 650K / 700K / 750K used (Amber / Red / Stop); at 975K, 825K / 875K / 925K. Absolute token counts move with `FW_CONTEXT_WINDOW` and must not be written down as if fixed.
 - **This applies especially in autonomous mode** — without a human to catch the mistake, proposing work that can't complete in remaining context risks losing all uncommitted work
 
@@ -1208,17 +1209,17 @@ The result ledger formalizes the "write to disk, return path + summary" conventi
 
 ```bash
 # Sub-agent posts result (instead of returning full content)
-fw bus post --task T-XXX --agent explore --summary "Found 3 issues" --result "inline data"
-fw bus post --task T-XXX --agent code --summary "Wrote file" --blob /path/to/output
+.agentic-framework/bin/fw bus post --task T-XXX --agent explore --summary "Found 3 issues" --result "inline data"
+.agentic-framework/bin/fw bus post --task T-XXX --agent code --summary "Wrote file" --blob /path/to/output
 
 # Orchestrator reads manifest (5 lines instead of 25KB)
-fw bus manifest T-XXX
+.agentic-framework/bin/fw bus manifest T-XXX
 
 # Orchestrator reads specific result if needed
-fw bus read T-XXX R-001
+.agentic-framework/bin/fw bus read T-XXX R-001
 
 # Cleanup after task completion
-fw bus clear T-XXX
+.agentic-framework/bin/fw bus clear T-XXX
 ```
 
 **Size gating:** Payloads < 2KB are inline. Payloads >= 2KB are auto-moved to `.context/bus/blobs/` and referenced.
@@ -1309,7 +1310,7 @@ When giving the human a command to run (Tier 0 approvals, inception decisions, v
 
 1. **Single-line, copy-pasteable** — works when pasted into any terminal, from any directory
 2. **Prefixed with `cd`** — always include `cd /path/to/project &&` so directory context is explicit
-3. **Use `.agentic-framework/bin/fw` not `fw`** — the global `fw` may resolve to a different install, and this project has no `bin/fw` at its root (that path exists only in the framework repo)
+3. **Use `.agentic-framework/bin/fw` not `fw`** — every printed command is `cd <absolute project root> && .agentic-framework/bin/fw <args>` (T-5302). The `fw` on PATH is not the project router on every host or in every worker's PATH, and this project has no `bin/fw` at its root (that path exists only in the framework repo)
 4. **No bare multi-line** — if multiple commands are needed, chain with `&&` on one line
 
 ### Inception Discipline
@@ -1434,6 +1435,19 @@ After fixing any problem discovered by the human (not found during development):
 4. **Do not close the gap until prevention exists** — mitigation (cleaned up the mess) is not prevention (can't happen again). Ask: "Did I fix the symptom, or did I fix the reason the framework couldn't detect it?"
 
 **Trigger:** Human corrects the agent's escalation level, or agent discovers a problem that existed undetected for >7 days.
+
+### Risk Assessment for Trust-Boundary Changes (T-5313)
+Risks live in `.context/project/concerns.yaml` as `type: risk` entries. A change that **alters a trust boundary** needs a risk matrix before it ships:
+- a **new sandbox** or isolation boundary;
+- a **new credential use** (a token, key or login used by something new, or in a new place);
+- a **new network path** (a new route to a host, hub, API or the internet, or a new listener);
+- **new unattended automation** (a cron job, hook, daemon or worker acting without a person watching).
+
+Copy `.agentic-framework/.tasks/templates/risk-matrix.md` to `docs/reports/T-XXX-risk-matrix.md` and fill it: scales 1-5, score = likelihood × impact, bands low 1-5 / medium 6-12 / high 15-25, a summary table, and a per-risk split over five actors (own-agent-unintentional, human-unintentional, outsider-intentional, provider-host, intruder). The decision rests on what the change **introduces**, not on risks that exist anyway.
+
+**Rule:** any actor scoring 6 or more → a `type: risk` entry in `concerns.yaml` (fields `likelihood`, `impact`, `score`, `actors`, `introduced_by`, `exists_anyway`, `mitigation_task`) and a mitigation task in the standing arc `risk` (`arc_id: risk`). The arc never closes: it carries `standing: true`, which makes `fw arc close`/`abandon` refuse it and the stale-arc audit skip it. If the project has no `risk` arc yet, create it once (`fw arc create risk --name "Standing risk arc" --headline-mechanic "…" --start`) and add `standing: true` to `.context/arcs/risk.yaml`. `fw audit` FAILs on invalid risk fields and WARNs on an open scored risk at 6+ without a `mitigation_task`.
+
+**Who decides:** the agent drafts and scores; an independent reviewer agent checks the scores and the actor split; the operator decides only **risk acceptance** — an introduced risk still at 6 or more after mitigation, or any risk at 15 or more.
 
 ## Plan Mode Prohibition
 

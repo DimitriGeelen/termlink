@@ -63,8 +63,10 @@
         padding: 0.35rem 0.5rem;
         border-radius: 6px;
         font-size: 0.72rem;
-        overflow-x: auto;
-        white-space: nowrap;
+        /* T-5305: the command now carries `cd <project root> && …`; wrap it so the whole
+           line is visible instead of scrolling off the card's edge. */
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
     .ghost-meta { font-size: 0.7rem; color: var(--pico-muted-color); margin-top: 0.5rem; }
     .unmapped-count {
@@ -119,7 +121,7 @@
 
         <div class="ghost-claim">
             Created the workflow? Bind its identity:
-            <code>cd {{ project_root | default('/opt/999-Agentic-Engineering-Framework') }} &amp;&amp; bin/fw bpmn claim {{ g.uuid }} &lt;project&gt;</code>
+            <code>{{ fw_cmd('bpmn claim ' ~ g.uuid ~ ' <project>') }}</code>
         </div>
         <div class="ghost-meta">first seen {{ g.first_seen_h }}</div>
     </article>

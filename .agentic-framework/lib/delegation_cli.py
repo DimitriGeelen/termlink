@@ -53,6 +53,7 @@ from lib.delegation import (  # noqa: E402
     task_touches_render_surface_cheap,
 )
 from lib import delegation_widening  # noqa: E402
+from lib import fw_command  # noqa: E402
 
 GREEN, YELLOW, RED, CYAN, BOLD, NC = (
     "\033[0;32m", "\033[1;33m", "\033[0;31m", "\033[0;36m", "\033[1m", "\033[0m"
@@ -68,11 +69,9 @@ def _project_root() -> Path:
 
 def _fw() -> str:
     """Project-relative fw path: `bin/fw` in the framework repo, else the
-    vendored `.agentic-framework/bin/fw` (T-4250; same split as T-1257)."""
-    root = _project_root()
-    if (root / "bin" / "fw").exists() or not (root / ".agentic-framework" / "bin" / "fw").exists():
-        return "bin/fw"
-    return ".agentic-framework/bin/fw"
+    vendored `.agentic-framework/bin/fw` (T-4250). One rule for every printed
+    command: lib/fw_command.py (T-5303)."""
+    return fw_command.fw_path(_project_root())
 
 
 def _framework_root() -> Path:
@@ -709,8 +708,13 @@ def cmd_reroute(args, path: Path, text: str, task_id: str) -> int:
         # Every criterion the conversion moved is back, so the reviewer-PASS line it wrote
         # has no job left. An authored `[REVIEWER]` Agent criterion was never delegation's
         # and carries its own verification, so it does not keep this line alive.
+        # T-5304: the line was written with whatever fw spelling applied then (bin/fw before
+        # T-5303, the builder's path since); remove it in any of the spellings it has had.
         want = verification_line(task_id)
-        out = [ln for ln in out if ln.strip() != want]
+        head = want.split(" reviewer ", 1)[0]
+        tail = want[len(head):]
+        wants = {want} | {sp + tail for sp in ("bin/fw", ".agentic-framework/bin/fw", "fw")}
+        out = [ln for ln in out if ln.strip() not in wants]
     out = _append_updates(out, [
         "",
         f"### {_now()} — delegate reroute [fw-task-delegate]",

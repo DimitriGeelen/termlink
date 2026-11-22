@@ -209,6 +209,15 @@ def create_app() -> Flask:
             # only fires on state-changing methods.)
             if (request.endpoint or "").startswith("designer_api."):
                 return
+            # T-5262: the project's csrf-exemption entries, applied only to endpoints
+            # whose startup probe proved they refuse requests without a valid
+            # credential (web/project_extensions.py). The probe's own requests carry
+            # a per-startup secret in the WSGI environ, never settable by a client.
+            from web import project_extensions as _pext_csrf
+            if request.endpoint and request.endpoint in _pext_csrf.exempt_endpoints(app):
+                return
+            if _pext_csrf.probe_request(app, request.environ):
+                return
             # T-1343 / G-048: /api/* blanket exemption removed. State-mutating
             # /api/* endpoints now require X-CSRF-Token header or _csrf_token
             # form field (read-only GET /api/* are untouched — CSRF only fires
@@ -232,6 +241,15 @@ def create_app() -> Flask:
     except Exception:
         _ver = "dev"
     app.jinja_env.globals["fw_version"] = _ver
+
+    # T-5303: the one builder for printed fw commands — `{{ fw_cmd("doctor") }}`
+    # gives `cd <project root> && <bin/fw | .agentic-framework/bin/fw> doctor`,
+    # the same text as lib/paths.sh _emit_user_command and lib/fw_command.py.
+    _fwroot = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _fwroot not in sys.path:
+        sys.path.insert(0, _fwroot)
+    from lib.fw_command import user_command as _fw_user_command
+    app.jinja_env.globals["fw_cmd"] = lambda args="": _fw_user_command(args, str(PROJECT_ROOT))
 
     # Project name from directory basename (T-854, T-865: strip leading number prefix)
     import re as _re
@@ -261,7 +279,8 @@ def create_app() -> Flask:
     @app.context_processor
     def _site_nav_context():
         from web.shared import NAV_FULL_LOAD_ENDPOINTS  # T-5146
-        return {"nav_groups": NAV_GROUPS, "nav_items": NAV_ITEMS,
+        from web.project_extensions import nav_groups as _merged_nav  # T-5261
+        return {"nav_groups": _merged_nav(NAV_GROUPS, app), "nav_items": NAV_ITEMS,
                 "nav_full_load": NAV_FULL_LOAD_ENDPOINTS}
 
     # -------------------------------------------------------------------
@@ -270,6 +289,21 @@ def create_app() -> Flask:
 
     from web.blueprints import register_blueprints
     register_blueprints(app)
+
+    # T-5260: the project's own pages (`page` entries in .framework-extensions.yaml),
+    # after the framework's. A broken or colliding page is skipped, never fatal.
+    from web import project_extensions as _pext
+    from web.shared import FRAMEWORK_ROOT as _fw_root
+    _pext_entries, _pext_err = _pext.load_register(PROJECT_ROOT, _fw_root)
+    if _pext_err:
+        _pext._state(app)["register_error"] = _pext_err
+        logging.getLogger(__name__).warning(
+            "project extensions: register not loaded, no project pages: %s", _pext_err)
+    _pext.load_project_pages(app, PROJECT_ROOT, _fw_root, entries=_pext_entries)
+    # T-5261: the project's menu entries (`nav`), merged for rendering only:
+    # NAV_GROUPS itself stays the framework's list.
+    _pext.build_project_nav(app, PROJECT_ROOT, _fw_root, NAV_GROUPS, entries=_pext_entries)
+    # (state saved at the end of create_app, after the T-5262 CSRF probe)
 
     # -------------------------------------------------------------------
     # Flask-SocketIO for web terminal (T-964)
@@ -492,7 +526,7 @@ def create_app() -> Flask:
     def _error_context():
         """Common context for error pages."""
         return {
-            "nav_groups": NAV_GROUPS,
+            "nav_groups": _pext.nav_groups(NAV_GROUPS, app),
             "nav_items": NAV_ITEMS,
             "active_endpoint": None,
             "ambient": build_ambient(),
@@ -549,6 +583,12 @@ def create_app() -> Flask:
             error_message="An unexpected error occurred. Check the server logs.",
             **_error_context(),
         ), 500
+
+    # T-5262: the project's CSRF exemptions, each proven by a startup probe. Last,
+    # so every route, before_request hook and error handler is in place when the
+    # probe requests run (web/project_extensions.py probe_csrf_exemptions).
+    _pext.probe_csrf_exemptions(app, _pext_entries)
+    _pext.save_state(app, PROJECT_ROOT, _pext_entries)
 
     return app
 

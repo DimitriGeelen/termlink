@@ -22,6 +22,7 @@
 #
 # Inputs: $1 — target project dir
 # Return: 0 always (advisory step)
+declare -F _emit_user_command >/dev/null 2>&1 || source "$(dirname "${BASH_SOURCE[0]}")/fw-command.sh" 2>/dev/null || true  # printed-command builder (T-5304)
 fw_init_install_designer() {
     local target_dir="$1"
     local fw_bin="$target_dir/.agentic-framework/bin/fw"
@@ -416,6 +417,10 @@ WGIT
     # shellcheck source=lib/dispatch-gitignore.sh
     source "$FRAMEWORK_ROOT/lib/dispatch-gitignore.sh"
     fw_dispatch_ensure_ignored "$target_dir" >/dev/null
+    # T-5271: operator-dropped files (.context/inbox/files/) — one list shared with fw upgrade, doctor, audit.
+    # shellcheck source=lib/inbox-files-gitignore.sh
+    source "$FRAMEWORK_ROOT/lib/inbox-files-gitignore.sh"
+    fw_inbox_files_ensure_ignored "$target_dir" >/dev/null
 
     echo -e "  ${GREEN}✓${NC}  Task system (.tasks/)"
     echo -e "  ${GREEN}✓${NC}  Context fabric (.context/)"
@@ -676,7 +681,7 @@ CYAML
         if PROJECT_ROOT="$target_dir" "$git_sh" install-hooks 2>/dev/null; then
             echo -e "  ${GREEN}✓${NC}  Git hooks installed (commit traceability active)"
         else
-            echo -e "  ${YELLOW}⚠${NC}   Git hooks install failed — run 'fw git install-hooks' manually"
+            echo -e "  ${YELLOW}⚠${NC}   Git hooks install failed — run manually: $(_emit_user_command_in "$target_dir" "git install-hooks")"
         fi
     fi
 
@@ -714,7 +719,7 @@ CYAML
         if si_err="$(PROJECT_ROOT="$target_dir" "$si_fw" context init 2>&1 >/dev/null)"; then
             echo -e "  ${GREEN}✓${NC}  Session initialized (governance active)"
         else
-            echo -e "  ${YELLOW}⚠${NC}  Session init failed — run 'fw context init' manually"
+            echo -e "  ${YELLOW}⚠${NC}  Session init failed — run manually: $(_emit_user_command_in "$target_dir" "context init")"
             [ -n "$si_err" ] && echo "$si_err" | sed 's/^/      /' >&2
         fi
         # T-4259: the registry above is seeded with framework jobs (T-3673), so
@@ -725,9 +730,9 @@ CYAML
             && [ ! -f "$target_dir/.context/cron/agentic-audit.crontab" ]; then
             local cg_err
             if cg_err="$(PROJECT_ROOT="$target_dir" "$si_fw" cron generate 2>&1 >/dev/null)"; then
-                echo -e "  ${GREEN}✓${NC}  Cron crontab generated (not installed — run: fw cron install)"
+                echo -e "  ${GREEN}✓${NC}  Cron crontab generated (not installed — run: $(_emit_user_command_in "$target_dir" "cron install"))"
             else
-                echo -e "  ${YELLOW}⚠${NC}  Cron generate failed — run 'fw cron generate' manually"
+                echo -e "  ${YELLOW}⚠${NC}  Cron generate failed — run manually: $(_emit_user_command_in "$target_dir" "cron generate")"
                 [ -n "$cg_err" ] && echo "$cg_err" | sed 's/^/      /' >&2
             fi
         fi
@@ -1557,7 +1562,7 @@ When the user says `/resume`, "pick up", or "continue", execute this workflow.
 
 ## Step 1: Gather State
 
-Run these in parallel:
+Run these in parallel, from the project root (`.agentic-framework/bin/fw` exists in a vendored project and in the framework repo's self-vendored copy):
 
 1. Read `.context/handovers/LATEST.md`
 2. Run `git status --short` and `git log --oneline -5`
@@ -1607,6 +1612,7 @@ Then ask: "What would you like to work on?"
 - Keep output concise — no commentary
 - If LATEST.md has unfilled `[TODO]` sections, warn about stale handover
 - If tool counter > 0 at session start, the PostToolUse hook is working
+- Any command you print for the user to run (next steps, a command quoted from the handover) is one line, `cd <absolute project root> && <fw> <args>` (T-5302): `<fw>` is `bin/fw` when `FRAMEWORK.md` and `bin/fw` are at the project root (the framework repo), else `.agentic-framework/bin/fw` (a vendored project). Never bare `fw`; rewrite a handover's commands to this form before repeating them.
 RESUME
         echo -e "  ${GREEN}OK${NC}  .claude/commands/resume.md"
         fi
