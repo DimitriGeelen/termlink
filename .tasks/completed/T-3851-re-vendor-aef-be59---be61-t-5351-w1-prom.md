@@ -1,15 +1,15 @@
 ---
-id: T-3852
-name: "runme action 40: SIDECAR_W1_PROMPT_ORIGIN=1 for 010-termlink after the be.61 vendor (T-3694 ruling A step 4)"
+id: T-3851
+name: "Re-vendor AEF be.59 -> be.61 (T-5351 W1 prompt origin; runme 11a retarget)"
 description: >
-  Turn on AEF T-5351's W1 prompt-origin report for this project through runme (operator rule: live config changes ship as runme actions), only once the vendored framework carries T-5351; verify by reading .framework.yaml back.
+  Retarget runme action 11a to v1.8.16-be.61 (a32434f98), which carries AEF T-5351 (SIDECAR_W1_PROMPT_ORIGIN) for T-3694 ruling A. Five preserved files changed upstream be.59 -> be.61 and need 3-way merges.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [.claude/commands/resume.md, runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -37,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-22T18:45:51Z
-last_update: 2026-11-22T19:14:32Z
-date_finished: null
+created: 2026-11-22T12:10:59Z
+last_update: 2026-11-22T20:20:19Z
+date_finished: 2026-11-22T20:20:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -52,25 +52,30 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3852: runme action 40: SIDECAR_W1_PROMPT_ORIGIN=1 for 010-termlink after the be.61 vendor (T-3694 ruling A step 4)
+# T-3851: Re-vendor AEF be.59 -> be.61 (T-5351 W1 prompt origin; runme 11a retarget)
 
 ## Context
 
-**Background / trigger:** T-3694 ruling A step 4: turn on AEF T-5351's W1 prompt-origin report (`SIDECAR_W1_PROMPT_ORIGIN=1`) for 010-termlink only, after the be.61 vendor (T-3851). The operator, 2026-11-22: "rule is run me dot sh for large things". The agent had planned to run `fw config set` itself, and a live configuration change ships as a runme action instead.
+**Background / trigger:** T-3694 ruling A step 3. AEF shipped T-5351 (`SIDECAR_W1_PROMPT_ORIGIN`, commit 328a133cc) and tagged it `v1.8.16-be.61` (a32434f98), msg 1eb7257a. Here the framework is re-vendored only by runme action 11a, pinned to a tag (now be.59, ea167a69d, T-3824).
 
-**Problem / hypothesis:** be.61's `lib/sidecar/adapter2.py` reads the key from config (`_config("SIDECAR_W1_PROMPT_ORIGIN") != "1"` -> off). `fw config set` writes `.framework.yaml`. Before the vendor lands, the key is unknown to the framework and the report code is absent.
+**Problem / hypothesis:**
+1. AEF reports (msg 0bee0f32) that five of our 12 preserved files changed be.59 -> be.61: `agents/context/check-active-task.sh`, `agents/handover/handover.sh`, `lib/bvp.sh`, `lib/sidecar/inject.py`, `lib/sidecar_cli.py`. Four are unchanged, and three are local-only.
+2. An upgrade without merges would drop our local fixes (`.fwvendor-preserve.yaml` reasons) or refuse.
+3. This session may not read AEF's repo (boundary rule), so base (be.59) and theirs (be.61) come from the public GitHub mirror at the tags, checked against AEF's blob ids.
 
-**Goal:** a runme action, placed after 11a. It skips while the vendored copy lacks T-5351. It sets the key otherwise, verifies `fw config get --file` reads `1`, and commits `.framework.yaml` alone.
+**Goal:** retarget 11a to be.61 with a verified merge set.
 
-**Expected outcome:** after one runme: be.61 vendored, the flag on. The next prompts report origin to the W1 sidecar, and claims carry it (still decided as built, since the harness is not switched).
+**Expected outcome:** the operator's runme re-vendors to be.61 with the five merged files installed and the other preserved files byte-identical.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Action 40 skips with "waits for 11a" when `lib/sidecar/adapter2.py` lacks T-5351, and skips when the file already reads 1.
-- [x] Otherwise: `fw config set SIDECAR_W1_PROMPT_ORIGIN 1`, then `fw config get --file` must read 1 (else FAILED), then a commit of `.framework.yaml` only, naming T-3852. `--dry-run` writes nothing.
-- [x] Hermetic fixtures through `RUNME_SWO_*` seams cover each branch, including a negative control: a set that does not read back is FAILED. `tests/runme-fixtures.sh` passes.
+- [x] For the five changed paths, base (be.59) and theirs (be.61) are fetched, and each blob id matches AEF's msg 0bee0f32. Ours equals the current vendored file.
+- [x] Each path is 3-way merged (base be.59, ours vendored, theirs be.61). Any conflict is resolved by hand and named in the manifest. The merge set and `MANIFEST.tsv` (ours, theirs, merged sha256) are in `.context/vendor-merges/T-3851`.
+- [x] runme 11a targets be.61 (tag, marker proving T-5351, task T-3851, merges T-3851). `bash -n runme.sh` passes, and `tests/runme-fixtures.sh` passes.
+- [x] `bash scripts/check-vendor-divergence.sh` exits 0. (2026-11-22: all five blob ids matched, merges all clean, syntax checks pass, our local-fix markers kept; fixtures 468/0; divergence check 0.)
+- [x] After the operator's run: VERSION at or past be.61, runme 11a OK (the merged files installed, the other preserved files byte-identical), `lib/sidecar/adapter2.py` carries T-5351, and fw doctor shows no new FAIL. (runme-20261122T201339Z: 11a "upgraded to 1.8.15+2660.ga32434f98; ... 12 preserved files byte-identical; 5 merged files installed", committed 6937fe693 and pushed, Watchtower answering, fw doctor no new FAIL; adapter2.py has T-5351. Two earlier runs refused safely, both fixed here: the merge files lacked the `.merged` suffix, and a cron audit wrote `.context/audits` during the dry run, so the dry-run check now counts only upgrade paths.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -122,8 +127,9 @@ date_finished: null
 
 ## Verification
 
-bash -n runme.sh
-grep -q '^w1_prompt_origin_on()' runme.sh
+grep -q 'T-5351' .agentic-framework/lib/sidecar/adapter2.py
+grep -q '^1\.8\.15+2660\.ga32434f98$' .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -296,10 +302,12 @@ grep -q '^w1_prompt_origin_on()' runme.sh
 
 ## Evolution
 
-### 2026-11-22 — a live config change ships as a runme action
-- **What changed:** the agent planned to run `fw config set SIDECAR_W1_PROMPT_ORIGIN 1` itself after the vendor. The operator caught it ("rule is run me dot sh for large things"), so it became action 40, run after 11a in the same operator run.
-- **Plan impact:** T-3694 step 4 happens inside the operator's run, and nothing is changed outside runme.
-- **Triggered:** fixtures 475/0 (5 new, including the no-read-back control). The field check is in the operator's next run.
+### 2026-11-22 — two refusals before the upgrade landed
+- **What changed:**
+  1. The first operator run (13:01Z) refused: 11a expects each merged file named `<path>.merged`, and the agent had stored plain names. The fixtures never read the real merge set.
+  2. The second (13:04Z) refused: 11a compared `git status` for the whole checkout around the dry run, and the cron audit wrote `.context/audits/*` in that minute.
+- **Plan impact:** the dry-run check now compares only `aefu_upgrade_paths`, as rollback and commit already did. Two fixtures were added, and a raw-compare mutant fails the concurrent-writer case. The third run (20:13Z) upgraded.
+- **Triggered:** nothing new. Not yet covered by any fixture: the real merge set's file layout. A fixture reading the real `AEFU_MERGES` default would have caught refusal 1. Worth adding at the next retarget.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -375,7 +383,25 @@ grep -q '^w1_prompt_origin_on()' runme.sh
 
 ## Updates
 
-### 2026-11-22T18:45:51Z — task-created [task-create-agent]
+### 2026-11-22T12:10:59Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3852-runme-action-40-sidecarw1promptorigin1-f.md
+- **Output:** /opt/termlink/.tasks/active/T-3851-re-vendor-aef-be59---be61-t-5351-w1-prom.md
 - **Context:** Initial task creation
+
+### 2026-11-22T20:20:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f253938d
+- **Timestamp:** 2026-11-22T20:20:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — runme 11a targets be.61 (tag, marker proving T-5351, task T-3851, merges T-3851). `bash -n runme.sh` passes, and `tests/runme-fixtures.sh` passes.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: runme 11a targets be.61 (tag, marker proving T-5351, task T-3851, merges T-3851). `bash -n runme.sh` passes, and `tests/runme-fixtures.sh` passes.`

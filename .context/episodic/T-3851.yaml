@@ -1,0 +1,349 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3851: Re-vendor AEF be.59 -> be.61 (T-5351 W1 prompt origin; runme 11a retarget)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-22T20:20:30Z
+# ============================================================================
+
+task_id: T-3851
+task_name: "Re-vendor AEF be.59 -> be.61 (T-5351 W1 prompt origin; runme 11a retarget)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-22T12:10:59Z
+completed: 2026-11-22T20:20:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-22T13:31:30+01:00
+last_commit: 2026-11-22T21:19:54+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  retarget runme 11a to AEF v1.8.16-be.61 (a32434f98, carries T-5351 SIDECAR_W1_PROMPT_ORIGIN; marker T-5351 in lib/sidecar/adapter2.py). Five preserved files changed be.59 -> be.61, all 3-way merged clean (base be.59 from the public mirror, blob ids checked against AEF msg 0bee0f32) into .context/vendor-merges/T-3851 with a manifest. build criteria met (fixtures 468/0, divergence check 0); field criterion waits for the operator's runme. merge set files named <path>.merged as runme 11a expects (the operator run 13:01Z refused before changing anything: check-active-task.sh.merged not found). All five verified against MANIFEST.tsv (merged and ours hashes match). runme 11a dry-run check compares only the paths an upgrade writes (aefu_upgrade_paths, as rollback and commit already do). The operator run 13:04Z was refused because the cron audit wrote .context/audits/* during the dry run. Two fixtures: a dry run writing an upgrade path is still refused and rolled back; a concurrent write elsewhere neither refuses nor is committed. Raw-compare mutant fails the second; fixtures 470/0. fw upgrade -> v1.8.16-be.61 (a32434f98, 729 commits; T-5351; runme 11a). be.61 upstream .context/sidecar/.gitignore line (receiver.pid.identity), left outside 11a's path filter
+
+# Key outcomes
+outcomes:
+  - 'For the five changed paths, base (be.59) and theirs (be.61) are fetched, and each blob id matches AEF''s msg 0bee0f32. Ours equals the current vendored file.'
+  - 'Each path is 3-way merged (base be.59, ours vendored, theirs be.61). Any conflict is resolved by hand and named in the manifest. The merge set and `MANIFEST.tsv` (ours, theirs, merged sha256) are in `.context/vendor-merges/T-3851`.'
+  - 'runme 11a targets be.61 (tag, marker proving T-5351, task T-3851, merges T-3851). `bash -n runme.sh` passes, and `tests/runme-fixtures.sh` passes.'
+  - '`bash scripts/check-vendor-divergence.sh` exits 0. (2026-11-22: all five blob ids matched, merges all clean, syntax checks pass, our local-fix markers kept; fixtures 468/0; divergence check 0.)'
+  - 'After the operator''s run: VERSION at or past be.61, runme 11a OK (the merged files installed, the other preserved files byte-identical), `lib/sidecar/adapter2.py` carries T-5351, and fw doctor shows no new FAIL. (runme-20261122T201339Z: 11a "upgraded to 1.8.15+2660.ga32434f98; ... 12 preserved files byte-identical; 5 merged files installed", committed 6937fe693 and pushed, Watchtower answering, fw doctor no new FAIL; adapter2.py has T-5351. Two earlier runs refused safely, both fixed here: the merge files lacked the `.merged` suffix, and a cron audit wrote `.context/audits` during the dry run, so the dry-run check now counts only upgrade paths.)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme 11a dry-run check compares only the paths an upgrade writes (aefu_upgrade_paths, as rollback and commit already do). The operator run 13:04Z was refused because the cron audit wrote .context/audits/* during the dry run. Two fixtures: a dry run writing an upgrade path is still refused and rolled back; a concurrent write elsewhere neither refuses nor is committed. Raw-compare mutant fails the second; fixtures 470/0'
+    source: git-mined
+  - description: 'build criteria met (fixtures 468/0, divergence check 0); field criterion waits for the operator''s runme'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.context/designer/projects/aef-inception-lifecycle/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-inception-lifecycle/v1.bpmn'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/.tasks/templates/default.md'
+  - '.agentic-framework/.tasks/templates/risk-matrix.md'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/audit/unit_suite_range.py'
+  - '.agentic-framework/agents/context/audit-task-tools.sh'
+  - '.agentic-framework/agents/context/block-cross-session-messages.sh'
+  - '.agentic-framework/agents/context/block-task-tools.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/check-active-completed-dup.py'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/context/check-human-ac-tick.py'
+  - '.agentic-framework/agents/context/check-inception-recommendation.py'
+  - '.agentic-framework/agents/context/check-inception-schema.py'
+  - '.agentic-framework/agents/context/check-rail-mcp-label.sh'
+  - '.agentic-framework/agents/context/check-settings-edit.sh'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/agents/context/check-visual-verification.sh'
+  - '.agentic-framework/agents/context/check-worktree-governance-write.sh'
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.agentic-framework/agents/context/consolidate.py'
+  - '.agentic-framework/agents/context/inject-next-directive.py'
+  - '.agentic-framework/agents/context/lib/focus.sh'
+  - '.agentic-framework/agents/context/post-compact-resume.sh'
+  - '.agentic-framework/agents/context/revisit-due-scan.sh'
+  - '.agentic-framework/agents/context/stop-driver.sh'
+  - '.agentic-framework/agents/designer/designer.sh'
+  - '.agentic-framework/agents/fabric/lib/drift.sh'
+  - '.agentic-framework/agents/fabric/lib/enrich.py'
+  - '.agentic-framework/agents/fabric/lib/query.sh'
+  - '.agentic-framework/agents/fabric/lib/register.sh'
+  - '.agentic-framework/agents/git/lib/commit.sh'
+  - '.agentic-framework/agents/git/lib/hooks.sh'
+  - '.agentic-framework/agents/git/lib/parked-merge-guard.sh'
+  - '.agentic-framework/agents/git/lib/secret-scan.sh'
+  - '.agentic-framework/agents/git/lib/worktree-corpus-guard.sh'
+  - '.agentic-framework/agents/handover/handover.sh'
+  - '.agentic-framework/agents/mcp/manifest.py'
+  - '.agentic-framework/agents/resume/resume.sh'
+  - '.agentic-framework/agents/task-create/create-batch.sh'
+  - '.agentic-framework/agents/task-create/create-task.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/bin/watchtower.sh'
+  - '.agentic-framework/docs/generated/components/agents-audit-unit_suite_range.md'
+  - '.agentic-framework/docs/generated/components/agents-context-block-cross-session-messages.md'
+  - '.agentic-framework/docs/generated/components/agents-context-consolidate.md'
+  - '.agentic-framework/docs/generated/components/agents-context-inject-next-directive.md'
+  - '.agentic-framework/docs/generated/components/agents-task-create-create-batch.md'
+  - '.agentic-framework/docs/generated/components/lib-agent_notice.md'
+  - '.agentic-framework/docs/generated/components/lib-arc_instantiate.md'
+  - '.agentic-framework/docs/generated/components/lib-arc_journal.md'
+  - '.agentic-framework/docs/generated/components/lib-arc_owner.md'
+  - '.agentic-framework/docs/generated/components/lib-arc_wake.md'
+  - '.agentic-framework/docs/generated/components/lib-codex_render_backing.md'
+  - '.agentic-framework/docs/generated/components/lib-evidence_need.md'
+  - '.agentic-framework/docs/generated/components/lib-extensions.md'
+  - '.agentic-framework/docs/generated/components/lib-fw-command.md'
+  - '.agentic-framework/docs/generated/components/lib-fw-path-check.md'
+  - '.agentic-framework/docs/generated/components/lib-fw_command.md'
+  - '.agentic-framework/docs/generated/components/lib-inbox-files-gitignore.md'
+  - '.agentic-framework/docs/generated/components/lib-inception.md'
+  - '.agentic-framework/docs/generated/components/lib-inception_recommendation.md'
+  - '.agentic-framework/docs/generated/components/lib-proc_identity.md'
+  - '.agentic-framework/docs/generated/components/lib-recorded_ruling.md'
+  - '.agentic-framework/docs/generated/components/lib-render_task.md'
+  - '.agentic-framework/docs/generated/components/lib-review.md'
+  - '.agentic-framework/docs/generated/components/lib-risk_register.md'
+  - '.agentic-framework/docs/generated/components/lib-sidecar-profile_notices.md'
+  - '.agentic-framework/docs/generated/components/lib-task-create-rules.md'
+  - '.agentic-framework/docs/generated/components/lib-unattended_verification.md'
+  - '.agentic-framework/docs/generated/components/lib-verdict_format.md'
+  - '.agentic-framework/docs/generated/components/lib-verify_queue.md'
+  - '.agentic-framework/docs/generated/components/lib-vote_checker.md'
+  - '.agentic-framework/docs/generated/components/tests-conformance-worker-contract-check_mapping.md'
+  - '.agentic-framework/docs/generated/components/tests-conformance-worker-contract-check_vectors.md'
+  - '.agentic-framework/docs/generated/components/tests-lint-printed-fw-commands-ratchet.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5225_termlink_only_hook.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5252_arc_wake.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5253_arc_decision_approval.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5259_project_extensions.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5340_handover_no_dirty_task.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5342_prepush_range_tests.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5348_budget_note_visible.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5354_status_young_after_compaction.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5235_recorded_ruling.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5303_fw_command_builder.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5313_risk_fields.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5314_risk_mitigation_arc.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5315_risk_matrix_review.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5321_closure_never.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5324_stem_match.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5327_attached_only.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5328_credentials_at_rest.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5333_path_identity.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5334_matrix_introduced.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5336_repo_mutating_lines.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5341_codex_render_backing.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5351_w1_prompt_origin.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5352_page_criterion_evidence.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5353_page_criterion_view_proof.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_worker_contract_vectors.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5260_project_pages.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5261_project_nav.md'
+  - '.agentic-framework/docs/generated/components/tools-printed-fw-commands-lint.md'
+  - '.agentic-framework/docs/generated/components/web-blueprints-inception.md'
+  - '.agentic-framework/docs/generated/components/web-blueprints-review.md'
+  - '.agentic-framework/docs/generated/components/web-project_extensions.md'
+  - '.agentic-framework/docs/generated/components/web-templates-inception.md'
+  - '.agentic-framework/docs/generated/components/web-templates-review.md'
+  - '.agentic-framework/docs/reports/T-3496-choosing-which-inception-first.md'
+  - '.agentic-framework/docs/reports/T-3496-inception-order-v0.py'
+  - '.agentic-framework/docs/reports/T-3829-dialogue-log-enforcement.md'
+  - '.agentic-framework/docs/reports/T-4649-ring20-patch-triage.md'
+  - '.agentic-framework/docs/reports/T-4834-worktree-gate-review.md'
+  - '.agentic-framework/docs/reports/T-4992-subscription-accounts.md'
+  - '.agentic-framework/docs/reports/T-5224-arc-orchestrator.md'
+  - '.agentic-framework/docs/reports/T-5228-inception-triage.md'
+  - '.agentic-framework/docs/reports/T-5248-upgrade-feedback-loop.md'
+  - '.agentic-framework/docs/reports/T-5290-structured-reviewer-verdicts.md'
+  - '.agentic-framework/docs/reports/T-5300-risk-matrix.md'
+  - '.agentic-framework/docs/reports/T-5300-withdraw-outcome.md'
+  - '.agentic-framework/docs/reports/T-5302-command-naming-vendored.md'
+  - '.agentic-framework/docs/reports/T-5309-risk-matrix.md'
+  - '.agentic-framework/docs/reports/T-5310-standing-risk-arc.md'
+  - '.agentic-framework/docs/reports/T-5318-dispatch-closure-amendments.md'
+  - '.agentic-framework/docs/reports/T-5323-unit-reds.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/runtime-projection/runtime-projection-v2.schema.json'
+  - '.agentic-framework/docs/specs/shared-worker-contract-transitions.md'
+  - '.agentic-framework/lib/accepted_miss.py'
+  - '.agentic-framework/lib/arc.sh'
+  - '.agentic-framework/lib/arc_journal.py'
+  - '.agentic-framework/lib/arc_membership.py'
+  - '.agentic-framework/lib/arc_owner.py'
+  - '.agentic-framework/lib/arc_wake.py'
+  - '.agentic-framework/lib/assumption.sh'
+  - '.agentic-framework/lib/branch-hygiene.sh'
+  - '.agentic-framework/lib/bvp.sh'
+  - '.agentic-framework/lib/codex_render_backing.py'
+  - '.agentic-framework/lib/config-file.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/delegation_cli.py'
+  - '.agentic-framework/lib/dispatch_records.py'
+  - '.agentic-framework/lib/doctor-drift.sh'
+  - '.agentic-framework/lib/evidence_need.py'
+  - '.agentic-framework/lib/extensions.py'
+  - '.agentic-framework/lib/fw-command.sh'
+  - '.agentic-framework/lib/fw-path-check.sh'
+  - '.agentic-framework/lib/fw_command.py'
+  - '.agentic-framework/lib/harvest.sh'
+  - '.agentic-framework/lib/human_ac_ticks.py'
+  - '.agentic-framework/lib/inbox-files-gitignore.sh'
+  - '.agentic-framework/lib/inception-readiness.sh'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/inception_lifecycle.py'
+  - '.agentic-framework/lib/init.sh'
+  - '.agentic-framework/lib/integrate.py'
+  - '.agentic-framework/lib/mirror.sh'
+  - '.agentic-framework/lib/operator_pending.py'
+  - '.agentic-framework/lib/paths.sh'
+  - '.agentic-framework/lib/pending.sh'
+  - '.agentic-framework/lib/pickup.sh'
+  - '.agentic-framework/lib/pid-alive.sh'
+  - '.agentic-framework/lib/proc_identity.py'
+  - '.agentic-framework/lib/promote.sh'
+  - '.agentic-framework/lib/prompt.sh'
+  - '.agentic-framework/lib/rail-identity.sh'
+  - '.agentic-framework/lib/recorded_ruling.py'
+  - '.agentic-framework/lib/release-tags.sh'
+  - '.agentic-framework/lib/release.sh'
+  - '.agentic-framework/lib/render_task.py'
+  - '.agentic-framework/lib/resolver.py'
+  - '.agentic-framework/lib/review.sh'
+  - '.agentic-framework/lib/review_cost.py'
+  - '.agentic-framework/lib/review_credential.py'
+  - '.agentic-framework/lib/review_seat_evidence.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/restatement_cli.py'
+  - '.agentic-framework/lib/risk_register.py'
+  - '.agentic-framework/lib/runme.sh'
+  - '.agentic-framework/lib/runme_queue.py'
+  - '.agentic-framework/lib/sidecar/adapter2.py'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/sidecar/alerts.py'
+  - '.agentic-framework/lib/sidecar/e2e.py'
+  - '.agentic-framework/lib/sidecar/hooks.py'
+  - '.agentic-framework/lib/sidecar/inbox.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/lifecycle.py'
+  - '.agentic-framework/lib/sidecar/watcher.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/subscriptions.py'
+  - '.agentic-framework/lib/templates/claude-project.md'
+  - '.agentic-framework/lib/templates/resume-md.md'
+  - '.agentic-framework/lib/templates/scripts/be-reachable.sh'
+  - '.agentic-framework/lib/unattended_verification.py'
+  - '.agentic-framework/lib/update.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_template_shipped.py'
+  - '.agentic-framework/lib/upstream.sh'
+  - '.agentic-framework/lib/validate-init.sh'
+  - '.agentic-framework/lib/vendor_preserve.py'
+  - '.agentic-framework/lib/verdict_format.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/lib/verify_queue.py'
+  - '.agentic-framework/lib/version.sh'
+  - '.agentic-framework/lib/vote_checker.py'
+  - '.agentic-framework/lib/watchtower.sh'
+  - '.agentic-framework/lib/working-gitignore.sh'
+  - '.agentic-framework/lib/worktree.sh'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/policy/review-backends.yaml'
+  - '.agentic-framework/tools/corpus_overlay.py'
+  - '.agentic-framework/tools/printed-fw-commands-lint.py'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.46.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.46.0.py'
+  - '.agentic-framework/web/app.py'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/designer_api.py'
+  - '.agentic-framework/web/blueprints/inception.py'
+  - '.agentic-framework/web/decide_runner.py'
+  - '.agentic-framework/web/designer_registry.py'
+  - '.agentic-framework/web/project_extensions.py'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/templates/_approvals_content.html'
+  - '.agentic-framework/web/templates/arc_detail.html'
+  - '.agentic-framework/web/templates/arcs_index.html'
+  - '.agentic-framework/web/templates/base.html'
+  - '.agentic-framework/web/templates/designer_ghosts.html'
+  - '.agentic-framework/web/templates/embeddings.html'
+  - '.agentic-framework/web/templates/orchestrator.html'
+  - '.claude/commands/resume.md'
+  - '.context/.gitignore'
+  - '.context/sidecar/.gitignore'
+  - '.context/vendor-merges/T-3851/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3851/agents/context/check-active-task.sh'
+  - '.context/vendor-merges/T-3851/agents/context/check-active-task.sh.merged'
+  - '.context/vendor-merges/T-3851/agents/handover/handover.sh'
+  - '.context/vendor-merges/T-3851/agents/handover/handover.sh.merged'
+  - '.context/vendor-merges/T-3851/lib/bvp.sh'
+  - '.context/vendor-merges/T-3851/lib/bvp.sh.merged'
+  - '.context/vendor-merges/T-3851/lib/sidecar/inject.py'
+  - '.context/vendor-merges/T-3851/lib/sidecar/inject.py.merged'
+  - '.context/vendor-merges/T-3851/lib/sidecar_cli.py'
+  - '.context/vendor-merges/T-3851/lib/sidecar_cli.py.merged'
+  - '.framework.yaml'
+  - '.tasks/active/T-3851-re-vendor-aef-be59---be61-t-5351-w1-prom.md'
+  - '.tasks/templates/risk-matrix.md'
+  - 'CLAUDE.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-22T13:31:30'
+    action: 'T-3851: retarget runme 11a to AEF v1.8.16-be.61 (a32434f98, carries T-5351 SIDECAR_W1_PROMPT_ORIGIN; marker T-5351 in lib/sidecar/adapter2.py). Five preserved files changed be.59 -> be.61, all 3-way merged clean (base be.59 from the public mirror, blob ids checked against AEF msg 0bee0f32) into .context/vendor-merges/T-3851 with a manifest'
+  - time: '2026-11-22T13:53:52'
+    action: 'T-3851: build criteria met (fixtures 468/0, divergence check 0); field criterion waits for the operator''s runme'
+  - time: '2026-11-22T14:01:54'
+    action: 'T-3851: merge set files named <path>.merged as runme 11a expects (the operator run 13:01Z refused before changing anything: check-active-task.sh.merged not found). All five verified against MANIFEST.tsv (merged and ours hashes match)'
+  - time: '2026-11-22T14:51:55'
+    action: 'T-3851: runme 11a dry-run check compares only the paths an upgrade writes (aefu_upgrade_paths, as rollback and commit already do). The operator run 13:04Z was refused because the cron audit wrote .context/audits/* during the dry run. Two fixtures: a dry run writing an upgrade path is still refused and rolled back; a concurrent write elsewhere neither refuses nor is committed. Raw-compare mutant fails the second; fixtures 470/0'
+  - time: '2026-11-22T21:16:48'
+    action: 'T-3851: fw upgrade -> v1.8.16-be.61 (a32434f98, 729 commits; T-5351; runme 11a)'
+  - time: '2026-11-22T21:19:54'
+    action: 'T-3851: be.61 upstream .context/sidecar/.gitignore line (receiver.pid.identity), left outside 11a''s path filter'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 489 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 489
+  commits: 7
+  files_changed: 262
+  lines_added: 25232
+  lines_removed: 950
+  footprint_refreshed_at: '2026-11-22T20:20:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3851-re-vendor-aef-be59---be61-t-5351-w1-prom.md
+generated_by: context-agent-hybrid

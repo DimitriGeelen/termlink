@@ -25335,3 +25335,39 @@ scan_id: R-b571926f
 task_id: T-3850
 payload:
   task_file: .tasks/active/T-3850-runme-action-39-origin-reporting-switch-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-22T20:20:21Z'
+scan_id: R-f253938d
+task_id: T-3851
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-22T20:20:21Z'
+scan_id: R-f253938d
+task_id: T-3851
+payload:
+  task_file: .tasks/active/T-3851-re-vendor-aef-be59---be61-t-5351-w1-prom.md
+---
+kind: scan_emitted
+timestamp: '2026-11-22T20:20:33Z'
+scan_id: R-e0b32745
+task_id: T-3852
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-22T20:20:33Z'
+scan_id: R-e0b32745
+task_id: T-3852
+payload:
+  task_file: .tasks/active/T-3852-runme-action-40-sidecarw1promptorigin1-f.md
