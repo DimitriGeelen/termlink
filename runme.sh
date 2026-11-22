@@ -2648,6 +2648,43 @@ head2 "11c. Watchtower onto the current web/ code after the framework upgrade (T
 watchtower_onto_current
 
 # ---------------------------------------------------------------------------
+# 40. AEF T-5351's W1 prompt-origin report on for this project (T-3852; T-3694 ruling A step 4)
+# After 11a vendors be.61, AEF's prompt hook sends one prompt_submit to the W1 sidecar and claims main with the
+# receiver-checked origin, but only when SIDECAR_W1_PROMPT_ORIGIN=1. This switch changes no lease decision: the
+# harness is not switched to origin reporting (action 39 holds that until the operator's go), so claims still
+# count as built; it lets action 39 see checked human prompts.
+#   vendored adapter2.py lacks T-5351 -> skip (waits for 11a)
+#   .framework.yaml already reads 1   -> skip
+#   otherwise -> fw config set, read back from the file (else FAILED), commit .framework.yaml alone
+# Seams (fixtures only): RUNME_SWO_PROJECT, RUNME_SWO_FW.
+# ---------------------------------------------------------------------------
+seam SWO_PROJECT RUNME_SWO_PROJECT "$PROJECT_ROOT"
+seam SWO_FW RUNME_SWO_FW "$PROJECT_ROOT/.agentic-framework/bin/fw"
+SWO_KEY="SIDECAR_W1_PROMPT_ORIGIN"
+w1_prompt_origin_on() {
+    local cur
+    if ! grep -q 'T-5351' "$SWO_PROJECT/.agentic-framework/lib/sidecar/adapter2.py" 2>/dev/null; then
+        say "  skip    $SWO_KEY waits: the vendored framework does not carry AEF T-5351 yet (action 11a)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    cur="$(cd "$SWO_PROJECT" && "$SWO_FW" config get --file "$SWO_KEY" 2>/dev/null | tr -d '[:space:]')"
+    if [ "$cur" = 1 ]; then say "  skip    $SWO_KEY already 1 in .framework.yaml"; SKIPPED=$((SKIPPED+1)); return; fi
+    if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would set $SWO_KEY 1 in .framework.yaml (was '${cur:-unset}') and commit it"; DONE=$((DONE+1)); return; fi
+    (cd "$SWO_PROJECT" && "$SWO_FW" config set "$SWO_KEY" 1) >/dev/null 2>&1
+    cur="$(cd "$SWO_PROJECT" && "$SWO_FW" config get --file "$SWO_KEY" 2>/dev/null | tr -d '[:space:]')"
+    if [ "$cur" != 1 ]; then
+        say "  FAILED  fw config set $SWO_KEY 1 ran but .framework.yaml reads '${cur:-unset}'"; FAILED=$((FAILED+1)); return
+    fi
+    if git -C "$SWO_PROJECT" commit -q -m "T-3852: $SWO_KEY=1 for this project (AEF T-5351; runme 40)" -- .framework.yaml >/dev/null 2>&1; then
+        say "  OK      $SWO_KEY=1 in .framework.yaml (read back) and committed"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $SWO_KEY=1 is set (read back) but the commit of .framework.yaml failed: commit it by hand"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "40. AEF W1 prompt-origin report on for this project (T-3852; T-3694 step 4)"
+w1_prompt_origin_on
+
+# ---------------------------------------------------------------------------
 # ACTION 12 — stop the stray second hub at /tmp/termlink-0 (T-3343, ruling B)
 #
 # T-3340: an agent's `hub restart` without TERMLINK_RUNTIME_DIR left a second hub

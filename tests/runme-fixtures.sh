@@ -511,6 +511,22 @@ case "\$1 \$2" in
 esac
 EOS
 chmod +x "$ORG/tl"
+# T-3852 action 40: a scratch project (git) and a fake fw whose `config get --file` / `config set` use .framework.yaml.
+# Default: no T-5351 marker in the vendored adapter2.py -> ordinary runs skip ("waits for 11a").
+SWO="$TMP/t3852"; mkdir -p "$SWO/proj/.agentic-framework/lib/sidecar"
+git -C "$SWO/proj" init -q && git -C "$SWO/proj" config user.email f@x && git -C "$SWO/proj" config user.name f
+echo "project_name: fx" > "$SWO/proj/.framework.yaml"; echo "# adapter" > "$SWO/proj/.agentic-framework/lib/sidecar/adapter2.py"
+git -C "$SWO/proj" add -A && git -C "$SWO/proj" commit -qm "T-1: seed"
+cat > "$SWO/fw" <<'EOS'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "config get") k="$4"; sed -n "s/^$k: *//p" .framework.yaml ;;
+  "config set") [ -n "${FAKE_SWO_NOSET:-}" ] && exit 0; sed -i "/^$3:/d" .framework.yaml; echo "$3: $4" >> .framework.yaml ;;
+  *) exit 4 ;;
+esac
+EOS
+chmod +x "$SWO/fw"
+export RUNME_SWO_PROJECT="$SWO/proj" RUNME_SWO_FW="$SWO/fw"
 export RUNME_ORG_TL="$ORG/tl" RUNME_ORG_PROJECT="010-termlink" RUNME_ORG_HARNESS="claude-code" RUNME_ORG_GO="" RUNME_ORG_STATE="$ORG/switched-at" RUNME_ORG_NOW_MS=1000000 RUNME_ORG_FRESH_S=86400 RUNME_ORG_GRACE_S=3600 RUNME_ORG_SOCK_DIR="$ORG"
 p3_seed() {  # fresh scratch state for one W1-like unit `termlink-sidecar@u-p31.service`, agent fx-p
     rm -rf "$P3/keys" "$P3/store" "$P3"/card.* "$P3/mode" "$P3/calls" "$P3/fx-p.json"*; mkdir -p "$P3/keys" "$P3/store"
@@ -1186,7 +1202,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 60 ))   # +1 origin reporting off, no go (T-3850 action 39); +1 no W1 units for P-24 (T-3708 action 38); +1 no W1 units for P-12 (T-3700 action 37); +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 61 ))   # +1 W1 prompt origin waits for 11a (T-3852 action 40); +1 origin reporting off, no go (T-3850 action 39); +1 no W1 units for P-24 (T-3708 action 38); +1 no W1 units for P-12 (T-3700 action 37); +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3900,6 +3916,22 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'switching it off did not read back .* 
 org_reset; out=$(FAKE_ORG_STATUS=broken RUNME_ORG_GO="$GO" run); rc=$?; x=$(s39 "$out")
 if [ "$rc" = 1 ] && echo "$x" | grep_all 'main status unreadable .* nothing switched' && [ ! -f "$ORG/on" ]; then ok "39: unreadable main status => FAILED, nothing switched"; else bad "39 unreadable" "rc=$rc: $x"; fi
 org_reset
+
+# T-3852 action 40 — SIDECAR_W1_PROMPT_ORIGIN on after the be.61 vendor.
+s40() { echo "$1" | grep 'SIDECAR_W1_PROMPT_ORIGIN'; }
+swo_mark() { echo "# T-5351 w1_prompt_origin" > "$SWO/proj/.agentic-framework/lib/sidecar/adapter2.py"; git -C "$SWO/proj" commit -qam "T-1: vendor be.61"; }
+out=$(run); x=$(s40 "$out")
+if echo "$x" | grep_all 'skip    SIDECAR_W1_PROMPT_ORIGIN waits: the vendored framework does not carry AEF T-5351 yet' && ! grep -q SIDECAR "$SWO/proj/.framework.yaml"; then ok "40: no T-5351 vendored => waits, nothing set"; else bad "40 waits" "$x"; fi
+swo_mark; h=$(git -C "$SWO/proj" rev-parse HEAD); out=$(run --dry-run); x=$(s40 "$out")
+if echo "$x" | grep_all "\[DRY\]   would set SIDECAR_W1_PROMPT_ORIGIN 1" && ! grep -q SIDECAR "$SWO/proj/.framework.yaml" && [ "$(git -C "$SWO/proj" rev-parse HEAD)" = "$h" ]; then ok "40: --dry-run writes and commits nothing"; else bad "40 dry" "$x"; fi
+out=$(FAKE_SWO_NOSET=1 run); rc=$?; x=$(s40 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fw config set SIDECAR_W1_PROMPT_ORIGIN 1 ran but .framework.yaml reads 'unset'" && [ "$(git -C "$SWO/proj" rev-parse HEAD)" = "$h" ]; then ok "40: a set that does not read back => FAILED, nothing committed (control)"; else bad "40 noset" "rc=$rc: $x"; fi
+out=$(run); x=$(s40 "$out")
+if echo "$x" | grep_all 'OK      SIDECAR_W1_PROMPT_ORIGIN=1 in .framework.yaml (read back) and committed' && grep -qx 'SIDECAR_W1_PROMPT_ORIGIN: 1' "$SWO/proj/.framework.yaml" \
+   && git -C "$SWO/proj" log -1 --format=%s | grep_all '^T-3852: SIDECAR_W1_PROMPT_ORIGIN=1' && [ "$(git -C "$SWO/proj" log -1 --name-only --format=)" = ".framework.yaml" ]; then ok "40: vendored and unset => set, read back, .framework.yaml alone committed"; else bad "40 set" "$x"; fi
+out=$(run); x=$(s40 "$out")
+if echo "$x" | grep_all 'skip    SIDECAR_W1_PROMPT_ORIGIN already 1 in .framework.yaml'; then ok "40: second run skips (idempotent)"; else bad "40 again" "$x"; fi
+echo "# adapter" > "$SWO/proj/.agentic-framework/lib/sidecar/adapter2.py"; sed -i '/^SIDECAR/d' "$SWO/proj/.framework.yaml"; git -C "$SWO/proj" commit -qam "T-1: reset"
 
 echo ""
 echo "----------------------------------------"
