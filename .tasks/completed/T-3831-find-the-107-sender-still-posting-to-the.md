@@ -7,10 +7,10 @@ description: >
   d1993c2c3ec44c94 (.107 shared identity key). Our AEF sidecar reads it, so nothing
   is lost, but the right address is 010-termlink (AEF T-5288 asked).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-20T09:45:41Z
-last_update: 2026-11-21T16:49:40Z
-date_finished:
+last_update: 2026-11-22T21:01:59Z
+date_finished: 2026-11-22T21:01:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -90,7 +90,7 @@ bvp_scores_proposed:
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The sender of the last posts to `inbox:cacc73ea32b121dd/termlink` is named. The task's premise was wrong: AEF's sidecar does NOT read this inbox (AEF msg d49dfcdd, 2026-11-21; their orphan check lists it as read by no known agent). So TermLink, as the addressee, read the newest posts' metadata itself. Offsets 68-71 (2026-11-19 to 11-20 11:23Z) came from 055-agentic-fleet-cockpit and offset 67 (11-19) from 050-email-archive, all `msg_type sidecar.consult`, the older consult route to the old name `termlink`. Offset 66 was a framework nudge on `consult-termlink`.
 - [x] That sender addresses `010-termlink`. The senders are not ours, so it was filed with both owners (055 and 050 told on 2026-11-21). 055's later mail on the same thread already reaches `010-termlink`. Missed content was checked: 055's file-drop notice is already covered (`.gitignore:117`), and 050's 11-19 API-key broadcast was answered late, the same day ("NO", no Anthropic API key used here).
-- [ ] `channel.list` shows no new write to the old inbox for 24 h after the fix.
+- [x] `channel.list` shows no new write to the old inbox for 24 h after the fix. (Checked 2026-11-22T21:01Z: `inbox:cacc73ea32b121dd/termlink` latest_offset 71, last_write_ms 1795173785026 = 2026-11-20T11:23:05Z. No write since the owners were told on 2026-11-21 about 16:49Z, which is over 28 h.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -141,6 +141,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+# verification: none — the evidence is a point-in-time read of the hub's channel.list (recorded in the criterion, 2026-11-22T21:01Z); a live re-read would anchor the gate to mutable hub state (T-3326)
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -395,3 +397,22 @@ bvp_scores_proposed:
 ### 2026-11-21T16:14:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-22T21:01:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-01993a70
+- **Timestamp:** 2026-11-22T21:02:01Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 2
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+  2. **secret-handling** (high) — Secret or credential changes
+     - matched: `API key`

@@ -25371,3 +25371,21 @@ scan_id: R-e0b32745
 task_id: T-3852
 payload:
   task_file: .tasks/active/T-3852-runme-action-40-sidecarw1promptorigin1-f.md
+---
+kind: scan_emitted
+timestamp: '2026-11-22T21:02:01Z'
+scan_id: R-01993a70
+task_id: T-3831
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-22T21:02:01Z'
+scan_id: R-01993a70
+task_id: T-3831
+payload:
+  task_file: .tasks/active/T-3831-find-the-107-sender-still-posting-to-the.md
