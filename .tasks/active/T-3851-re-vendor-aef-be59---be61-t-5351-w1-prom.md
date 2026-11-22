@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-22T12:10:59Z
-last_update: 2026-11-22T12:31:30Z
+last_update: 2026-11-22T12:53:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -71,10 +71,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] For the five changed paths, base (be.59) and theirs (be.61) are fetched, and each blob id matches AEF's msg 0bee0f32. Ours equals the current vendored file.
-- [ ] Each path is 3-way merged (base be.59, ours vendored, theirs be.61). Any conflict is resolved by hand and named in the manifest. The merge set and `MANIFEST.tsv` (ours, theirs, merged sha256) are in `.context/vendor-merges/T-3851`.
-- [ ] runme 11a targets be.61 (tag, marker proving T-5351, task T-3851, merges T-3851). `bash -n runme.sh` passes, and `tests/runme-fixtures.sh` passes.
-- [ ] `bash scripts/check-vendor-divergence.sh` exits 0.
+- [x] For the five changed paths, base (be.59) and theirs (be.61) are fetched, and each blob id matches AEF's msg 0bee0f32. Ours equals the current vendored file.
+- [x] Each path is 3-way merged (base be.59, ours vendored, theirs be.61). Any conflict is resolved by hand and named in the manifest. The merge set and `MANIFEST.tsv` (ours, theirs, merged sha256) are in `.context/vendor-merges/T-3851`.
+- [x] runme 11a targets be.61 (tag, marker proving T-5351, task T-3851, merges T-3851). `bash -n runme.sh` passes, and `tests/runme-fixtures.sh` passes.
+- [x] `bash scripts/check-vendor-divergence.sh` exits 0. (2026-11-22: all five blob ids matched, merges all clean, syntax checks pass, our local-fix markers kept; fixtures 468/0; divergence check 0.)
+- [ ] After the operator's run: VERSION at or past be.61, runme 11a OK (the merged files installed, the other preserved files byte-identical), `lib/sidecar/adapter2.py` carries T-5351, and fw doctor shows no new FAIL.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
