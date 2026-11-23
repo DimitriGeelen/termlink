@@ -8,12 +8,12 @@ description: >
   Observe; DISPATCH_STATS falls through to auth::method_scope deny-by-default Execute.
   AEF T-5371 would need an execute token to read counts.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/server.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-23T14:46:45Z
-last_update: 2026-11-23T17:36:18Z
-date_finished:
+last_update: 2026-11-23T18:02:03Z
+date_finished: 2026-11-23T18:02:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -103,7 +103,7 @@ after the next runme; AEF T-5371 reads it without an execute token.
 - [x] `dispatch.stats` resolves to Observe in the hub's scope table, beside `dispatch.get`
 - [x] A hub test asserts the scope of `dispatch.stats` is Observe, and fails when the arm is removed (mutant)
 - [x] Hub test suite and clippy pass
-- [ ] After the operator's next runme deploys it, a live call at observe scope returns the stats shape (checked from this session; until then the task stays open)
+- [x] After the operator's next runme deploys it, a live call at observe scope returns the stats shape (checked from this session; until then the task stays open)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -429,3 +429,16 @@ new read verb still needs its own line there; the lesson is recorded as a learni
 ### 2026-11-23T17:32:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-23T18:02:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0a273d6e
+- **Timestamp:** 2026-11-23T18:02:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,118 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3853: dispatch.stats (T-3849) requires execute scope; it is read-only and should be Observe like dispatch.get
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-23T18:02:37Z
+# ============================================================================
+
+task_id: T-3853
+task_name: "dispatch.stats (T-3849) requires execute scope; it is read-only and should be Observe like dispatch.get"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-23T14:46:45Z
+completed: 2026-11-23T18:02:03Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-23T15:47:29+01:00
+last_commit: 2026-11-23T18:36:19+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture (dispatch.stats needs execute scope; should be observe). BVP/cost estimator run over arc-011 tasks (proposed scores only). dispatch.stats needs Observe scope like dispatch.get (was deny-by-default Execute). Test dispatch_reads_are_observe; mutant without the arm fails; hub 693/0; clippy clean. Operator ruling B recorded
+
+# Key outcomes
+outcomes:
+  - '`dispatch.stats` resolves to Observe in the hub''s scope table, beside `dispatch.get`'
+  - 'A hub test asserts the scope of `dispatch.stats` is Observe, and fails when the arm is removed (mutant)'
+  - 'Hub test suite and clippy pass'
+  - 'After the operator''s next runme deploys it, a live call at observe scope returns the stats shape (checked from this session; until then the task stays open)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-23 — work this task despite a 0 estimator score (operator ruling: "B")'
+    chose: 'B: the focus anchor outranks the estimator score for the arc-011 one-main critical path (T-3694, then T-3654, T-3669), plus this scope fix. Operator first said "A", then interrupted and said "B".'
+    rationale: 'the estimator scored this task 0 on every driver (no-signal), so the autonomous mandate''s Q1/Q2 gate excluded it; a peer (AEF T-5371) waits on it, and leaving it pushes them to an execute token for a read.'
+    alternatives_rejected: ['A (critical path only), C (scores binding, run stays stopped), D (T-3433 to its dependency wall). Scores were not changed.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/.id-highwater'
+  - '.tasks/.id-ledger.jsonl'
+  - '.tasks/active/T-3350-arc-011-gp-11-complete-the-operator-out-.md'
+  - '.tasks/active/T-3358-send-tooling---priority-option-for-agent.md'
+  - '.tasks/active/T-3360-standing-tests-od-18-takeover-tests-and-.md'
+  - '.tasks/active/T-3361-daily-end-to-end-two-agent-message-canar.md'
+  - '.tasks/active/T-3362-sender-assigned-per-conversation-sequenc.md'
+  - '.tasks/active/T-3363-declared-mail-hub-projects-declare-canon.md'
+  - '.tasks/active/T-3433-arc-011-fx-5-disclosure-inventory-check-.md'
+  - '.tasks/active/T-3484-shared-dispatched-worker-contract-reach-.md'
+  - '.tasks/active/T-3614-artifact-putget-add---hub-so-a-remote-hu.md'
+  - '.tasks/active/T-3654-main-session-only-delivery-for-agents-wi.md'
+  - '.tasks/active/T-3663-bring-existing-cross-machine-file-routes.md'
+  - '.tasks/active/T-3669-t-3654-ac4-remainder-forward-non-main-ma.md'
+  - '.tasks/active/T-3688-arc-011-full-macos-activity-veto-for-the.md'
+  - '.tasks/active/T-3694-p-4-b-25-lease-tightening-and-waiting-ma.md'
+  - '.tasks/active/T-3697-p-7-b-16-doorbell-d-and-300-s-watchdog-k.md'
+  - '.tasks/active/T-3698-p-8-release-install-action-for-107-in-ru.md'
+  - '.tasks/active/T-3699-p-9-w2-doorbell-on-for-the-w1-pair-h-11-.md'
+  - '.tasks/active/T-3704-p-16-b-6-agent-key-card-and-post-time-si.md'
+  - '.tasks/active/T-3705-p-17-b-7-receiver-quotas-sender-window-h.md'
+  - '.tasks/active/T-3706-p-20-b-10-reconciliation-on-start-and-da.md'
+  - '.tasks/active/T-3707-p-21-b-12-blobs-on-the-chain-with-both-d.md'
+  - '.tasks/active/T-3709-p-25-b-15-fault-injectors-and-the-drill.md'
+  - '.tasks/active/T-3713-p-31-credential-migration-on-107.md'
+  - '.tasks/active/T-3714-p-33-production-invariant-checks-e-125e-.md'
+  - '.tasks/active/T-3715-p-36-w3-every-agent-on-107-through-the-l.md'
+  - '.tasks/active/T-3716-p-37-break-glass-drill-at-w3-scale.md'
+  - '.tasks/active/T-3717-p-38-ph-2-operator-documentation-and-w2w.md'
+  - '.tasks/active/T-3718-p-39-ph-1-built-invariants-re-asserted-o.md'
+  - '.tasks/active/T-3719-p-40-b-22-w3-acceptance-and-ph-2-exit-re.md'
+  - '.tasks/active/T-3720-p-41-w4-decommission-of-the-aef-receiver.md'
+  - '.tasks/active/T-3721-p-42-retire-the-w1-trial-provisioning-sc.md'
+  - '.tasks/active/T-3853-dispatchstats-t-3849-requires-execute-sc.md'
+  - 'crates/termlink-hub/src/server.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-23T15:47:29'
+    action: 'T-3853: capture (dispatch.stats needs execute scope; should be observe). BVP/cost estimator run over arc-011 tasks (proposed scores only)'
+  - time: '2026-11-23T18:36:19'
+    action: 'T-3853: dispatch.stats needs Observe scope like dispatch.get (was deny-by-default Execute). Test dispatch_reads_are_observe; mutant without the arm fails; hub 693/0; clippy clean. Operator ruling B recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 195 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 195
+  commits: 3
+  files_changed: 38
+  lines_added: 1394
+  lines_removed: 81
+  footprint_refreshed_at: '2026-11-23T18:02:55Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3853-dispatchstats-t-3849-requires-execute-sc.md
+generated_by: context-agent-hybrid
