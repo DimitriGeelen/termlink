@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-21T22:26:59Z
+last_update: '2026-11-23T14:45:25Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,6 +77,16 @@ bvp_scores_proposed:
       (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
     rubric_sha: e4a00f38e801
     driver_set: product
+cost_estimate_proposed:
+  - ts: '2026-11-23T14:45:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (6-file-refs-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=404,acs=6)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3694: P-4: B-25 lease tightening and waiting-mail signal K-34

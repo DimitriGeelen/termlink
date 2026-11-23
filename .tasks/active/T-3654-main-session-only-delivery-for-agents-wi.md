@@ -17,7 +17,7 @@ plan_unit: P-35
 arc_id: arc-011
 depends_on: [T-3694, T-3695]
 created: 2026-11-02T12:11:07Z
-last_update: 2026-11-21T21:24:18Z
+last_update: '2026-11-23T14:45:25Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,6 +39,16 @@ bvp_scores_proposed:
       F-RECALL: 0
     rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
       D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-11-23T14:45:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (target_blast_radius:build-T-3188); tier=2 
+      (workflow:build); effort=8 (lines=233,acs=8)
     rubric_sha: e4a00f38e801
 ---
 

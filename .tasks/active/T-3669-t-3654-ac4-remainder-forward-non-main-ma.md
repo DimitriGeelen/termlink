@@ -1,8 +1,12 @@
 ---
 id: T-3669
-name: "T-3654 AC4 remainder: forward non-main mail once across sidecars and tell the sender which main received it"
+name: "T-3654 AC4 remainder: forward non-main mail once across sidecars and tell the
+  sender which main received it"
 description: >
-  Split out of T-3654 AC4. Not built: (1) a non-main sidecar on another host forwards a message to the main's sidecar exactly once; (2) the sender gets 'delivered via X; main is Y (gen N)'. No trigger today: every project in docs/reports/T-3654-main-only-rollout.md runs on one host. Build when a project runs sessions of one identity on two hosts.
+  Split out of T-3654 AC4. Not built: (1) a non-main sidecar on another host forwards
+  a message to the main's sidecar exactly once; (2) the sender gets 'delivered via
+  X; main is Y (gen N)'. No trigger today: every project in docs/reports/T-3654-main-only-rollout.md
+  runs on one host. Build when a project runs sessions of one identity on two hosts.
 
 status: captured
 workflow_type: build
@@ -41,8 +45,8 @@ depends_on: [T-3704, T-3696, T-3695]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T20:28:11Z
-last_update: 2026-11-03T20:28:11Z
-date_finished: null
+last_update: '2026-11-23T14:45:31Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -53,6 +57,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-23T14:45:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=2 (body:learning-ref);
+      D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
+cost_estimate_proposed:
+  - ts: '2026-11-23T14:45:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=342,acs=6)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3669: T-3654 AC4 remainder: forward non-main mail once across sidecars and tell the sender which main received it
