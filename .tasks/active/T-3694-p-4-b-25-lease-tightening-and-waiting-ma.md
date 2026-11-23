@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: '2026-11-23T14:45:25Z'
+last_update: 2026-11-23T17:39:12Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -350,6 +350,17 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
 
 ## Evolution
 
+### 2026-11-23 — `basis: inferred` is the expected end state, not a missing binding (correction)
+- **What changed:** I had told the operator the check after the session restart was "S1 bound and `last_prompt`
+  basis `pty-input`". That second half cannot happen: AEF's adapter reports a human prompt only as
+  `inferred` (`.agentic-framework/lib/sidecar/adapter2.py:21`, `:214`, per 17.5.d), and `check_origin`
+  (`crates/termlink-sidecar/src/meter.rs:1417`) only downgrades; a human prompt confirmed by `client` bytes keeps the
+  reported basis. Measured 2026-11-23 on this session (10c2f139): `s1: known`, `last_prompt.origin: human`,
+  `basis: inferred`, sidecar counter `origin_overridden: 0` over the session's prompts (none failed the counter check).
+- **Plan impact:** action 39's readiness test (S1 bound, checked human prompt, fresh) is the right test; it does
+  not read basis. The go for step 5 needs no further evidence from this side.
+- **Triggered:** the step-5 go goes to the operator as its own decision.
+
 ### 2026-11-13 — 04 17.5.d measured by AEF (T-5054): harness marks downgrade only, never prove human
 - **What changed:** AEF measured 3,670 prompt records (Claude Code 2.1.267): the transcript marks generated prompts
   (origin.kind task-notification | peer | human; promptSource typed | suggestion_accepted | queued | system; turnOrigin
@@ -429,6 +440,14 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
 -->
 
 ## Decisions
+
+### 2026-11-23 — work this task although the estimator scores it low-value (operator ruling: "B")
+- **Chose:** B: under the autonomous mandate, the focus anchor outranks the estimator score for the arc-011 one-main
+  critical path (T-3694, then T-3654, T-3669), plus the T-3853 scope fix. The operator said "A", then interrupted and
+  said "B".
+- **Why:** the estimator (heuristic, proposed only) scores this task 33 / lv-hc; the mandate's Q1/Q2 gate would
+  exclude the work the operator's focus anchor names.
+- **Rejected:** A (without T-3853), C (scores binding, run stops), D (T-3433 to its dependency wall). No score changed.
 
 ### 2026-11-21 — how the W1 pair reports prompt origin (operator ruling: "A")
 - **Chose:** A of the revised brief, i.e. route C in order:
