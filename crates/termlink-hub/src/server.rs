@@ -826,6 +826,8 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | control::method::CHANNEL_CLAIMS_SUMMARY
         | control::method::CHANNEL_CV_KEYS
         | control::method::DISPATCH_GET
+        // T-3853: dispatch.stats (T-3849) is a pure read of withdrawal counts.
+        | control::method::DISPATCH_STATS
         | control::method::AGENT_FIND_IDLE => PermissionScope::Observe,
 
         // Interact: append / own-lease mutations + addressed/fan-out delivery.
@@ -2517,6 +2519,22 @@ mod tests {
                     method
                 );
             }
+        }
+    }
+
+    /// T-3853: the read-only dispatch verbs need Observe only. dispatch.stats
+    /// shipped (T-3849) without an arm and fell through to Execute, so a peer
+    /// reading withdrawal counts was refused -32010 at observe scope.
+    #[test]
+    fn dispatch_reads_are_observe() {
+        use control::method as m;
+        for method in [m::DISPATCH_GET, m::DISPATCH_STATS] {
+            assert_eq!(
+                hub_method_scope(method),
+                PermissionScope::Observe,
+                "'{}' is read-only and must need Observe only",
+                method
+            );
         }
     }
 

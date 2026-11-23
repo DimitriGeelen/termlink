@@ -8,10 +8,10 @@ description: >
   Observe; DISPATCH_STATS falls through to auth::method_scope deny-by-default Execute.
   AEF T-5371 would need an execute token to read counts.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-23T14:46:45Z
-last_update: 2026-11-23T14:47:29Z
+last_update: 2026-11-23T17:36:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -92,14 +92,17 @@ an execute token just to read withdrawal counts: least privilege broken, and a w
 
 **Goal:** `dispatch.stats` needs Observe, the same as `dispatch.get`.
 
+**Expected outcome:** A call to `dispatch.stats` with an observe-scope token returns the stats shape on every hub
+after the next runme; AEF T-5371 reads it without an execute token.
+
 **Rollback:** remove the arm; the verb returns to execute scope.
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `dispatch.stats` resolves to Observe in the hub's scope table, beside `dispatch.get`
-- [ ] A hub test asserts the scope of `dispatch.stats` is Observe, and fails when the arm is removed (mutant)
-- [ ] Hub test suite and clippy pass
+- [x] `dispatch.stats` resolves to Observe in the hub's scope table, beside `dispatch.get`
+- [x] A hub test asserts the scope of `dispatch.stats` is Observe, and fails when the arm is removed (mutant)
+- [x] Hub test suite and clippy pass
 - [ ] After the operator's next runme deploys it, a live call at observe scope returns the stats shape (checked from this session; until then the task stays open)
 
 ### Human
@@ -304,8 +307,21 @@ an execute token just to read withdrawal counts: least privilege broken, and a w
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3853-rt cargo test -p termlink-hub --lib dispatch_reads_are_observe > /tmp/.t3853 2>&1 && grep -q "1 passed; 0 failed" /tmp/.t3853
+grep -q "| control::method::DISPATCH_STATS" crates/termlink-hub/src/server.rs
 
 ## RCA
+
+**Symptom:** after the 2026-11-23 runme, `dispatch.stats` at observe scope was refused -32010 "requires 'execute' scope".
+
+**Root cause:** T-3849 added the verb to the router and capability list but not to `hub_method_scope`; unlisted
+methods fall through to `auth::method_scope`'s deny-by-default Execute.
+
+**Why structurally allowed:** T-3849's tests called the handler directly and through the local router, where scope
+is not checked; no test asserted a scope for any `dispatch.*` read. The T-2267 guard covers only `channel.*`.
+
+**Prevention:** `dispatch_reads_are_observe` pins both dispatch reads to Observe (mutant without the arm fails). A
+new read verb still needs its own line there; the lesson is recorded as a learning.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -385,6 +401,14 @@ an execute token just to read withdrawal counts: least privilege broken, and a w
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-23 — work this task despite a 0 estimator score (operator ruling: "B")
+- **Chose:** B: the focus anchor outranks the estimator score for the arc-011 one-main critical path (T-3694, then
+  T-3654, T-3669), plus this scope fix. Operator first said "A", then interrupted and said "B".
+- **Why:** the estimator scored this task 0 on every driver (no-signal), so the autonomous mandate's Q1/Q2 gate
+  excluded it; a peer (AEF T-5371) waits on it, and leaving it pushes them to an execute token for a read.
+- **Rejected:** A (critical path only), C (scores binding, run stays stopped), D (T-3433 to its dependency wall).
+  Scores were not changed.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -401,3 +425,7 @@ an execute token just to read withdrawal counts: least privilege broken, and a w
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3853-dispatchstats-t-3849-requires-execute-sc.md
 - **Context:** Initial task creation
+
+### 2026-11-23T17:32:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
