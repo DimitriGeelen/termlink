@@ -7,6 +7,7 @@
 //! |---|---|
 //! | `client` | an attached client's input stream (keystrokes, paste); also any write whose source cannot be classified (FCW-10: someone may be typing) |
 //! | `client_auto` | a `client` write that is exactly one terminal reply (cursor-position report, focus in/out, device-attribute reply): the terminal answering, not a person |
+//! | `client_pointer` | a `client` write made only of mouse reports (SGR `ESC[<b;x;y` `M`/`m`, legacy `ESC[M` + 3 bytes): a person is present but not typing (T-3854; Claude Code turns on any-motion reporting, so moving the mouse writes these) |
 //! | `notify` | `command.notify`, the sidecar doorbell |
 //! | `inject` | `command.inject` (and every CLI path built on it: `pty inject`, `interact`, batch input) |
 //!
@@ -26,10 +27,12 @@ pub enum InputSource {
     ClientAuto,
     Notify,
     Inject,
+    ClientPointer,
 }
 
 impl InputSource {
-    pub const ALL: [InputSource; 4] = [InputSource::Client, InputSource::ClientAuto, InputSource::Notify, InputSource::Inject];
+    pub const ALL: [InputSource; 5] =
+        [InputSource::Client, InputSource::ClientAuto, InputSource::Notify, InputSource::Inject, InputSource::ClientPointer];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -37,6 +40,7 @@ impl InputSource {
             InputSource::ClientAuto => "client_auto",
             InputSource::Notify => "notify",
             InputSource::Inject => "inject",
+            InputSource::ClientPointer => "client_pointer",
         }
     }
 
@@ -53,10 +57,10 @@ pub struct Counter {
     pub writes: u64,
 }
 
-/// The four counters of one PTY.
+/// The counters of one PTY, one per [`InputSource`].
 #[derive(Debug, Default)]
 pub struct InputMeter {
-    ctr: Mutex<[Counter; 4]>,
+    ctr: Mutex<[Counter; 5]>,
 }
 
 impl InputMeter {
@@ -65,9 +69,18 @@ impl InputMeter {
     }
 
     /// Classify a write: a `client` write that is exactly one terminal reply is
-    /// `client_auto` (AL-2 step 2). Other sources are taken as given.
+    /// `client_auto` (AL-2 step 2); one made only of mouse reports is
+    /// `client_pointer` (T-3854). Other sources are taken as given.
     pub fn classify(src: InputSource, data: &[u8]) -> InputSource {
-        if src == InputSource::Client && is_terminal_reply(data) { InputSource::ClientAuto } else { src }
+        if src != InputSource::Client {
+            src
+        } else if is_terminal_reply(data) {
+            InputSource::ClientAuto
+        } else if is_pointer_reports(data) {
+            InputSource::ClientPointer
+        } else {
+            src
+        }
     }
 
     /// Count one write of `len` bytes from `src` at `at_mono` (AL-2 step 3).
@@ -89,7 +102,7 @@ impl InputMeter {
         self.ctr.lock().unwrap_or_else(|p| p.into_inner())[src.idx()]
     }
 
-    /// `{client, client_auto, notify, inject}: {last_mono|null, bytes, writes}`.
+    /// `{client, client_auto, notify, inject, client_pointer}: {last_mono|null, bytes, writes}`.
     pub fn sources_json(&self) -> Value {
         let c = *self.ctr.lock().unwrap_or_else(|p| p.into_inner());
         let mut m = serde_json::Map::new();
@@ -117,6 +130,36 @@ pub fn is_terminal_reply(b: &[u8]) -> bool {
         return body.split(|c| *c == b';').all(digits);
     }
     false
+}
+
+/// One or more mouse reports and nothing else (T-3854): SGR (mode 1006)
+/// `ESC [ < <digits> ; <digits> ; <digits> M|m`, or legacy (mode 1000)
+/// `ESC [ M` followed by three bytes of 32 or more. Anything else in the write
+/// (a keystroke, a paste) makes it `client`.
+pub fn is_pointer_reports(b: &[u8]) -> bool {
+    let digits = |s: &[u8]| !s.is_empty() && s.iter().all(u8::is_ascii_digit);
+    let mut rest = b;
+    if rest.is_empty() {
+        return false;
+    }
+    while !rest.is_empty() {
+        if let Some(r) = rest.strip_prefix(b"\x1b[<") {
+            let Some(end) = r.iter().position(|c| *c == b'M' || *c == b'm') else { return false };
+            let mut it = r[..end].split(|c| *c == b';');
+            if !matches!((it.next(), it.next(), it.next(), it.next()), (Some(a), Some(x), Some(y), None) if digits(a) && digits(x) && digits(y)) {
+                return false;
+            }
+            rest = &r[end + 1..];
+        } else if let Some(r) = rest.strip_prefix(b"\x1b[M") {
+            if r.len() < 3 || r[..3].iter().any(|c| *c < 32) {
+                return false;
+            }
+            rest = &r[3..];
+        } else {
+            return false;
+        }
+    }
+    true
 }
 
 /// Milliseconds on `CLOCK_MONOTONIC` (since boot on Linux, shared by every
@@ -239,6 +282,40 @@ mod tests {
     }
 
     #[test]
+    fn mouse_reports_are_client_pointer_and_typing_stays_client() {
+        // T-3854: any-motion (1003) + SGR (1006) as Claude Code sets them; one or several reports per write.
+        for r in [
+            &b"\x1b[<35;40;12M"[..],
+            b"\x1b[<64;10;5M",
+            b"\x1b[<0;1;1m",
+            b"\x1b[<35;40;12M\x1b[<35;41;12M\x1b[<35;42;13M",
+            b"\x1b[M #!",
+            b"\x1b[M #!\x1b[<35;1;1M",
+        ] {
+            assert_eq!(InputMeter::classify(InputSource::Client, r), InputSource::ClientPointer, "{r:?}");
+        }
+        // A keystroke, a paste, or a mouse report mixed with either stays client (FCW-10).
+        for r in [
+            &b"x"[..],
+            b"\r",
+            b"\x1b[<35;40;12Mx",
+            b"x\x1b[<35;40;12M",
+            b"\x1b[<35;40M",
+            b"\x1b[<35;40;12;1M",
+            b"\x1b[<a;40;12M",
+            b"\x1b[<35;40;12",
+            b"\x1b[M\x01!!",
+            b"\x1b[M #",
+            b"\x1b[200~text\x1b[201~",
+        ] {
+            assert_eq!(InputMeter::classify(InputSource::Client, r), InputSource::Client, "{r:?}");
+        }
+        // Terminal replies keep their class; other sources are taken as given.
+        assert_eq!(InputMeter::classify(InputSource::Client, b"\x1b[12;40R"), InputSource::ClientAuto);
+        assert_eq!(InputMeter::classify(InputSource::Notify, b"\x1b[<35;1;1M"), InputSource::Notify);
+    }
+
+    #[test]
     fn counters_only_grow() {
         let m = InputMeter::new();
         m.record_at(InputSource::Client, 1, 200);
@@ -247,13 +324,15 @@ mod tests {
     }
 
     #[test]
-    fn json_names_all_four_sources() {
+    fn json_names_all_five_sources() {
         let m = InputMeter::new();
         m.record_at(InputSource::Notify, 5, 7);
+        m.record_at(InputSource::ClientPointer, 12, 9);
         let j = m.sources_json();
         assert_eq!(j["notify"], json!({"last_mono": 7, "bytes": 5, "writes": 1}));
+        assert_eq!(j["client_pointer"], json!({"last_mono": 9, "bytes": 12, "writes": 1}));
         assert_eq!(j["client"]["last_mono"], Value::Null);
-        assert_eq!(j.as_object().unwrap().len(), 4);
+        assert_eq!(j.as_object().unwrap().len(), 5);
     }
 
     #[test]

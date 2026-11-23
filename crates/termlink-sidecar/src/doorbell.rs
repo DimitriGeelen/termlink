@@ -1566,7 +1566,8 @@ impl Ports for LivePorts<'_> {
             leader_pid: fg["leader_pid"].as_u64().and_then(|p| u32::try_from(p).ok()),
             exe: fg["exe_realpath"].as_str().map(str::to_owned),
             script: fg["script_path"].as_str().map(str::to_owned),
-            client_last: v["sources"]["client"]["last_mono"].as_u64(),
+            // T-3854: the typing hold keeps counting the mouse as presence.
+            client_last: v["sources"]["client"]["last_mono"].as_u64().max(v["sources"]["client_pointer"]["last_mono"].as_u64()),
         })
     }
     fn veto(&self, session: &str, harness_pid: u32) -> (Veto, bool) {

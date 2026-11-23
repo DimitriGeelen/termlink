@@ -280,10 +280,19 @@ impl S1Reply {
             let e = src.get(s).ok_or(format!("no {s} counter"))?;
             last.insert(s.to_string(), e.get("last_mono").and_then(Value::as_u64));
         }
+        // T-3854: mouse reports; absent on a session built before it (then they were counted as client).
+        if let Some(e) = src.get("client_pointer") {
+            last.insert("client_pointer".to_string(), e.get("last_mono").and_then(Value::as_u64));
+        }
         Ok(S1Reply { boot_id: v.get("boot_id").and_then(Value::as_str).map(str::to_owned), last, foreground: v.get("foreground").cloned().unwrap_or(Value::Null) })
     }
     pub fn at(&self, src: &str) -> Option<u64> {
         self.last.get(src).copied().flatten()
+    }
+    /// The last sign a person is at the terminal: typing or the mouse (T-3854). Presence
+    /// readers use this; the origin check uses `client` (typing) alone.
+    pub fn presence(&self) -> Option<u64> {
+        self.at("client").max(self.at("client_pointer"))
     }
 }
 
@@ -1042,7 +1051,7 @@ impl Meter {
             let Some(sess) = g.sessions.get_mut(&name) else { continue };
             match r {
                 Ok(r) if my_boot.is_some() && r.boot_id == my_boot => {
-                    sess.s1 = Some(S1::Known { client: r.at("client"), read_at: now });
+                    sess.s1 = Some(S1::Known { client: r.presence(), read_at: now });
                     sess.s1_sources = Some(r);
                 }
                 Ok(_) => {
