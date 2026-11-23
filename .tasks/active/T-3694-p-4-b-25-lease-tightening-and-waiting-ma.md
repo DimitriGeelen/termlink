@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-23T17:39:12Z
+last_update: 2026-11-23T21:43:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -349,6 +349,24 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
 -->
 
 ## Evolution
+
+### 2026-11-23 21:41Z — a harness-generated prompt was counted human and re-took main (finding)
+- **What changed:** the main lease had lapsed while the session was idle (action 39 at 21:40:56Z: "no main holder").
+  At 21:41:00.367Z Claude Code delivered a background-task `<task-notification>` prompt; the transcript marks it
+  generated (`origin.kind: task-notification`, `promptSource: system`). The sidecar received `prompt_submit` at
+  21:41:00.710Z with `origin: human, basis: inferred`; `origin_overridden` stayed 0; the hub renewed main for this
+  session (`last_human_at_ms` 1795470060796). Two checks let it through:
+  1. AEF `classify_origin` (`adapter2.py:204`): `transcript_mark` found no generated record, so `interactive` gave
+     `human/inferred`. Hypothesis (unproven): the hook runs before the record is in the file, which the docstring
+     itself allows ("None when no record ... the hook may run before it is written").
+  2. TermLink `check_origin` (`meter.rs:1417`): it downgrades only when there is NO `client` byte since the previous
+     submit. `session.input_activity` on this PTY shows 1234 `client` writes and only 38 `client_auto`; mouse/scroll
+     input while the operator reads counts as `client`, so an operator who is present lets any generated prompt pass.
+- **Plan impact:** the earlier correction's "`origin_overridden: 0`, none failed the check" is weak evidence. The
+  switch carries no lockout risk from this (it errs towards human), but it would not stop generated prompts holding
+  main while the operator is at the terminal; it would still stop doorbell lines and non-interactive sessions.
+- **Triggered:** reported to AEF (finding 1); finding 2 needs its own task if the operator wants the counter test
+  tightened.
 
 ### 2026-11-23 — `basis: inferred` is the expected end state, not a missing binding (correction)
 - **What changed:** I had told the operator the check after the session restart was "S1 bound and `last_prompt`
