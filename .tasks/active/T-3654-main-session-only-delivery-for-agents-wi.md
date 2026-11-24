@@ -17,7 +17,7 @@ plan_unit: P-35
 arc_id: arc-011
 depends_on: [T-3694, T-3695]
 created: 2026-11-02T12:11:07Z
-last_update: 2026-11-24T10:40:07Z
+last_update: 2026-11-24T10:42:24Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
