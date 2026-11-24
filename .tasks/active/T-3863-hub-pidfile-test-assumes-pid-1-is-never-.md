@@ -1,13 +1,18 @@
 ---
 id: T-3863
-name: "Hub pidfile test assumes PID 1 is never a termlink process; fails in a PID-namespaced sandbox whose PID 1 is 'cargo test -p termlink-hub'"
+name: "Hub pidfile test assumes PID 1 is never a termlink process; fails in a PID-namespaced
+  sandbox whose PID 1 is 'cargo test -p termlink-hub'"
 description: >
-  Found on the ring20 pool (T-3858, 2026-11-24, per-crate job termlink-hub at f3af3cb83): pidfile::tests::check_reused_pid_of_non_termlink_process_is_stale writes pid 1 and expects Stale; in the job's PID namespace PID 1's cmdline contains 'termlink' so check() says Running. Passes in the full-workspace pool run and locally. Use a pid known not to be termlink (e.g. spawn 'sleep' and use its pid) instead of 1.
+  Found on the ring20 pool (T-3858, 2026-11-24, per-crate job termlink-hub at f3af3cb83):
+  pidfile::tests::check_reused_pid_of_non_termlink_process_is_stale writes pid 1 and
+  expects Stale; in the job's PID namespace PID 1's cmdline contains 'termlink' so
+  check() says Running. Passes in the full-workspace pool run and locally. Use a pid
+  known not to be termlink (e.g. spawn 'sleep' and use its pid) instead of 1.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T16:53:49Z
-last_update: 2026-11-24T16:53:49Z
-date_finished: null
+last_update: 2026-11-24T18:20:11Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,43 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-24T18:17:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3863: Hub pidfile test assumes PID 1 is never a termlink process; fails in a PID-namespaced sandbox whose PID 1 is 'cargo test -p termlink-hub'
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3858's per-crate pool job termlink-hub (2026-11-24, node1, commit f3af3cb83) failed
+`pidfile::tests::check_reused_pid_of_non_termlink_process_is_stale`: Running(1), expected Stale(1).
+
+**Problem / hypothesis:** the test writes pid 1 and assumes PID 1 is never a termlink process. In the job's PID
+namespace, PID 1 is the job command (`cargo test ... -p termlink-hub`), whose cmdline contains "termlink", so
+`is_termlink_process` correctly says yes. The hub code is right; the test's premise is not portable.
+
+**Goal:** the test uses a live process whose command line is known not to contain "termlink".
+
+**Expected outcome:** the test passes locally and in a PID-namespaced sandbox; it still fails if `check` stops
+treating a live non-termlink pid as Stale.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The test spawns a `sleep` child, writes its pid, expects Stale(pid), and kills and reaps the child
+- [x] A mutant where `check` reports any live pid as Running fails the test (dropping `&& is_termlink_process(pid)`: Running(pid), test fails)
+- [x] Hub test suite and clippy pass (693 passed, 0 failed; clippy -D warnings clean)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +142,8 @@ date_finished: null
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3863-rt cargo test -p termlink-hub --lib check_reused_pid_of_non_termlink_process_is_stale > /tmp/.t3863 2>&1 && grep -q "1 passed; 0 failed" /tmp/.t3863
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +394,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3863-hub-pidfile-test-assumes-pid-1-is-never-.md
 - **Context:** Initial task creation
+
+### 2026-11-24T18:17:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

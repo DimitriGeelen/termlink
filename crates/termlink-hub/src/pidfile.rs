@@ -238,10 +238,17 @@ mod tests {
         if !Path::new("/proc/self/cmdline").exists() {
             return;
         }
+        // T-3863: a live process known not to be termlink. PID 1 is not that everywhere: in a PID-namespaced
+        // sandbox PID 1 is the job command, e.g. `cargo test -p termlink-hub`, which IS termlink by cmdline.
+        let mut child = std::process::Command::new("sleep").arg("30").spawn().expect("spawn sleep");
+        let pid = child.id();
         let path = test_pidfile();
-        fs::write(&path, "1").unwrap();
-        assert_eq!(check(&path), PidfileStatus::Stale(1));
+        fs::write(&path, pid.to_string()).unwrap();
+        let got = check(&path);
+        let _ = child.kill();
+        let _ = child.wait();
         let _ = fs::remove_file(&path);
+        assert_eq!(got, PidfileStatus::Stale(pid));
     }
 
     /// T-3340: our own test binary is a termlink process (termlink_hub-*), so a
