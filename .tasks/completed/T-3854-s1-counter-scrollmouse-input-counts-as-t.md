@@ -4,10 +4,10 @@ name: "S1 counter: scroll/mouse input counts as typing, so a generated prompt pa
 description: >
   S1 counter: scroll/mouse input counts as typing, so a generated prompt passes the human check
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-23T21:46:22Z
-last_update: 2026-11-23T22:07:11Z
-date_finished: null
+last_update: 2026-11-24T09:58:26Z
+date_finished: 2026-11-24T09:58:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -84,7 +84,7 @@ the doorbell's typing veto keeps its meaning unless a decision here says otherwi
 - [x] Mutant: undoing the change makes that fixture fail
 - [x] The doorbell's use of `client` input is either unchanged (its tests pass as they are) or the change to it is recorded as a decision
 - [x] Session and sidecar test suites and clippy pass
-- [ ] After the operator's runme deploys it: the live counters on this session show the new classification (checked from this session)
+- [x] After the operator's runme deploys it: the live counters on this session show the new classification (checked from this session)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -424,3 +424,16 @@ mutant without the classification fails it.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3854-s1-counter-scrollmouse-input-counts-as-t.md
 - **Context:** Initial task creation
+
+### 2026-11-24T09:58:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-adb98bbe
+- **Timestamp:** 2026-11-24T09:59:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

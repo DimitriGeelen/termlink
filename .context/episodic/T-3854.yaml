@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3854: S1 counter: scroll/mouse input counts as typing, so a generated prompt passes the human check
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-24T09:59:24Z
+# ============================================================================
+
+task_id: T-3854
+task_name: "S1 counter: scroll/mouse input counts as typing, so a generated prompt passes the human check"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-23T21:46:22Z
+completed: 2026-11-24T09:58:26Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-11-23T23:07:11+01:00
+last_commit: 2026-11-23T23:07:11+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  mouse reports are client_pointer, not typing; origin check reads typing only, presence readers keep the mouse. Fixture t3854_pointer_origin (real bytes, real classifier, real check); mutant fails; session+sidecar 1145/0; clippy clean. T-3855 captured (stale test binary)
+
+# Key outcomes
+outcomes:
+  - 'Measured, before any code change: what the client writes on a live Claude Code PTY are (mouse/scroll reports or not), recorded in this task with the evidence'
+  - 'A fixture replaying the 21:41Z shape (previous submit, then only non-typing input, then a `human` prompt) reads `automated`; a typed prompt reads `human`'
+  - 'Mutant: undoing the change makes that fixture fail'
+  - 'The doorbell''s use of `client` input is either unchanged (its tests pass as they are) or the change to it is recorded as a decision'
+  - 'Session and sidecar test suites and clippy pass'
+  - 'After the operator''s runme deploys it: the live counters on this session show the new classification (checked from this session)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'mouse reports are client_pointer, not typing; origin check reads typing only, presence readers keep the mouse. Fixture t3854_pointer_origin (real bytes, real classifier, real check); mutant fails; session+sidecar 1145/0; clippy clean. T-3855 captured (stale test binary)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-23 — mouse reports become their own source; presence readers keep counting them'
+    chose: 'a fifth counter `client_pointer` for writes made only of mouse reports. `S1Reply::presence()` (later of `client` and `client_pointer`) feeds the doorbell''s typing hold and the sidecar''s S1 time (operator-conversation window, doorbell facts), so those behave exactly as before; `check_origin` keeps reading `client` alone.'
+    rationale: 'only the origin check needs "typed"; the doorbell hold and the operator window mean "a person is at the terminal", which the mouse still shows. Old sessions without the counter keep counting the mouse as client (no change until upgraded).'
+    alternatives_rejected: ['(1) classify mouse as `client_auto`: that class means "the terminal answering", and the doorbell would stop holding for a mouse-active operator; (2) require an Enter byte since the previous submit: also passes on a permission-dialog Enter and fails a queued prompt typed before an intervening notification.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3854-s1-counter-scrollmouse-input-counts-as-t.md'
+  - '.tasks/active/T-3855-sidecar-test-estate-silently-runs-a-stal.md'
+  - 'crates/termlink-session/src/input_meter.rs'
+  - 'crates/termlink-sidecar/src/doorbell.rs'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/tests/t3854_pointer_origin.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-23T23:07:11'
+    action: 'T-3854: mouse reports are client_pointer, not typing; origin check reads typing only, presence readers keep the mouse. Fixture t3854_pointer_origin (real bytes, real classifier, real check); mutant fails; session+sidecar 1145/0; clippy clean. T-3855 captured (stale test binary)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 732 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 732
+  commits: 2
+  files_changed: 9
+  lines_added: 1122
+  lines_removed: 15
+  footprint_refreshed_at: '2026-11-24T09:59:40Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3854-s1-counter-scrollmouse-input-counts-as-t.md
+generated_by: context-agent-hybrid
