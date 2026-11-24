@@ -43,7 +43,7 @@ arc_id: risk
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T12:31:17Z
-last_update: 2026-11-24T19:06:02Z
+last_update: 2026-11-24T19:28:46Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -349,6 +349,18 @@ bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "13 passed, 0 fail
   full" was true for the submit script and client, not for the 213 KB daemon). Fixtures 13/0. Without the re-pin,
   tonight's 02:30 run would have refused (exit 2), as designed.
 - **Triggered:** none. Keep a reviewed copy next time so a re-pin can be a diff (noted for the ring20 thread).
+
+### 2026-11-24 19:28Z — pool-client.py republished (announced in advance); reviewed as a diff and re-pinned
+- **What changed:** ring20 (msg cefc43d2, advance notice) republished pool-client.py at 19:28:14Z
+  (c1675cfb… -> 37328a0b…b1b2), as announced. poold.py unchanged (cc319cf0). ring20 now keeps the replaced file
+  as `<file>.prev` (msg 0316e3f2); `pool-client.py.prev` hashes to c1675cfb, the reviewed version.
+- **Review:** full diff against our own saved copy (`.context/working/pool-reviewed/pool-client.py.c1675cfbfb9c`,
+  kept from 19:13Z): 56 lines, additions only. One new read-only subcommand `status-jobs` (`jobs_doc` runs
+  `termlink channel subscribe pool:jobs --hub <hub> --cursor 0 --limit 20 --json` and prints; no writes, no posts).
+  submit / submit-cmd / wait / withdraw / ref-put unchanged; our submit script does not call the new command.
+- **Plan impact:** pin updated; reviewed copies of all three files now kept in `.context/working/pool-reviewed/`
+  (untracked) for the next diff.
+- **Triggered:** none.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
