@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T13:21:45Z
-last_update: 2026-11-24T15:47:18Z
+last_update: 2026-11-24T15:54:17Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,10 +90,14 @@ checkout builds are unchanged; the pool's `parity_version` passes.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `crates/version-derive.rs` reads `describe` and `commit` from `<workspace>/.build-info` only when git gives no answer; malformed or absent file falls back as before (Cargo.toml version, no commit)
-- [ ] cli and mcp build.rs take the commit through the same fallback; all four build.rs rerun on `.build-info`
-- [ ] Unit tests for the parser (valid, missing key, garbage); a mutant that ignores the file fails a test
-- [ ] Proof: a build from a `git archive` of HEAD plus `.build-info` reports the same `termlink version --json` version and commit as the checkout build; without the file it reports 0.9.0 / unknown as before
+- [x] `crates/version-derive.rs` reads `describe` and `commit` from `<workspace>/.build-info` only when git gives no answer; malformed or absent file falls back as before (Cargo.toml version, no commit)
+- [x] cli and mcp build.rs take the commit through the same fallback; all four build.rs rerun on `.build-info`
+- [x] Unit tests for the parser (valid, missing key, garbage); a mutant that ignores the file fails a test
+      (`tests/version-derive-tests.sh`: 8 passed; control 1 old mapping fails 5; control 2 ignoring .build-info fails)
+- [x] Proof: a build from a `git archive` of HEAD plus `.build-info` reports the same `termlink version --json` version and commit as the checkout build; without the file it reports 0.9.0 / unknown as before
+      (archive of beb7de074: without the file `0.9.0` / `unknown`; with `describe=v0.12.13-381-gbeb7de074`,
+      `commit=beb7de074`: `0.12.13+381.gbeb7de074` / `beb7de074`, equal to the checkout's describe. Checkout build
+      unchanged; clippy --workspace -D warnings clean; termlink-mcp parity 41/0.)
 - [ ] ring20 has the file name and format; the next pool test run passes `parity_version` (checked from a session)
 
 ### Human
@@ -145,6 +149,8 @@ checkout builds are unchanged; the pool's `parity_version` passes.
 -->
 
 ## Verification
+
+bash tests/version-derive-tests.sh > /tmp/.t3861 2>&1 && grep -q "PASS  control: ignoring .build-info" /tmp/.t3861
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
