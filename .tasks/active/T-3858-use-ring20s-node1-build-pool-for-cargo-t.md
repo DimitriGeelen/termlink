@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T12:28:39Z
+last_update: 2026-11-24T12:32:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -122,7 +122,10 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       (1981 files: docs 975, crates 365, scripts 300, tests 252, .claude 36 command files + settings.json, small rest;
       name scan hit only docs/reports/T-3422-832-peer-credentials-answer.md, a design answer with no key or token;
       kept dirs are needed: build embeds scripts/, systemd-templates/, tests/ files; a soak test reads one docs file.)
-- [ ] Risk matrix `docs/reports/T-3858-risk-matrix.md` filled (new network path + unattended automation); any actor at 6+ registered in concerns.yaml
+- [x] Risk matrix `docs/reports/T-3858-risk-matrix.md` filled (new network path + unattended automation); any actor at 6+ registered in concerns.yaml
+      (4 risks, 0 errors, needs operator acceptance: none. Actors at 6+: risk 1 (10) and risk 3 (6) -> R-001, R-002 in
+      concerns.yaml, mitigation task T-3859 in the new standing arc `risk` (arc-013, standing: true). T-3859 must be
+      done before any scheduled run.)
 - [ ] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
 - [ ] Only then: a cron line or runme action calls it, with a fixture in tests/runme-fixtures.sh if runme
 

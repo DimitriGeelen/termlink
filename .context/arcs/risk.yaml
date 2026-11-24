@@ -1,0 +1,21 @@
+id: arc-013
+slug: risk
+name: "Standing risk arc"
+description: ""
+status: in-progress
+standing: true    # T-5313: never closes; fw arc close/abandon refuse it, the stale-arc audit skips it
+anchor_task:
+# close_task: T-XXX  # T-3843: the arc's close-out task. Its ## Recommendation (CLOSE|KEEP-OPEN,
+#                    # Rationale, Evidence) is the close recommendation on /arcs/<slug>/close and
+#                    # gates fw arc review; anchor_task is the fallback when unset.
+headline_mechanic: "Mitigation tasks for scored trust-boundary risks (T-5313): every risk with an actor\
+  \ at 6+ gets one"
+demo_evidence: null
+created: 2026-11-24T12:31:05Z
+closed_at: null
+decision: null
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.

@@ -2629,3 +2629,74 @@ concerns:
   - T-3652
   - T-3618
   - T-3640
+
+- id: G-098
+  type: gap
+  title: "TermLink hub 'laptop-141' (192.168.10.141:9100) has been failing fleet-doctor with tofu-violation for 195+ consecutive runs over >24h"
+  description: "Auto-registered by T-1053 under G-019 (framework-blind-to-persistent-failure guard). Hub has failed fleet-doctor with error class 'tofu-violation' for 195 consecutive runs since 2026-11-15T17:03:48Z (first observed). This indicates either a genuinely broken hub auth state OR stale client credentials that were not refreshed after a hub rotation. Per T-1051 Option D, the heal path is: 1) confirm the hub is intended to be up (termlink remote ping 192.168.10.141:9100 from a trusted anchor), 2) if yes, refresh the client secret (termlink fleet reauth laptop-141 when T-1054 lands, or manually copy /var/lib/termlink/hub.secret via an out-of-band channel for now)."
+  spec_reference: "T-1051 inception, T-1053 implementation, .context/working/.fleet-failure-state.json"
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-11-16T19:37:51Z: 195 consecutive fleet-doctor failures on laptop-141 (192.168.10.141:9100) with class tofu-violation, first observed 2026-11-15T17:03:48Z"
+  detection_lag_days: "1"
+  what_works_now: "Fleet doctor correctly classifies the error and emits a hint. T-1052 has already recorded an isolated learning. This concern escalates the sustained pattern to Watchtower visibility."
+  what_remains: "Operator must refresh the client's cached secret for this hub. Long-term fix: T-1054 (termlink fleet reauth) lands a one-command heal."
+  mitigation_candidate: "Ship T-1054 (fleet reauth Tier-1) and T-1055 (fleet reauth --bootstrap-from, Tier-2)."
+  status: watching
+  created: 2026-11-16
+  last_reviewed: 2026-11-16
+  related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055]
+
+- id: R-001
+  type: risk
+  title: "ring20's pool code runs unattended as root on .107 under our hub identity (T-3858 risk 1)"
+  description: "Sending TermLink jobs to the ring20 pool runs ring20's submit script and pool client on .107. An unreviewed update of either would run with root and act as us on the hubs. Matrix: docs/reports/T-3858-risk-matrix.md."
+  status: watching
+  likelihood: 2
+  impact: 5
+  score: 10
+  ranking: medium
+  actors:
+  - actor: own-agent-unintentional
+    how: we update to a new script version without reading it
+    likelihood: 2
+    impact: 4
+    mitigated_likelihood: 1
+    mitigated_impact: 4
+  - actor: provider-host
+    how: ring20 ships a defective or over-reaching pool client update
+    likelihood: 2
+    impact: 5
+    mitigated_likelihood: 1
+    mitigated_impact: 5
+  introduced_by: T-3858
+  exists_anyway: false
+  mitigation_task: T-3859
+  created: 2026-11-24
+
+- id: R-002
+  type: risk
+  title: "A pass from the ring20 pool is trusted as proof (T-3858 risk 3)"
+  description: "A pool result could be taken as the gate for a task close or a release, though a node may run a different toolchain or a stale vendor set. Matrix: docs/reports/T-3858-risk-matrix.md."
+  status: watching
+  likelihood: 2
+  impact: 3
+  score: 6
+  ranking: medium
+  actors:
+  - actor: own-agent-unintentional
+    how: a task is closed on a pool pass alone
+    likelihood: 2
+    impact: 3
+    mitigated_likelihood: 1
+    mitigated_impact: 3
+  - actor: provider-host
+    how: a node with a different toolchain or a stale vendor set reports pass
+    likelihood: 2
+    impact: 3
+    mitigated_likelihood: 1
+    mitigated_impact: 3
+  introduced_by: T-3858
+  exists_anyway: false
+  mitigation_task: T-3859
+  created: 2026-11-24
