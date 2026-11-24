@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T12:23:45Z
+last_update: 2026-11-24T12:28:39Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -99,7 +99,7 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] ring20's script received, read in full, sha256 recorded; it only packs, submits, waits and writes a log
+- [x] ring20's script received, read in full, sha256 recorded; it only packs, submits, waits and writes a log
       (2026-11-24 review of v1, `/var/lib/ring20-handoff/010/010-pool-submit.py` sha256 88d67057…a276: no credentials,
       judges from exit_code + log; BLOCKED on `git worktree add/remove` against our repo in step 2, also in --dry-run,
       against the operator's no-worktree rule; asked ring20 to vendor from the extracted archive instead, and to use
@@ -113,7 +113,15 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       File list scanned for sensitive names: only task/script/card names mentioning tokens, no secret files; but
       .context/.tasks/.fabric/docs/.agentic-framework are not needed by the build and will be excluded. Asked ring20
       to compress the tars or raise the cap.
-- [ ] The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)
+      v4 sha256 69f17302…f012 diff-reviewed against v3 (xz preset 6 + a 64 MiB pre-check, the real posted-ref cap).
+      Dry run with excludes `.claude/settings.local.json .context .tasks .fabric .agentic-framework`: rc 0, 1981 files,
+      code.tar.xz 6.0 MiB, vendor.tar.xz 28.1 MiB; repo unchanged, no worktree. (The dry run was run from a scratch
+      wrapper because the Human-AC guard reads `--exclude .tasks` as a possible task-file write: a false positive,
+      the command only reads.)
+- [x] The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)
+      (1981 files: docs 975, crates 365, scripts 300, tests 252, .claude 36 command files + settings.json, small rest;
+      name scan hit only docs/reports/T-3422-832-peer-credentials-answer.md, a design answer with no key or token;
+      kept dirs are needed: build embeds scripts/, systemd-templates/, tests/ files; a soak test reads one docs file.)
 - [ ] Risk matrix `docs/reports/T-3858-risk-matrix.md` filled (new network path + unattended automation); any actor at 6+ registered in concerns.yaml
 - [ ] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
 - [ ] Only then: a cron line or runme action calls it, with a fixture in tests/runme-fixtures.sh if runme
