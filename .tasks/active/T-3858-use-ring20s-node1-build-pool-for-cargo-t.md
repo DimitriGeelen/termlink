@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T12:16:31Z
+last_update: 2026-11-24T12:23:45Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -108,6 +108,11 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       exit 0/1/2. Dry run at 0aa3bc7d2: 17261 files listed, settings.local.json excluded, then exit 2 by design because
       we track `.cargo/config.toml` (`[env] RUST_MIN_STACK`, T-1798, needed on the pool). Asked ring20 to append the
       vendor source block to the tracked file when it has no `[source]` table. Repo unchanged after the dry run.
+      v3 sha256 746f3d6c…115e diff-reviewed against v2 (config combine + single-member rebuild only). Dry run at
+      86916af28 rc 0, repo unchanged. Sizes: vendor.tar 327 MiB (over the 256 MiB staging cap), code.tar 209 MiB.
+      File list scanned for sensitive names: only task/script/card names mentioning tokens, no secret files; but
+      .context/.tasks/.fabric/docs/.agentic-framework are not needed by the build and will be excluded. Asked ring20
+      to compress the tars or raise the cap.
 - [ ] The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)
 - [ ] Risk matrix `docs/reports/T-3858-risk-matrix.md` filled (new network path + unattended automation); any actor at 6+ registered in concerns.yaml
 - [ ] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
