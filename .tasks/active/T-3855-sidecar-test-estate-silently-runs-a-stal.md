@@ -1,13 +1,18 @@
 ---
 id: T-3855
-name: "Sidecar test estate silently runs a stale target/release/termlink (t3366 pin test fails on HEAD)"
+name: "Sidecar test estate silently runs a stale target/release/termlink (t3366 pin
+  test fails on HEAD)"
 description: >
-  2026-11-23: cargo test -p termlink-sidecar fails e37_first_contact_pins... (hub.version has no signing_key) on clean HEAD. testkit::termlink_bin() falls back to the newest of target/{debug,release}/termlink; only target/release/termlink exists, dated 2026-11-15. With TERMLINK_BIN=current termlink all 9 pass. A test run should not depend on a stale artifact without saying so.
+  2026-11-23: cargo test -p termlink-sidecar fails e37_first_contact_pins... (hub.version
+  has no signing_key) on clean HEAD. testkit::termlink_bin() falls back to the newest
+  of target/{debug,release}/termlink; only target/release/termlink exists, dated 2026-11-15.
+  With TERMLINK_BIN=current termlink all 9 pass. A test run should not depend on a
+  stale artifact without saying so.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-23T22:06:43Z
-last_update: 2026-11-23T22:06:43Z
-date_finished: null
+last_update: 2026-11-24T19:01:33Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,22 +55,51 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-24T18:51:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3855: Sidecar test estate silently runs a stale target/release/termlink (t3366 pin test fails on HEAD)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** On 2026-11-23 `cargo test -p termlink-sidecar` failed t3366 (`e37_first_contact_pins...`: "hub.version has no signing_key") on correct HEAD. The test estate had started its hub from a `target/release/termlink` built on 2026-11-15. With `TERMLINK_BIN` set to a current binary all 9 tests passed.
+
+**Problem / hypothesis:** `termlink_sidecar::testkit::termlink_bin()` (crates/termlink-sidecar/src/testkit.rs) takes `TERMLINK_BIN`, else the `termlink` beside the test binary, else the newest of `target/{debug,release}/termlink`. `cargo test -p termlink-sidecar` does not build the `termlink` package, so every fallback can be built from older source, and nothing says so. A test can then fail on correct code, or pass against old code.
+
+**Goal:** A sidecar test run never uses an outdated hub binary without saying so.
+
+**Expected outcome:** An outdated fallback binary is skipped; when none is current, the run fails at once with a message naming the binary, the newer source file and how to fix it.
+
+**Design notes:**
+1. **Fix.** For the fallback candidates only (never for an explicit `TERMLINK_BIN`), compare the binary's mtime with the newest source file the hub binary is built from: `crates/{termlink-hub,termlink-session,termlink-protocol,termlink-bus,termlink-cli}/src/**`, their `Cargo.toml`, `crates/version-derive.rs` and `Cargo.lock`. Older = stale: skip it; if every fallback is stale or missing, fail with a message that names the stale binary, the newer source file, and the two fixes (`cargo build -p termlink` or `TERMLINK_BIN=...`). `termlink_bin()` returns `Result<PathBuf, String>` so the reason reaches the test output.
+2. **Why this source set.** It is what the hub behaviour the estate exercises comes from. The sidecar crate itself is left out on purpose: the CLI links it, but counting it would demand a full CLI rebuild after every sidecar edit while the hub under test is unchanged.
+3. **Not in scope.** `termlink-test-utils::find_termlink_bin` (mcp/cli tests) has the same shape; mcp already has `find_termlink_bin_fresh`. Left as is.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `termlink_bin()` skips a fallback binary older than the newest hub source file, and returns an error naming the binary, the newer file and both fixes when no fresh one remains
+- [x] An explicit `TERMLINK_BIN` is used as given, without the age check
+- [x] Unit tests cover fresh, stale and missing-source cases; a mutant that disables the age comparison fails them
+- [x] `cargo test -p termlink-sidecar` passes with `TERMLINK_BIN` set to a current binary; clippy clean for the crate
 
-### Human
+**Evidence (2026-11-24):**
+1. Unit tests 5/0. Mutant (`if false && bin_t < *src_t`) fails `stale_binary_is_skipped_and_named` (rc 101); file restored.
+2. Full `cargo test -p termlink-sidecar --no-fail-fast` with `TERMLINK_BIN=$(command -v termlink)`: 436 passed, 0 failed. Clippy `--all-targets -D warnings` clean.
+3. Real stale case, no `TERMLINK_BIN`: t3366 now fails at once with "termlink binary is older than its source (T-3855): /opt/termlink/target/debug/termlink, /opt/termlink/target/release/termlink predate(s) /opt/termlink/crates/termlink-hub/src/pidfile.rs; run `cargo build -p termlink` ... or set TERMLINK_BIN" (pidfile.rs changed today in T-3863).
+4. After `cargo build -p termlink` (1m06s), the same t3366 run with no `TERMLINK_BIN` passes 9/0.
+5. rustfmt: testkit.rs was not rustfmt-clean before this change either (e.g. `time_factor`), and the repo does not enforce it; style left as is.
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -267,6 +301,9 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3855-rt cargo test -p termlink-sidecar --lib testkit:: > .context/working/.t3855-unit.out 2>&1 && grep -q "test result: ok. 5 passed" .context/working/.t3855-unit.out
+grep -q 'fn pick_fresh' crates/termlink-sidecar/src/testkit.rs
+grep -q 'if bin_t < \*src_t => stale' crates/termlink-sidecar/src/testkit.rs
 
 ## RCA
 
@@ -364,3 +401,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3855-sidecar-test-estate-silently-runs-a-stal.md
 - **Context:** Initial task creation
+
+### 2026-11-24T18:51:49Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -92,27 +92,101 @@ fn time_factor(raw: Option<&str>) -> u32 {
 /// so a build with `--target-dir` elsewhere (node1 runs from a read-only source
 /// tree with `--target-dir ../target`) finds the binary of the same build; then
 /// the workspace's own `target/{debug,release}`, newest first.
-pub fn termlink_bin() -> Option<PathBuf> {
+///
+/// T-3855: `cargo test -p termlink-sidecar` does not build the `termlink`
+/// package, so every fallback can be built from older source (a 2026-11-15
+/// release binary failed t3366 on correct HEAD). A fallback older than the
+/// newest hub source file ([`hub_source_roots`]) is skipped; when none is
+/// current the error says which binary, which newer file, and how to fix it.
+/// An explicit `TERMLINK_BIN` is used as given.
+pub fn termlink_bin() -> Result<PathBuf, String> {
     if let Some(p) = std::env::var_os("TERMLINK_BIN") {
-        return Some(PathBuf::from(p));
+        return Ok(PathBuf::from(p));
     }
+    let mut candidates = Vec::new();
     if let Some(profile_dir) = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(Path::to_path_buf))
         .filter(|deps| deps.file_name().is_some_and(|n| n == "deps"))
         .and_then(|deps| deps.parent().map(Path::to_path_buf))
     {
-        let candidate = profile_dir.join("termlink");
-        if candidate.is_file() {
-            return Some(candidate);
-        }
+        candidates.push(profile_dir.join("termlink"));
     }
     let ws = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    ["debug", "release"]
+    let ws = ws.canonicalize().unwrap_or(ws);
+    let mut ws_bins: Vec<PathBuf> = ["debug", "release"]
         .iter()
         .map(|d| ws.join("target").join(d).join("termlink"))
         .filter(|p| p.is_file())
-        .max_by_key(|p| fs::metadata(p).and_then(|m| m.modified()).ok())
+        .collect();
+    ws_bins.sort_by_key(|p| std::cmp::Reverse(mtime(p)));
+    candidates.extend(ws_bins);
+    // The binary beside the test is usually one of the workspace ones: list each file once.
+    let mut seen = std::collections::HashSet::new();
+    candidates.retain(|c| seen.insert(c.canonicalize().unwrap_or_else(|_| c.clone())));
+    pick_fresh(&candidates, newest_file(&hub_source_roots(&ws)))
+}
+
+/// What the estate's hub binary is built from (T-3855). The sidecar crate is
+/// left out on purpose: the CLI links it, but counting it would force a CLI
+/// rebuild after every sidecar edit while the hub under test is unchanged.
+pub fn hub_source_roots(ws: &Path) -> Vec<PathBuf> {
+    let mut roots = vec![ws.join("Cargo.lock"), ws.join("crates/version-derive.rs")];
+    for c in ["termlink-hub", "termlink-session", "termlink-protocol", "termlink-bus", "termlink-cli"] {
+        roots.push(ws.join("crates").join(c).join("src"));
+        roots.push(ws.join("crates").join(c).join("Cargo.toml"));
+    }
+    roots
+}
+
+fn mtime(p: &Path) -> Option<std::time::SystemTime> {
+    fs::metadata(p).and_then(|m| m.modified()).ok()
+}
+
+/// The newest file under `roots` (files or directories, walked recursively)
+/// and its mtime; None when none can be read.
+pub fn newest_file(roots: &[PathBuf]) -> Option<(PathBuf, std::time::SystemTime)> {
+    let mut best: Option<(PathBuf, std::time::SystemTime)> = None;
+    let mut stack: Vec<PathBuf> = roots.to_vec();
+    while let Some(p) = stack.pop() {
+        let Ok(meta) = fs::metadata(&p) else { continue };
+        if meta.is_dir() {
+            if let Ok(rd) = fs::read_dir(&p) {
+                stack.extend(rd.filter_map(|e| e.ok().map(|e| e.path())));
+            }
+        } else if let Ok(t) = meta.modified()
+            && best.as_ref().is_none_or(|(_, b)| t > *b)
+        {
+            best = Some((p, t));
+        }
+    }
+    best
+}
+
+/// The first existing candidate not older than `newest_source`. With no
+/// readable source there is nothing to compare, so the first existing one wins.
+pub fn pick_fresh(
+    candidates: &[PathBuf],
+    newest_source: Option<(PathBuf, std::time::SystemTime)>,
+) -> Result<PathBuf, String> {
+    let mut stale = Vec::new();
+    for c in candidates.iter().filter(|c| c.is_file()) {
+        match (&newest_source, mtime(c)) {
+            (Some((_, src_t)), Some(bin_t)) if bin_t < *src_t => stale.push(c.display().to_string()),
+            _ => return Ok(c.clone()),
+        }
+    }
+    let fix = "run `cargo build -p termlink` (same profile and --target-dir as this test run), \
+               or set TERMLINK_BIN to a current termlink binary";
+    match (stale.is_empty(), newest_source) {
+        (true, _) => Err(format!("termlink binary not found; {fix}")),
+        (false, Some((src, _))) => Err(format!(
+            "termlink binary is older than its source (T-3855): {} predate(s) {}; {fix}",
+            stale.join(", "),
+            src.display()
+        )),
+        (false, None) => unreachable!("a candidate is only stale against a source file"),
+    }
 }
 
 impl Estate {
@@ -257,8 +331,7 @@ impl Estate {
     }
 
     fn start_hub(&mut self) -> std::io::Result<()> {
-        let bin = termlink_bin()
-            .ok_or_else(|| std::io::Error::other("termlink binary not found (set TERMLINK_BIN)"))?;
+        let bin = termlink_bin().map_err(std::io::Error::other)?;
         let log = fs::File::create(self.root.join("hub.log"))?;
         // A loopback TCP listener makes the hub create its certificate, and with it
         // the hub id (FX-2): a hub with no TCP listener states no id. Random port.
@@ -438,7 +511,77 @@ pub fn harness_after_exec(pid: u32) -> crate::doorbell::Harness {
 
 #[cfg(test)]
 mod tests {
-    use super::time_factor;
+    use super::{newest_file, pick_fresh, time_factor};
+    use std::path::PathBuf;
+    use std::time::{Duration, SystemTime};
+
+    /// T-3855 fixture: a scratch dir with a `src/` tree and two "binaries".
+    fn scratch(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("t3855-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("src/nested")).unwrap();
+        d
+    }
+
+    fn touch(p: &std::path::Path, age_secs: u64) {
+        std::fs::write(p, b"x").unwrap();
+        let t = SystemTime::now() - Duration::from_secs(age_secs);
+        std::fs::File::options().write(true).open(p).unwrap().set_modified(t).unwrap();
+    }
+
+    /// The newest file is found in a nested directory, not just at the top.
+    #[test]
+    fn newest_file_walks_directories() {
+        let d = scratch("walk");
+        touch(&d.join("src/a.rs"), 500);
+        touch(&d.join("src/nested/b.rs"), 10);
+        let (p, _) = newest_file(&[d.join("src"), d.join("missing")]).unwrap();
+        assert_eq!(p, d.join("src/nested/b.rs"));
+        assert!(newest_file(&[d.join("missing")]).is_none());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// A binary newer than its source is used.
+    #[test]
+    fn fresh_binary_is_used() {
+        let d = scratch("fresh");
+        touch(&d.join("src/a.rs"), 500);
+        touch(&d.join("termlink"), 10);
+        let got = pick_fresh(&[d.join("termlink")], newest_file(&[d.join("src")])).unwrap();
+        assert_eq!(got, d.join("termlink"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// The 2026-11-23 case: a stale first candidate is skipped for a fresh second
+    /// one; with only stale ones the error names the binary, the newer source
+    /// file and both fixes.
+    #[test]
+    fn stale_binary_is_skipped_and_named() {
+        let d = scratch("stale");
+        touch(&d.join("old-termlink"), 900);
+        touch(&d.join("src/nested/b.rs"), 500);
+        touch(&d.join("new-termlink"), 10);
+        let src = newest_file(&[d.join("src")]);
+        let got = pick_fresh(&[d.join("old-termlink"), d.join("new-termlink")], src.clone()).unwrap();
+        assert_eq!(got, d.join("new-termlink"));
+        let err = pick_fresh(&[d.join("old-termlink"), d.join("absent")], src).unwrap_err();
+        assert!(err.contains("old-termlink"), "{err}");
+        assert!(err.contains("src/nested/b.rs"), "{err}");
+        assert!(err.contains("cargo build -p termlink") && err.contains("TERMLINK_BIN"), "{err}");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// No candidate at all, and no readable source: say not found, and with no
+    /// source to compare against take the first existing binary.
+    #[test]
+    fn missing_binary_and_missing_source() {
+        let d = scratch("missing");
+        let err = pick_fresh(&[d.join("absent")], None).unwrap_err();
+        assert!(err.contains("not found") && err.contains("TERMLINK_BIN"), "{err}");
+        touch(&d.join("termlink"), 900);
+        assert_eq!(pick_fresh(&[d.join("termlink")], None).unwrap(), d.join("termlink"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     /// T-3535: the factor parses like the hub's `test_budget` — unset, empty, zero and
     /// garbage all read as 1, so a stray value never shortens a bound.
