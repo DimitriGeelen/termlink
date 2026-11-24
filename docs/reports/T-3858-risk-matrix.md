@@ -27,7 +27,7 @@
 
 | # | Risk | Domain | How to detect the door is open | How to detect it happening | Impact | Likelihood | Exists anyway (baseline)? | Introduced by the change? | Key mitigation |
 |---|------|--------|--------------------------------|----------------------------|-------:|-----------:|---------------------------|---------------------------|----------------|
-| 1 | Third-party code runs unattended as root on .107 with our hub identity | supply chain / host | the submit script or pool client changes sha256 | a run prints a sha256 other than the pinned one | 5 | 2 | no | NEW (we never ran the pool client) | pin both sha256s, refuse on change; run as a non-root user |
+| 1 | Third-party code runs unattended as root on .107 with our hub identity | supply chain / host | the submit script or pool client changes sha256 | a run prints a sha256 other than the pinned one | 5 | 2 | no | NEW (we never ran the pool client) | pin the submit script, pool-client.py and poold.py by sha256, refuse on change (non-root dropped: it needs a copy of a hub credential, T-3859 Decisions) |
 | 2 | Repository content copied to more hosts | disclosure | the code-files list grows to include an excluded path | `code-files.txt` of a run lists a path outside the allowed set | 2 | 2 | yes (OneDev and the GitHub mirror hold it) | PARTLY NEW (three estate nodes and the .122 hub store a copy) | excludes; file list kept per run; secret scan at commit |
 | 3 | A false pass from the pool is trusted | integrity | a release or close relies on a pool result alone | a pool pass where a local run at the same commit fails | 3 | 2 | no | NEW | pool results advisory; release and task gates keep the local run |
 | 4 | Unattended submissions misfire (stuck, flooding, or silently not running) | availability / observability | a cron line exists without a heartbeat or log reader | no new result log for a scheduled day, or many jobs queued | 2 | 2 | no | NEW | exit 2 on could-not-run; log + heartbeat; one job set per schedule tick |
@@ -79,9 +79,10 @@ Actors (fixed list): `own-agent-unintentional`, `human-unintentional`, `outsider
 ## Net
 
 The change adds one real risk: ring20's code (the submit script and the pool client it calls) would run unattended
-as root on .107 under our hub identity (risk 1, provider-host 10). Mitigation, before any schedule: pin both files by
-sha256 and refuse to run when either differs (a new version is read in full and re-pinned), and run the job as a
-non-root user with read access to the repo. With that, every row is at 5 or below.
+as root on .107 under our hub identity (risk 1, provider-host 10). Mitigation, before any schedule: pin the submit
+script, pool-client.py and poold.py by sha256 and refuse to run when any differs (a new version is read in full and
+re-pinned in a commit). Pinning sets the likelihood to 1, so every row is at 5 or below. A non-root user was
+considered and dropped (T-3859 Decisions): it would need a copy of a hub credential, a new risk for no score change.
 
 Risks 3.1 and 3.4 (6) fall to 3 by keeping pool results advisory: local test runs stay the gate for task closure and
 releases. Risks 2 and 4 stay low.

@@ -1,10 +1,14 @@
 ---
 id: T-3859
-name: "Pin ring20's pool submit script and pool client by sha256 and run pool jobs as a non-root user (T-3858 risk 1)"
+name: "Pin ring20's pool submit script and pool client by sha256 and run pool jobs
+  as a non-root user (T-3858 risk 1)"
 description: >
-  Mitigation for T-3858 risk matrix risk 1 (third-party code unattended as root with our hub identity, provider-host 10) and risk 3 (pool pass trusted, 6): refuse to run when either file's sha256 differs from the pinned one; run as a non-root user; pool results stay advisory.
+  Mitigation for T-3858 risk matrix risk 1 (third-party code unattended as root with
+  our hub identity, provider-host 10) and risk 3 (pool pass trusted, 6): refuse to
+  run when either file's sha256 differs from the pinned one; run as a non-root user;
+  pool results stay advisory.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -39,8 +43,8 @@ arc_id: risk
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T12:31:17Z
-last_update: 2026-11-24T12:31:17Z
-date_finished: null
+last_update: 2026-11-24T13:45:35Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +55,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-24T13:45:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3859: Pin ring20's pool submit script and pool client by sha256 and run pool jobs as a non-root user (T-3858 risk 1)
@@ -72,8 +88,11 @@ could be taken as proof.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The scheduled entry point checks the sha256 of the submit script and of the pool client against pinned values and exits 2 without running when either differs (fixture with a changed file)
-- [ ] Pool jobs run as a non-root user that can read the repo (checked by `id -u` in the run log)
+- [x] The scheduled entry point checks the sha256 of the submit script, the pool client and poold.py against pinned values and exits 2 without running when any differs (fixture with a changed file)
+      (`scripts/pool-run.sh` + `scripts/pool-run.pins`; it also re-checks its private copy after copying, sets
+      POOL_CLIENT to the pinned client, maps any other exit to 2. `tests/pool-run-fixtures.sh` 10/10; mutant without
+      the mismatch refusal fails case 5.)
+- [x] ~~Pool jobs run as a non-root user~~ dropped 2026-11-24, see Decisions: it needs a copy of a hub credential for that user, and pinning alone already brings risk 1 to 5
 - [ ] The pool result is written as advisory; no runme action, release step or task verification treats it as a pass gate (stated where it is wired)
 
 ### Human
@@ -125,6 +144,8 @@ could be taken as proof.
 -->
 
 ## Verification
+
+bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "10 passed, 0 failed" /tmp/.t3859
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -359,6 +380,18 @@ could be taken as proof.
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-24 — pinning only; no non-root user (agent decision, open to the operator)
+- **Chose:** keep the pool jobs under root's TermLink identity and rely on pinning: the entry point refuses unless
+  the submit script, pool-client.py and poold.py match their reviewed sha256; a new version is read in full and
+  re-pinned in a commit.
+- **Why:** root reaches .122 through profile `ring20-management`, whose `secret_file` is that hub's full HMAC secret.
+  A non-root user would need a copy of that secret or a separately minted token: a new credential use with its own
+  risk. And the matrix (docs/reports/T-3858-risk-matrix.md, risk 1) reaches 5 with pinning alone: pinning sets
+  likelihood to 1; non-root would only lower impact, which the matrix already left at 5.
+- **Rejected:** a non-root user with a copied hub secret (spreads a full-control credential); a non-root user with a
+  minted Interact token (workable, but a second credential lifecycle for no score change). Revisit if the operator
+  wants the impact side lowered too.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -375,3 +408,6 @@ could be taken as proof.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3859-pin-ring20s-pool-submit-script-and-pool-.md
 - **Context:** Initial task creation
+
+### 2026-11-24T13:45:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
