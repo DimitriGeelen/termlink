@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-21T11:21:17Z
-last_update: 2026-11-22T21:02:39Z
+last_update: 2026-11-24T11:21:47Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -405,6 +405,23 @@ test -s docs/reports/T-3843-reviews/review-claude-code.md && test -s docs/report
    2b. The canary fired on the probe (exit 1, correct) and read parity `matched: 1, hub_only: [], scan_only: []`.
 3. The probe was the only new file-shaped post, so it was acknowledged with `--ack`. The canary is healthy again (exit 0), and parity holds with 1 match.
 4. Still open: parity across real peer posts over the coming days, then the operator's approval to retire the canary's inbox scanning.
+
+### 2026-11-24 — retire the canary's inbox reading after one fresh positive control (operator ruling: "B")
+- **Chose:** B. Operator: "what's B, if that's what needs to be done, then do it." One synthetic file-shaped post to a
+  throwaway inbox on today's hub build (0.12.13+356); if the hub's admin row and the canary's scan match, the canary
+  stops reading `inbox:*` topics and reads the hub's `file-shaped-post` rows for them; other topics stay scanned. If
+  they do not match, stop and report; nothing is retired.
+- **Why:** since the 11-21 probe there was no real file-shaped inbox post (one `file-shaped-post` row ever, the probe),
+  and the hub restarted 7 times, so the only match was on an older build. Brief scores: B +42, A +26, C +11, D −33.
+- **Rejected:** A (retire on old-build evidence), C (wait for a real post: may never come), D (runme red for good).
+
+### 2026-11-24 — the fresh positive control matched (agent)
+1. Posted `msg_type document`, `filename=t3843-probe.txt`, no file content, to the throwaway inbox
+   `inbox:cacc73ea32b121dd/t3843-parity-probe-2` (offset 0, post_ts 1795519253470).
+2. The hub wrote the `file-shaped-post` admin row 32 ms later (shape `document`, sender 010-termlink).
+3. The canary, run by hand without `--ack`, fired on it (rc 1, correct) and read "Parity (T-3844): hub record and scan
+   agree on 2 inbox post(s) since 1795272450556" (the 11-21 probe and this one).
+4. Acknowledged with `--ack`; the next run is healthy (rc 0, parity still 2). The retirement build follows.
 
 ## Decision
 
