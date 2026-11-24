@@ -38,7 +38,6 @@
 //! not exist (shallow clone, tarball build), it just means "never changed"
 //! for rerun purposes. No build failure.
 
-use std::process::Command;
 
 const GIT_RERUN_PATHS: &[&str] = &[
     "../version-derive.rs",
@@ -47,6 +46,7 @@ const GIT_RERUN_PATHS: &[&str] = &[
     "../../.git/refs/heads",
     "../../.git/refs/tags",
     "../../.git/packed-refs",
+    "../../.build-info", // T-3861: archive builds (no .git)
 ];
 
 fn main() {
@@ -58,13 +58,8 @@ fn main() {
         println!("cargo:rustc-env=CARGO_PKG_VERSION={version}");
     }
 
-    // Embed git commit hash
-    if let Ok(output) = Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
-        .output()
-        && output.status.success()
-    {
-        let hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    // Embed git commit hash (git, else .build-info for an archive build, T-3861)
+    if let Some(hash) = git_commit_short() {
         println!("cargo:rustc-env=GIT_COMMIT={hash}");
     }
 

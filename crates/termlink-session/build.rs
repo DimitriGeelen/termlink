@@ -39,6 +39,7 @@ const GIT_RERUN_PATHS: &[&str] = &[
     "../../.git/refs/heads",
     "../../.git/refs/tags",
     "../../.git/packed-refs",
+    "../../.build-info", // T-3861: archive builds (no .git)
 ];
 
 fn main() {

@@ -17,7 +17,6 @@
 //! See `crates/termlink-cli/build.rs` for the detailed rerun-trigger
 //! rationale (T-1057) — the same logic applies here.
 
-use std::process::Command;
 
 const GIT_RERUN_PATHS: &[&str] = &[
     "../version-derive.rs",
@@ -26,6 +25,7 @@ const GIT_RERUN_PATHS: &[&str] = &[
     "../../.git/refs/heads",
     "../../.git/refs/tags",
     "../../.git/packed-refs",
+    "../../.build-info", // T-3861: archive builds (no .git)
 ];
 
 fn main() {
@@ -37,12 +37,8 @@ fn main() {
         println!("cargo:rustc-env=CARGO_PKG_VERSION={version}");
     }
 
-    if let Ok(output) = Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
-        .output()
-        && output.status.success()
-    {
-        let hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    // git, else .build-info for an archive build (T-3861)
+    if let Some(hash) = git_commit_short() {
         println!("cargo:rustc-env=GIT_COMMIT={hash}");
     }
 

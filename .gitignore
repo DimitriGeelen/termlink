@@ -1,5 +1,7 @@
 # Rust
 /target/
+# T-3861: version info an archive packer writes for builds without .git; never committed
+/.build-info
 
 # IDE
 .idea/

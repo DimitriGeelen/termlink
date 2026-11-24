@@ -36,4 +36,20 @@ elif grep -q 'dev_build_never_collides_with_an_older_release' "$WORK/mrun.log"; 
 else
     cat "$WORK/mrun.log"; echo "FAIL  control failed for an unexpected reason"; fail=1
 fi
+
+# T-3861 negative control: a fallback that ignores .build-info must fail the build-info test.
+NEW2='.filter(|v| !v.is_empty())'
+OLD2='.filter(|_| false)'
+[ "$(grep -cF "$NEW2" "$SRC")" = 1 ] || { echo "version-derive-tests: T-3861 mutation anchor not found once" >&2; exit 2; }
+python3 -I -c 'import sys; s=open(sys.argv[1]).read(); open(sys.argv[2],"w").write(s.replace(sys.argv[3], sys.argv[4]))' \
+    "$SRC" "$WORK/mutant2.rs" "$NEW2" "$OLD2"
+rustc --edition 2024 --test "$WORK/mutant2.rs" -o "$WORK/mut2" > "$WORK/m2build.log" 2>&1 \
+    || { cat "$WORK/m2build.log" >&2; echo "version-derive-tests: mutant 2 compile failed" >&2; exit 2; }
+if "$WORK/mut2" > "$WORK/m2run.log" 2>&1; then
+    echo "FAIL  control: ignoring .build-info passed the tests (they do not bite)"; fail=1
+elif grep -q 'build_info_gives_the_same_version_and_commit_as_git' "$WORK/m2run.log"; then
+    echo "PASS  control: ignoring .build-info fails the build-info test (T-3861)"
+else
+    cat "$WORK/m2run.log"; echo "FAIL  control 2 failed for an unexpected reason"; fail=1
+fi
 exit "$fail"
