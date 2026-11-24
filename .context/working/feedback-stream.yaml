@@ -25533,3 +25533,21 @@ scan_id: R-7cddfa90
 task_id: T-3862
 payload:
   task_file: .tasks/active/T-3862-metersessionrpc-test-writes-scratch-unde.md
+---
+kind: scan_emitted
+timestamp: '2026-11-24T18:20:23Z'
+scan_id: R-50a04ad9
+task_id: T-3863
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-24T18:20:23Z'
+scan_id: R-50a04ad9
+task_id: T-3863
+payload:
+  task_file: .tasks/active/T-3863-hub-pidfile-test-assumes-pid-1-is-never-.md
