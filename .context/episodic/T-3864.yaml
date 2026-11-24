@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3864: MCP/CLI test helper find_termlink_bin can use a stale target/release/termlink without saying so
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-24T20:05:28Z
+# ============================================================================
+
+task_id: T-3864
+task_name: "MCP/CLI test helper find_termlink_bin can use a stale target/release/termlink without saying so"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-24T19:49:56Z
+completed: 2026-11-24T20:05:09Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-24T21:05:08+01:00
+last_commit: 2026-11-24T21:05:08+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  test binary helpers (test-utils find_termlink_bin, sidecar testkit) refuse a termlink older than the sources cargo recorded in its .d file; replaces T-3855's hand-made source list (wrong for cfg(test) module files); mutants fail; parity 41/0, sidecar 436/0
+
+# Key outcomes
+outcomes:
+  - '`find_termlink_bin()` skips a fallback binary older than its own sources and returns an error naming the binary, the newer file and both fixes when no current one remains'
+  - '`TERMLINK_BIN` and `find_termlink_bin_fresh()` (after its own build) are not age-checked'
+  - 'A binary''s sources are the `.rs` / `Cargo.toml` files cargo recorded in its `<bin>.d`, in both this helper and the T-3855 sidecar helper (so a `#[cfg(test)]` module file or `.git/HEAD` never makes it stale); no `.d` file = age not judged'
+  - 'Unit tests cover fresh, stale, missing, unlisted-file and space-in-path cases; a mutant that disables the age comparison fails them in both crates'
+  - '`cargo test -p termlink-test-utils` and `cargo test -p termlink-mcp --test parity` pass with a current binary; clippy clean for both crates'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3864-mcpcli-test-helper-findtermlinkbin-can-u.md'
+  - 'crates/termlink-sidecar/src/testkit.rs'
+  - 'crates/termlink-test-utils/src/lib.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-24T21:05:08'
+    action: 'T-3864: test binary helpers (test-utils find_termlink_bin, sidecar testkit) refuse a termlink older than the sources cargo recorded in its .d file; replaces T-3855''s hand-made source list (wrong for cfg(test) module files); mutants fail; parity 41/0, sidecar 436/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15
+  commits: 2
+  files_changed: 6
+  lines_added: 714
+  lines_removed: 97
+  footprint_refreshed_at: '2026-11-24T20:05:30Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3864-mcpcli-test-helper-findtermlinkbin-can-u.md
+generated_by: context-agent-hybrid
