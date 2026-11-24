@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T14:33:05Z
+last_update: 2026-11-24T17:43:21Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -144,6 +144,10 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       left on device"; linker Bus error), reported to ring20. Cron built under T-3859: .context/cron/pool-run.crontab
       (test 02:30, clippy 03:30 via scripts/pool-run.sh), runme action 1 installs it, runme fixtures 475/0 (the
       fixture count follows install_crontab lines). Waits for the operator's runme.)
+      Operator's runme 2026-11-24 15:22Z installed and verified /etc/cron.d/termlink-pool-run. Trial complete on node1:
+      test (4828/2 env, = local), clippy (0 warnings), test-crate (all 9 crates build and run; remaining failure is
+      the PID-1 test assumption, T-3863), build (17:23Z at 285162a51: `termlink 0.12.13+386.g285162a51`, 47409824 bytes,
+      sha256 96b84b5e…f612; correct version thanks to .build-info, T-3861). Left: the first nightly cron run's log line.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
