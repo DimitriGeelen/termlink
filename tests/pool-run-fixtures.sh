@@ -17,7 +17,11 @@ git -C "$R" -c user.email=t@t -c user.name=t commit -qm init
 L="$T/lib"; mkdir -p "$L/handoff"
 cat > "$L/handoff/010-pool-submit.py" <<'EOF'
 import os, sys
-open(os.environ["FAKE_MARK"], "w").write(" ".join(sys.argv[1:]) + "\nCLIENT=" + os.environ.get("POOL_CLIENT", "") + "\n")
+client = os.environ.get("POOL_CLIENT", "")
+if os.environ.get("FAKE_LIVE_CLIENT"):          # replace the LIVE client mid-run, as happened on 2026-11-24
+    open(os.environ["FAKE_LIVE_CLIENT"], "a").write("# changed mid-run\n")
+used = open(client).read() if client and os.path.exists(client) else "MISSING"
+open(os.environ["FAKE_MARK"], "w").write(" ".join(sys.argv[1:]) + "\nCLIENT=" + client + "\nUSED<<" + used + ">>\n")
 sys.exit(int(os.environ.get("FAKE_RC", "0")))
 EOF
 echo "# client" > "$L/pool-client.py"; echo "# poold" > "$L/poold.py"
@@ -28,7 +32,7 @@ run() { rm -f "$T/mark"; FAKE_MARK="$T/mark" POOL_RUN_PINS="$T/pins" POOL_RUN_RE
 
 out=$(FAKE_RC=0 run test); rc=$?
 check "1 pins match: the submit script runs, rc 0 passes through, ADVISORY written" '[ $rc = 0 ] && [ -f "$T/mark" ] && ls "$T"/out/*-test-*/ADVISORY.txt >/dev/null 2>&1 && grep -q "ADVISORY result rc=0" <<< "$out"'
-check "2 the five excludes and the pinned pool client are passed" 'grep -q -- "--exclude .tasks" "$T/mark" && grep -q -- "--exclude .agentic-framework" "$T/mark" && grep -q -- "--exclude .claude/settings.local.json" "$T/mark" && grep -q "CLIENT=$L/pool-client.py" "$T/mark"'
+check "2 the five excludes are passed, and POOL_CLIENT is a private copy, not the live path" 'grep -q -- "--exclude .tasks" "$T/mark" && grep -q -- "--exclude .agentic-framework" "$T/mark" && grep -q -- "--exclude .claude/settings.local.json" "$T/mark" && grep -q "^CLIENT=.*/client/pool-client.py$" "$T/mark" && ! grep -q "CLIENT=$L/" "$T/mark"'
 check "3 a completed run touches the heartbeat" '[ -f "$T/hb" ]'
 out=$(FAKE_RC=1 run clippy); rc=$?
 check "4 a failed job (rc 1) passes through" '[ $rc = 1 ]'
@@ -48,6 +52,10 @@ out=$(run deploy); rc=$?
 check "9 an unknown kind is rc 2" '[ $rc = 2 ]'
 out=$(run test deadbeefdeadbeef); rc=$?
 check "10 an unknown commit is rc 2" '[ $rc = 2 ] && grep -q "unknown commit" <<< "$out"'
+
+pin
+out=$(FAKE_RC=0 FAKE_LIVE_CLIENT="$L/pool-client.py" run test); rc=$?
+check "11 a client replaced mid-run is not the one used: the run keeps the reviewed private copy" '[ $rc = 0 ] && grep -q "USED<<# client" "$T/mark" && ! grep -q "changed mid-run" "$T/mark" && grep -q "changed mid-run" "$L/pool-client.py"'
 
 echo "---"
 echo "pool-run fixtures: $PASS passed, $FAIL failed"

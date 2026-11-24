@@ -39,10 +39,18 @@ while read -r sum path; do
 done < "$PINS"
 [ "$n" -ge 3 ] && [ -n "$submit" ] && [ -n "$client" ] || die "pin file must pin the submit script, pool-client.py and poold.py"
 
-# Run a private copy, re-checked after the copy, so a change between check and run cannot slip in.
+# Run PRIVATE copies of all three, each re-checked after copying (T-3859, 2026-11-24): the submit script calls the pool
+# client minutes into a run, so a pin checked only at start let a client replaced mid-run execute unreviewed. The client
+# imports poold.py from its own directory, so both live side by side in the private dir.
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-cp "$submit" "$tmp/submit.py"
-[ "$(sha256sum "$tmp/submit.py" | cut -c1-64)" = "$(grep -F "$submit" "$PINS" | cut -c1-64)" ] || die "PIN MISMATCH after copy: $submit"
+mkdir -p "$tmp/client"
+while read -r sum path; do
+    case "$sum" in ''|'#'*) continue ;; esac
+    case "$path" in */010-pool-submit.py) dst="$tmp/submit.py" ;; *) dst="$tmp/client/$(basename "$path")" ;; esac
+    cp "$path" "$dst" || die "cannot copy $path"
+    [ "$(sha256sum "$dst" | cut -c1-64)" = "$sum" ] || die "PIN MISMATCH after copy: $path"
+done < "$PINS"
+client="$tmp/client/$(basename "$client")"
 
 out="$OUT_ROOT/$(date -u +%Y%m%dT%H%M%SZ)-$kind-${commit:0:12}"
 mkdir -p "$out" || die "cannot create $out"

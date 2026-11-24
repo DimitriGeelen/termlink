@@ -43,7 +43,7 @@ arc_id: risk
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T12:31:17Z
-last_update: 2026-11-24T14:19:23Z
+last_update: 2026-11-24T16:05:39Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -148,7 +148,7 @@ could be taken as proof.
 
 ## Verification
 
-bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "10 passed, 0 failed" /tmp/.t3859
+bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "11 passed, 0 failed" /tmp/.t3859
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -320,6 +320,18 @@ bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "10 passed, 0 fail
 -->
 
 ## Evolution
+
+### 2026-11-24 ~16:00Z — the pin was checked only at start; a client replaced mid-run would run unreviewed
+- **What changed:** ring20 replaced `/usr/local/lib/ring20-pool-client/pool-client.py` at 15:59:32Z (sha256
+  e3864632…b274 -> c1675cfb…cf41). The next run was refused (PIN MISMATCH, as designed). But a run started earlier
+  had passed its pin check at start, and ring20's submit script calls the client from its LIVE path minutes later:
+  that run had already made two `ref-put` calls when stopped, possibly with the changed client. Stopped by hand; no
+  pool process left; ring20 asked what changed (msg 84d5ffd8).
+- **Plan impact:** `scripts/pool-run.sh` now copies all three pinned files into a private dir, re-checks each copy,
+  and points POOL_CLIENT at the private client (poold.py beside it, since the client imports it from its own dir).
+  Fixtures 11/11; the previous script fails the two new cases (2: POOL_CLIENT is a private copy; 11: a client
+  replaced mid-run is not the one used). My manual test wrapper had the same start-only check and is not used again.
+- **Triggered:** review of the new pool client before any re-pin.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
