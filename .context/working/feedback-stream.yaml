@@ -25479,3 +25479,21 @@ scan_id: R-8629b2be
 task_id: T-3857
 payload:
   task_file: .tasks/active/T-3857-rerun-aef-ontology-agents-fabric-benchma.md
+---
+kind: scan_emitted
+timestamp: '2026-11-24T12:39:27Z'
+scan_id: R-ca1466a1
+task_id: T-3860
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-24T12:39:27Z'
+scan_id: R-ca1466a1
+task_id: T-3860
+payload:
+  task_file: .tasks/active/T-3860-answer-aef-t-5331-binding-credential-han.md
