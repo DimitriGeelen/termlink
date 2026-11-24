@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T13:29:17Z
+last_update: 2026-11-24T14:33:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -139,6 +139,11 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       2465 passed, 1 failed, 5 ignored; the failure `hub_bus_state_reports_durable_for_var_lib_path` is an artifact of
       the local target dir under /tmp, which the hub correctly calls volatile.)
 - [ ] Only then: a cron line or runme action calls it, with a fixture in tests/runme-fixtures.sh if runme
+      (2026-11-24: clippy entry on node1 exit 0, no warnings. test-crate at 7f1ae5507, 9 jobs: node1's 5 ran (only
+      the known parity_version, T-3861); pool-w2's 3 and pool-132's 1 failed in the build on node capacity ("No space
+      left on device"; linker Bus error), reported to ring20. Cron built under T-3859: .context/cron/pool-run.crontab
+      (test 02:30, clippy 03:30 via scripts/pool-run.sh), runme action 1 installs it, runme fixtures 475/0 (the
+      fixture count follows install_crontab lines). Waits for the operator's runme.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
