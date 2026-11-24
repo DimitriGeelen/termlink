@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T12:32:05Z
+last_update: 2026-11-24T12:53:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -127,6 +127,11 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       concerns.yaml, mitigation task T-3859 in the new standing arc `risk` (arc-013, standing: true). T-3859 must be
       done before any scheduled run.)
 - [ ] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
+      (attempt 1, 2026-11-24 12:44Z, commit 57523b854, pinned: submit v4 69f17302…, pool-client e3864632…b274, poold
+      b7eb1761…e5fd, all read before use. Pool: node1, exit 101 before any test: `code/vendor` missing on the node (the
+      vendor ref was not unpacked); reported to ring20. Local reference at the same commit from a clean git archive:
+      2465 passed, 1 failed, 5 ignored; the failure `hub_bus_state_reports_durable_for_var_lib_path` is an artifact of
+      the local target dir under /tmp, which the hub correctly calls volatile.)
 - [ ] Only then: a cron line or runme action calls it, with a fixture in tests/runme-fixtures.sh if runme
 
 ### Human
