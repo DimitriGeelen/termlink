@@ -96,12 +96,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 4382
-  commits: 7
-  files_changed: 22
-  lines_added: 1778
-  lines_removed: 93
-  footprint_refreshed_at: '2026-11-15T18:32:05Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 6
+  files_changed: 15
+  lines_added: 1491
+  lines_removed: 80
+  footprint_refreshed_at: '2026-11-15T18:32:09Z'
+  footprint_refreshed_by_commit: eb07ca94e
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3749-mac-to-ring20-message-lost-silently-clie.md

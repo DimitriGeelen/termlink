@@ -95,12 +95,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 111489
-  commits: 6
-  files_changed: 30
-  lines_added: 2661
-  lines_removed: 92
-  footprint_refreshed_at: '2026-11-15T20:25:40Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 5
+  files_changed: 22
+  lines_added: 2112
+  lines_removed: 71
+  footprint_refreshed_at: '2026-11-15T20:25:43Z'
+  footprint_refreshed_by_commit: a9a3c8320
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2858-install-path-drift-rootlocalbintermlink-.md

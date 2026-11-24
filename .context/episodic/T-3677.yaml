@@ -79,10 +79,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1473
-  commits: 5
-  files_changed: 6
-  lines_added: 485
-  lines_removed: 16
+  commits: 6
+  files_changed: 9
+  lines_added: 870
+  lines_removed: 22
+  footprint_refreshed_at: '2026-11-10T17:49:48Z'
+  footprint_refreshed_by_commit: 64f838ed8
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3677-node1-offload-trial-rust-test-suite-and-.md

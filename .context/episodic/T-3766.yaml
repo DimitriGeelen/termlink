@@ -61,12 +61,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3017
-  commits: 1
-  files_changed: 9
-  lines_added: 559
-  lines_removed: 24
-  footprint_refreshed_at: '2026-11-15T10:34:13Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+  footprint_refreshed_at: '2026-11-15T10:34:18Z'
+  footprint_refreshed_by_commit: 24a77d212
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3766-canary-substrate-preflight-canary-is-fir.md

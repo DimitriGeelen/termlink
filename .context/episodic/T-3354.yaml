@@ -109,10 +109,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 52235
-  commits: 12
-  files_changed: 16
-  lines_added: 2190
-  lines_removed: 46
+  commits: 13
+  files_changed: 17
+  lines_added: 2212
+  lines_removed: 50
+  footprint_refreshed_at: '2026-11-11T16:49:42Z'
+  footprint_refreshed_by_commit: a993e483c
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3354-arc-011-role-chain-step-5-evidence-speci.md

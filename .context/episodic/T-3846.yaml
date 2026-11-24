@@ -72,12 +72,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 8
-  commits: 2
-  files_changed: 10
-  lines_added: 1041
-  lines_removed: 12
-  footprint_refreshed_at: '2026-11-21T16:49:41Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 1
+  files_changed: 7
+  lines_added: 524
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-21T16:49:42Z'
+  footprint_refreshed_by_commit: 1da56fe1c
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3846-sidecar-attention-entries-can-interleave.md

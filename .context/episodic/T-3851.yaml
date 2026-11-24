@@ -337,12 +337,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 489
-  commits: 7
-  files_changed: 262
-  lines_added: 25232
-  lines_removed: 950
-  footprint_refreshed_at: '2026-11-22T20:20:59Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 6
+  files_changed: 257
+  lines_added: 24710
+  lines_removed: 940
+  footprint_refreshed_at: '2026-11-22T20:21:00Z'
+  footprint_refreshed_by_commit: 2c530b8c6
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3851-re-vendor-aef-be59---be61-t-5351-w1-prom.md

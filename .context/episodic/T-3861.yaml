@@ -83,12 +83,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 212
-  commits: 4
-  files_changed: 15
-  lines_added: 798
-  lines_removed: 50
-  footprint_refreshed_at: '2026-11-24T16:54:43Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 9
+  lines_added: 176
+  lines_removed: 39
+  footprint_refreshed_at: '2026-11-24T16:54:44Z'
+  footprint_refreshed_by_commit: 285162a51
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3861-builds-from-a-git-archive-no-git-report-.md

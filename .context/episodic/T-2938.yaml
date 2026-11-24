@@ -69,12 +69,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 96629
-  commits: 3
-  files_changed: 12
-  lines_added: 583
-  lines_removed: 29
-  footprint_refreshed_at: '2026-11-15T20:25:41Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 3
+  lines_added: 34
+  lines_removed: 8
+  footprint_refreshed_at: '2026-11-15T20:25:43Z'
+  footprint_refreshed_by_commit: a9a3c8320
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2938-cron-drift-agentic-auditcrontab-differs-.md

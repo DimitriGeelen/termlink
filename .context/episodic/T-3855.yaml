@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3855: Sidecar test estate silently runs a stale target/release/termlink (t3366 pin test fails on HEAD)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-24T19:02:15Z
+# ============================================================================
+
+task_id: T-3855
+task_name: "Sidecar test estate silently runs a stale target/release/termlink (t3366 pin test fails on HEAD)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-23T22:06:43Z
+completed: 2026-11-24T19:01:52Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-24T20:01:34+01:00
+last_commit: 2026-11-24T20:01:34+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  sidecar testkit refuses a termlink binary older than the hub source and says how to fix it; unit 5/0, mutant fails; sidecar 436/0; t3366 9/0 with a fresh build, clear error with a stale one
+
+# Key outcomes
+outcomes:
+  - '`termlink_bin()` skips a fallback binary older than the newest hub source file, and returns an error naming the binary, the newer file and both fixes when no fresh one remains'
+  - 'An explicit `TERMLINK_BIN` is used as given, without the age check'
+  - 'Unit tests cover fresh, stale and missing-source cases; a mutant that disables the age comparison fails them'
+  - '`cargo test -p termlink-sidecar` passes with `TERMLINK_BIN` set to a current binary; clippy clean for the crate'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'sidecar testkit refuses a termlink binary older than the hub source and says how to fix it; unit 5/0, mutant fails; sidecar 436/0; t3366 9/0 with a fresh build, clear error with a stale one'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3855-sidecar-test-estate-silently-runs-a-stal.md'
+  - 'crates/termlink-sidecar/src/testkit.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-24T20:01:34'
+    action: 'T-3855: sidecar testkit refuses a termlink binary older than the hub source and says how to fix it; unit 5/0, mutant fails; sidecar 436/0; t3366 9/0 with a fresh build, clear error with a stale one'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1255 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1255
+  commits: 2
+  files_changed: 35
+  lines_added: 503
+  lines_removed: 199
+  footprint_refreshed_at: '2026-11-24T19:02:18Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3855-sidecar-test-estate-silently-runs-a-stal.md
+generated_by: context-agent-hybrid

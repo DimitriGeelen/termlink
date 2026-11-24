@@ -93,12 +93,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 225284
-  commits: 4
-  files_changed: 26
-  lines_added: 870
-  lines_removed: 118
-  footprint_refreshed_at: '2026-11-15T21:06:44Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 22
+  lines_added: 718
+  lines_removed: 110
+  footprint_refreshed_at: '2026-11-15T21:06:45Z'
+  footprint_refreshed_by_commit: 93591f2f2
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2197-audit-d13--4-inception-limbo-tasks-await.md

@@ -65,12 +65,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 96628
-  commits: 2
-  files_changed: 10
-  lines_added: 569
-  lines_removed: 24
-  footprint_refreshed_at: '2026-11-15T20:25:41Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 1
+  files_changed: 1
+  lines_added: 20
+  lines_removed: 3
+  footprint_refreshed_at: '2026-11-15T20:25:44Z'
+  footprint_refreshed_by_commit: a9a3c8320
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2939-cronsubstrate-smoke-canary-declared-but-.md

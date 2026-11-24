@@ -109,12 +109,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 180
-  commits: 17
-  files_changed: 15
-  lines_added: 1977
-  lines_removed: 368
-  footprint_refreshed_at: '2026-11-12T14:39:56Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 16
+  files_changed: 11
+  lines_added: 1782
+  lines_removed: 361
+  footprint_refreshed_at: '2026-11-12T14:39:57Z'
+  footprint_refreshed_by_commit: dcfb2c27d
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3689-arc-011-fold-step-7-change-requests-cr-1.md

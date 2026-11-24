@@ -104,12 +104,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 966
-  commits: 11
-  files_changed: 19
-  lines_added: 780
-  lines_removed: 49
-  footprint_refreshed_at: '2026-11-13T11:16:58Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 10
+  files_changed: 14
+  lines_added: 472
+  lines_removed: 30
+  footprint_refreshed_at: '2026-11-13T11:17:00Z'
+  footprint_refreshed_by_commit: a2fcb16f8
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3753-release-v0125-g-1-ship-t-3749-loud-send-.md

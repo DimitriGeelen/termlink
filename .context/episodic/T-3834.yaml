@@ -64,12 +64,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1711
-  commits: 1
-  files_changed: 7
-  lines_added: 524
-  lines_removed: 7
-  footprint_refreshed_at: '2026-11-21T16:44:59Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+  footprint_refreshed_at: '2026-11-21T16:45:00Z'
+  footprint_refreshed_by_commit: 503a5d987
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3834-rk-1-sender-shows-key-revoked-operator-a.md

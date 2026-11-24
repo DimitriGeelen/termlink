@@ -74,12 +74,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 893
-  commits: 2
-  files_changed: 13
-  lines_added: 758
-  lines_removed: 37
-  footprint_refreshed_at: '2026-11-21T12:32:16Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 1
+  files_changed: 8
+  lines_added: 567
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-21T12:32:17Z'
+  footprint_refreshed_by_commit: 58305680f
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3842-wc-v034-closurenever-conformance-on-the-.md

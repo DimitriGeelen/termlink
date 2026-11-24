@@ -107,12 +107,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 251
-  commits: 7
-  files_changed: 27
-  lines_added: 1870
-  lines_removed: 70
-  footprint_refreshed_at: '2026-11-20T21:28:20Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 6
+  files_changed: 16
+  lines_added: 1307
+  lines_removed: 41
+  footprint_refreshed_at: '2026-11-20T21:28:21Z'
+  footprint_refreshed_by_commit: 7eb0cd2da
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3837-worker-contract-wc034-withdrawn-outcome-.md
