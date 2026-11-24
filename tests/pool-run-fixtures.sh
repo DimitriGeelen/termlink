@@ -57,6 +57,12 @@ pin
 out=$(FAKE_RC=0 FAKE_LIVE_CLIENT="$L/pool-client.py" run test); rc=$?
 check "11 a client replaced mid-run is not the one used: the run keeps the reviewed private copy" '[ $rc = 0 ] && grep -q "USED<<# client" "$T/mark" && ! grep -q "changed mid-run" "$T/mark" && grep -q "changed mid-run" "$L/pool-client.py"'
 
+pin   # case 11 changed the live client on purpose
+out=$(FAKE_RC=0 run crates HEAD termlink-hub termlink-bus); rc=$?
+check "12 crate names pass through for 'crates'" '[ $rc = 0 ] && grep -q "^crates [0-9a-f]\{40\} termlink-hub termlink-bus " "$T/mark"'
+out=$(run test HEAD termlink-hub); rc=$?
+check "13 crate names with another kind, or a bad name, are rc 2 and nothing runs" '[ $rc = 2 ] && [ ! -f "$T/mark" ] && [ "$(run crates HEAD "a;b" >/dev/null 2>&1; echo $?)" = 2 ]'
+
 echo "---"
 echo "pool-run fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

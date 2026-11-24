@@ -9,7 +9,8 @@
 # ADVISORY (T-3858 risk 3): a pool result is advice. Task closure and releases keep their local runs; nothing may
 # treat a pool pass as a gate. Every run writes ADVISORY.txt next to its results.
 #
-# Usage: pool-run.sh {test|clippy|crates|build} [COMMIT]   (COMMIT defaults to HEAD of the repo)
+# Usage: pool-run.sh {test|clippy|crates|build} [COMMIT] [CRATE...]   (COMMIT defaults to HEAD of the repo;
+#        CRATE names only for `crates`, default every workspace member)
 # Output: <out-root>/<UTC>-<kind>-<commit12>/  (default out-root .context/working/pool-runs, gitignored)
 # Exit: 0 every job passed · 1 a job failed · 2 could not run or could not look (pin mismatch included; never 0)
 # Seams (fixtures only): POOL_RUN_PINS, POOL_RUN_REPO, POOL_RUN_OUT_ROOT, POOL_RUN_HEARTBEAT, POOL_RUN_PYTHON
@@ -25,6 +26,9 @@ EXCLUDES=(.claude/settings.local.json .context .tasks .fabric .agentic-framework
 die() { echo "pool-run: $*" >&2; exit 2; }
 kind="${1:-}"; case "$kind" in test|clippy|crates|build) ;; *) die "usage: pool-run.sh {test|clippy|crates|build} [COMMIT]";; esac
 commit="$(git -C "$REPO" rev-parse --verify "${2:-HEAD}^{commit}" 2>/dev/null)" || die "unknown commit: ${2:-HEAD}"
+crates=("${@:3}")
+[ "${#crates[@]}" -eq 0 ] || [ "$kind" = crates ] || die "crate names are only for 'crates'"
+for c in "${crates[@]}"; do [[ "$c" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || die "bad crate name: $c"; done
 
 # --- pins: every line must match, or nothing runs ---
 [ -r "$PINS" ] || die "pin file unreadable: $PINS"
@@ -57,7 +61,7 @@ mkdir -p "$out" || die "cannot create $out"
 printf 'ADVISORY: pool result, not a gate (T-3858 risk 3, T-3859). Task closure and releases keep their local runs.\ncommit %s, kind %s\n' "$commit" "$kind" > "$out/ADVISORY.txt"
 args=()
 for e in "${EXCLUDES[@]}"; do args+=(--exclude "$e"); done
-POOL_CLIENT="$client" "$PY" -I "$tmp/submit.py" "$kind" "$commit" --repo "$REPO" --out "$out" "${args[@]}" --timeout 5400
+POOL_CLIENT="$client" "$PY" -I "$tmp/submit.py" "$kind" "$commit" "${crates[@]}" --repo "$REPO" --out "$out" "${args[@]}" --timeout 5400
 rc=$?
 case "$rc" in 0|1|2) ;; *) echo "pool-run: submit script exited $rc, reported as could-not-run" >&2; rc=2 ;; esac
 echo "pool-run: ADVISORY result rc=$rc ($kind, ${commit:0:12}, $out)"

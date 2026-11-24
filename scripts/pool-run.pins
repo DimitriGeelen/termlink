@@ -1,5 +1,5 @@
 # T-3859: reviewed versions of ring20's pool code. scripts/pool-run.sh refuses to run unless every file matches.
 # A new version is read in full before its line here changes (T-3858 risk 1). Format: sha256  path
 1d13cff4211a8cc447cff549e50055cf5faf70b3cee3c187e12558d900284f9e  /var/lib/ring20-handoff/010/010-pool-submit.py
-e386463237148f5ede4f2421a0138d776d7407f56b1b77971d1ae043112eb274  /usr/local/lib/ring20-pool-client/pool-client.py
+c1675cfbfb9ccd050d7e7c2f29218e074e5588586547b9e655b56f843ee8cf41  /usr/local/lib/ring20-pool-client/pool-client.py
 b7eb17617d3c2dbc20a51ac0078fcae72cfb5d57d94b32448d240a519d31e5fd  /usr/local/lib/ring20-pool-client/poold.py
