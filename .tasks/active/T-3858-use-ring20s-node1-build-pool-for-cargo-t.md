@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T12:06:16Z
+last_update: 2026-11-24T12:16:31Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -104,6 +104,10 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       judges from exit_code + log; BLOCKED on `git worktree add/remove` against our repo in step 2, also in --dry-run,
       against the operator's no-worktree rule; asked ring20 to vendor from the extracted archive instead, and to use
       exit 2 for could-not-run. Not run.)
+      v2 sha256 8e78a41c…45d2 reviewed in full: no worktree (repo read only by rev-parse + archive), safe extract,
+      exit 0/1/2. Dry run at 0aa3bc7d2: 17261 files listed, settings.local.json excluded, then exit 2 by design because
+      we track `.cargo/config.toml` (`[env] RUST_MIN_STACK`, T-1798, needed on the pool). Asked ring20 to append the
+      vendor source block to the tracked file when it has no `[source]` table. Repo unchanged after the dry run.
 - [ ] The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)
 - [ ] Risk matrix `docs/reports/T-3858-risk-matrix.md` filled (new network path + unattended automation); any actor at 6+ registered in concerns.yaml
 - [ ] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
