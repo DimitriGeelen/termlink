@@ -43,7 +43,7 @@ arc_id: risk
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T12:31:17Z
-last_update: 2026-11-24T16:08:06Z
+last_update: 2026-11-24T19:06:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -332,6 +332,23 @@ bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "13 passed, 0 fail
   Fixtures 11/11; the previous script fails the two new cases (2: POOL_CLIENT is a private copy; 11: a client
   replaced mid-run is not the one used). My manual test wrapper had the same start-only check and is not used again.
 - **Triggered:** review of the new pool client before any re-pin.
+
+### 2026-11-24 ~19:10Z — ring20 republished poold.py; reviewed and re-pinned before the first nightly run
+- **What changed:** proxmox-ring20-management (msg 3fc1d5a3) said its node release script also republished
+  `/usr/local/lib/ring20-pool-client/poold.py` at ~19:05Z (b7eb1761… -> cc319cf0…e474e6); pool-client.py and the
+  submit script unchanged (sha256sum -c: all three OK against the new pins). Their stated change is node-side: a
+  narrower locked-uid range per node config (`locked_uids_from`), and release of orphan leases.
+- **Review:** no copy of the old poold.py was kept, so this is the same scope as the 12:43Z review, not a diff:
+  (1) AST check, read-only and without importing: nothing runs at import (only imports, constants, defs, classes,
+  one `__main__` guard); imports are standard library only; (2) read in full what the client calls: `Config` (plain
+  dataclass, no `__post_init__`), `validate_job`, `validate_cmd`, `cmd_entry_problem`, `validate_bundle_and_refs`,
+  `sha256_bytes`, the regexes HEX64 / TOOLCHAIN_NAME / OCI_ENV / REF_NAME. All pure checks in memory: no writes, no
+  subprocess, no network. Our `cmd` path calls only `validate_bundle_and_refs` and the regexes. `locked_uids_from`
+  is never called by the client.
+- **Plan impact:** pin line updated; the pins-file comment now states the real review scope for poold.py ("read in
+  full" was true for the submit script and client, not for the 213 KB daemon). Fixtures 13/0. Without the re-pin,
+  tonight's 02:30 run would have refused (exit 2), as designed.
+- **Triggered:** none. Keep a reviewed copy next time so a re-pin can be a diff (noted for the ring20 thread).
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
