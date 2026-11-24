@@ -43,7 +43,7 @@ arc_id: risk
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T12:31:17Z
-last_update: 2026-11-24T19:28:46Z
+last_update: 2026-11-24T20:59:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -361,6 +361,14 @@ bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "13 passed, 0 fail
 - **Plan impact:** pin updated; reviewed copies of all three files now kept in `.context/working/pool-reviewed/`
   (untracked) for the next diff.
 - **Triggered:** none.
+
+### 2026-11-24 20:59Z — poold.py republished (announced, msg e8f9f0c0); one-line node-side diff, re-pinned
+- **What changed:** cc319cf0… -> f7a96c5b…85d9e9 at 20:59:14Z, as announced; `poold.py.prev` = cc319cf0 (our
+  reviewed copy); pool-client.py unchanged (37328a0b).
+- **Review:** full diff against `.context/working/pool-reviewed/poold.py.cc319cf0e25e`: one hunk at line 1810,
+  `Poold.usage_high` (the daemon class, never used by the client): the return now prefers measured utilization
+  over Anthropic's `allowed_warning` status. Nothing the client calls changed.
+- **Plan impact:** pin updated; reviewed copy kept.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at

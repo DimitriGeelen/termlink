@@ -5,4 +5,4 @@
 # TOOLCHAIN_NAME, OCI_ENV) are read in full. Format: sha256  path
 1d13cff4211a8cc447cff549e50055cf5faf70b3cee3c187e12558d900284f9e  /var/lib/ring20-handoff/010/010-pool-submit.py
 37328a0b43da6ff691d3d3865ab94af4b5e47f1bed082adabc77bdfbf98cb1b2  /usr/local/lib/ring20-pool-client/pool-client.py
-cc319cf0e25ea1217328810f04d5c8a0263d1d903ea962be47c57ab932e474e6  /usr/local/lib/ring20-pool-client/poold.py
+f7a96c5b6f2d4a5a28f0672b1932213fc849d156d3af38624a45a4338385d9e9  /usr/local/lib/ring20-pool-client/poold.py
