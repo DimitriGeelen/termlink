@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T13:21:53Z
+last_update: 2026-11-24T13:29:17Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -126,7 +126,13 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       (4 risks, 0 errors, needs operator acceptance: none. Actors at 6+: risk 1 (10) and risk 3 (6) -> R-001, R-002 in
       concerns.yaml, mitigation task T-3859 in the new standing arc `risk` (arc-013, standing: true). T-3859 must be
       done before any scheduled run.)
-- [ ] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
+- [x] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
+      (attempt 2 with submit v5 51ebadb3…abba: node1, run 1026 s; 4828 passed, 2 failed, 9 ignored = 4839. Local at
+      the same commit with --no-fail-fast (as the entry runs): 4827 passed, 3 failed, 9 ignored = 4839. Same test set.
+      Failures, all environment: termlink-mcp parity_version both sides (no .git in an archive build -> T-3861);
+      sidecar meter_session_rpc both sides (scratch under the source tree: read-only on the pool, socket path over
+      SUN_LEN locally -> T-3862); hub_bus_state_reports_durable_for_var_lib_path local only (local target dir under
+      /tmp). The note below on "2465 passed" was a plain cargo test that stopped at the first failing binary.)
       (attempt 1, 2026-11-24 12:44Z, commit 57523b854, pinned: submit v4 69f17302…, pool-client e3864632…b274, poold
       b7eb1761…e5fd, all read before use. Pool: node1, exit 101 before any test: `code/vendor` missing on the node (the
       vendor ref was not unpacked); reported to ring20. Local reference at the same commit from a clean git archive:
