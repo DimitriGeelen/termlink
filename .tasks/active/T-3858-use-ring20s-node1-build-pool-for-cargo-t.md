@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T11:31:34Z
+last_update: 2026-11-24T11:37:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -387,6 +387,18 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-24 — use the ring20 pool through its dispatcher, whole pool, by entry (operator ruling: "A", widened)
+- **Chose:** A, widened by the operator mid-turn: "why only node one, why not use the whole build pool, anything
+  that's available or has its role, as we have for others, and use the dispatching mechanisms for appropriate jobs."
+  Route (ring20 msg b47f191c): the shared pool client on .107 (`pool-client.py submit-cmd --entry --env --client
+  010-termlink --ref ...`, then `wait`); the relay picks any node that offers the entry and has room. Auth: our hub
+  identity only. Entries: 010.termlink-test, 010.termlink-build (exist), 010.termlink-clippy and
+  010.termlink-test-crate (new; crate list from `cargo metadata --no-deps` at the archived commit). Toolchain
+  rust-1.94.0 to be added on pool-w2 and pool-132 beside node1.
+- **Why:** appropriate jobs (tests, clippy, release build, parallel per-crate tests) offload to idle estate capacity
+  through the same mechanism other projects use.
+- **Rejected:** B (not now) and C (never), the agent's recommendation was B; a node1-only script (operator: whole pool).
 
 ## Decision
 
