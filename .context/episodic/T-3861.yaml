@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3861: Builds from a git archive (no .git) report version 0.9.0 and commit unknown; let build scripts take describe+commit from a file the packer writes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-24T16:54:18Z
+# ============================================================================
+
+task_id: T-3861
+task_name: "Builds from a git archive (no .git) report version 0.9.0 and commit unknown; let build scripts take describe+commit from a file the packer writes"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-24T13:21:45Z
+completed: 2026-11-24T16:54:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-24T16:47:18+01:00
+last_commit: 2026-11-24T17:01:49+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  build scripts fall back to <workspace>/.build-info (describe=, commit=) when git gives no answer (archive builds); unit tests 8/0 + 2 mutant controls; checkout build unchanged. archive-build proof (0.9.0/unknown without .build-info; equal to checkout with it); clippy clean; mcp parity 41/0. re-pin ring20's submit script v6 (1d13cff4...) after diff review: writes .build-info (describe=, commit=) at the archive root
+
+# Key outcomes
+outcomes:
+  - '`crates/version-derive.rs` reads `describe` and `commit` from `<workspace>/.build-info` only when git gives no answer; malformed or absent file falls back as before (Cargo.toml version, no commit)'
+  - 'cli and mcp build.rs take the commit through the same fallback; all four build.rs rerun on `.build-info`'
+  - 'Unit tests for the parser (valid, missing key, garbage); a mutant that ignores the file fails a test'
+  - 'Proof: a build from a `git archive` of HEAD plus `.build-info` reports the same `termlink version --json` version and commit as the checkout build; without the file it reports 0.9.0 / unknown as before'
+  - 'ring20 has the file name and format; the next pool test run passes `parity_version` (checked from a session)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-24 — how a build without .git learns its version (operator ruling: "a")'
+    chose: 'A: a `.build-info` file at the archive root (the `git describe` line and the commit), written by the packer, read by the build scripts only when git gives no answer.'
+    rationale: 'fixes every archive build at the root; about 10 lines in the shared version file; git still wins, so checkout builds cannot change; ring20 only writes one file in a script they own.'
+    alternatives_rejected: ['B (env vars: needs ring20 to change fixed entry commands), C (skip the test: pool builds still report 0.9.0), D (defer: keeps the known failure).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.gitignore'
+  - '.tasks/active/T-3861-builds-from-a-git-archive-no-git-report-.md'
+  - 'crates/termlink-cli/build.rs'
+  - 'crates/termlink-hub/build.rs'
+  - 'crates/termlink-mcp/build.rs'
+  - 'crates/termlink-session/build.rs'
+  - 'crates/version-derive.rs'
+  - 'scripts/pool-run.pins'
+  - 'tests/version-derive-tests.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-24T16:47:18'
+    action: 'T-3861: build scripts fall back to <workspace>/.build-info (describe=, commit=) when git gives no answer (archive builds); unit tests 8/0 + 2 mutant controls; checkout build unchanged'
+  - time: '2026-11-24T16:54:17'
+    action: 'T-3861: archive-build proof (0.9.0/unknown without .build-info; equal to checkout with it); clippy clean; mcp parity 41/0'
+  - time: '2026-11-24T17:01:49'
+    action: 'T-3861: re-pin ring20''s submit script v6 (1d13cff4...) after diff review: writes .build-info (describe=, commit=) at the archive root'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 212 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 212
+  commits: 4
+  files_changed: 15
+  lines_added: 798
+  lines_removed: 50
+  footprint_refreshed_at: '2026-11-24T16:54:43Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3861-builds-from-a-git-archive-no-git-report-.md
+generated_by: context-agent-hybrid

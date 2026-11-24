@@ -1,18 +1,13 @@
 ---
-id: T-3861
-name: "Builds from a git archive (no .git) report version 0.9.0 and commit unknown;
-  let build scripts take describe+commit from a file the packer writes"
+id: T-3863
+name: "Hub pidfile test assumes PID 1 is never a termlink process; fails in a PID-namespaced sandbox whose PID 1 is 'cargo test -p termlink-hub'"
 description: >
-  Found on the ring20 pool (T-3858, 2026-11-24): termlink-mcp parity_version fails
-  because build.rs gets no commit without .git; the same build scripts (crates/version-derive.rs,
-  cli/mcp build.rs) would give a pool release build version 0.9.0. ring20 offers to
-  write e.g. .git-commit at the archive root; decide the file name and format (describe
-  + short hash), read it only when git is absent.
+  Found on the ring20 pool (T-3858, 2026-11-24, per-crate job termlink-hub at f3af3cb83): pidfile::tests::check_reused_pid_of_non_termlink_process_is_stale writes pid 1 and expects Stale; in the job's PID namespace PID 1's cmdline contains 'termlink' so check() says Running. Passes in the full-workspace pool run and locally. Use a pid known not to be termlink (e.g. spawn 'sleep' and use its pid) instead of 1.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
@@ -42,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-24T13:21:45Z
-last_update: 2026-11-24T16:01:49Z
-date_finished:
+created: 2026-11-24T16:53:49Z
+last_update: 2026-11-24T16:53:49Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -55,50 +50,20 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-11-24T15:42:55Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 0
-      D2: 0
-      D3: 0
-      D4: 0
-      F-RECALL: 0
-    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
-      (no-signal); F-RECALL=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3861: Builds from a git archive (no .git) report version 0.9.0 and commit unknown; let build scripts take describe+commit from a file the packer writes
+# T-3863: Hub pidfile test assumes PID 1 is never a termlink process; fails in a PID-namespaced sandbox whose PID 1 is 'cargo test -p termlink-hub'
 
 ## Context
 
-**Background / trigger:** T-3858's pool runs build from a `git archive` (no `.git`). The build scripts take version
-and commit from git (`crates/version-derive.rs`: `git describe`; cli/mcp build.rs: `git rev-parse --short HEAD`), so
-an archive build reports version 0.9.0 (Cargo.toml) and commit `unknown`; `termlink-mcp` `parity_version` fails on
-the pool, and a pool release build would carry a wrong `--version`.
-
-**Problem / hypothesis:** nothing supplies the describe line and commit when git is absent.
-
-**Goal:** operator ruling A (2026-11-24): a `.build-info` file at the archive root, written by the packer, read by
-the build scripts only when git gives no answer.
-
-**Expected outcome:** an archive build with `.build-info` reports the same version and commit as a checkout build;
-checkout builds are unchanged; the pool's `parity_version` passes.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `crates/version-derive.rs` reads `describe` and `commit` from `<workspace>/.build-info` only when git gives no answer; malformed or absent file falls back as before (Cargo.toml version, no commit)
-- [x] cli and mcp build.rs take the commit through the same fallback; all four build.rs rerun on `.build-info`
-- [x] Unit tests for the parser (valid, missing key, garbage); a mutant that ignores the file fails a test
-      (`tests/version-derive-tests.sh`: 8 passed; control 1 old mapping fails 5; control 2 ignoring .build-info fails)
-- [x] Proof: a build from a `git archive` of HEAD plus `.build-info` reports the same `termlink version --json` version and commit as the checkout build; without the file it reports 0.9.0 / unknown as before
-      (archive of beb7de074: without the file `0.9.0` / `unknown`; with `describe=v0.12.13-381-gbeb7de074`,
-      `commit=beb7de074`: `0.12.13+381.gbeb7de074` / `beb7de074`, equal to the checkout's describe. Checkout build
-      unchanged; clippy --workspace -D warnings clean; termlink-mcp parity 41/0.)
-- [ ] ring20 has the file name and format; the next pool test run passes `parity_version` (checked from a session)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -149,8 +114,6 @@ checkout builds are unchanged; the pool's `parity_version` passes.
 -->
 
 ## Verification
-
-bash tests/version-derive-tests.sh > /tmp/.t3861 2>&1 && grep -q "PASS  control: ignoring .build-info" /tmp/.t3861
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -376,14 +339,6 @@ bash tests/version-derive-tests.sh > /tmp/.t3861 2>&1 && grep -q "PASS  control:
 
 ## Decisions
 
-### 2026-11-24 — how a build without .git learns its version (operator ruling: "a")
-- **Chose:** A: a `.build-info` file at the archive root (the `git describe` line and the commit), written by the
-  packer, read by the build scripts only when git gives no answer.
-- **Why:** fixes every archive build at the root; about 10 lines in the shared version file; git still wins, so
-  checkout builds cannot change; ring20 only writes one file in a script they own.
-- **Rejected:** B (env vars: needs ring20 to change fixed entry commands), C (skip the test: pool builds still report
-  0.9.0), D (defer: keeps the known failure).
-
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -405,11 +360,7 @@ bash tests/version-derive-tests.sh > /tmp/.t3861 2>&1 && grep -q "PASS  control:
 
 ## Updates
 
-### 2026-11-24T13:21:45Z — task-created [task-create-agent]
+### 2026-11-24T16:53:49Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3861-builds-from-a-git-archive-no-git-report-.md
+- **Output:** /opt/termlink/.tasks/active/T-3863-hub-pidfile-test-assumes-pid-1-is-never-.md
 - **Context:** Initial task creation
-
-### 2026-11-24T15:42:54Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
