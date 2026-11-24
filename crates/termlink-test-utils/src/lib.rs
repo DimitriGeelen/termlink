@@ -264,19 +264,24 @@ fn current_profile_dir() -> Option<PathBuf> {
 /// you depend on git-derived version metadata being coherent between the
 /// CLI binary and the freshly-recompiled MCP test crate (e.g. comparing
 /// commit hashes), use [`find_termlink_bin_fresh`] instead.
+///
+/// **T-3864:** `cargo test -p termlink-mcp` does not build the `termlink`
+/// package, so steps 2 and 3 can find a binary built from older source. Each
+/// candidate is compared with the source files cargo recorded for it
+/// ([`newest_dep_source`]); an older one is skipped, and when none is current
+/// the error names the binary, the newer file and the fixes. `TERMLINK_BIN` is
+/// used as given.
 pub fn find_termlink_bin() -> Result<PathBuf, String> {
+    find_termlink_bin_impl(true)
+}
+
+fn find_termlink_bin_impl(check_age: bool) -> Result<PathBuf, String> {
     if let Ok(override_path) = std::env::var("TERMLINK_BIN") {
         let p = PathBuf::from(override_path);
         if p.exists() {
             return Ok(p);
         }
         return Err(format!("$TERMLINK_BIN points at {p:?} which does not exist"));
-    }
-    if let Some(profile_dir) = current_profile_dir() {
-        let candidate = profile_dir.join("termlink");
-        if candidate.exists() {
-            return Ok(candidate);
-        }
     }
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
         .map_err(|_| "CARGO_MANIFEST_DIR not set — call from inside a cargo test".to_string())?;
@@ -289,15 +294,56 @@ pub fn find_termlink_bin() -> Result<PathBuf, String> {
             return Err("workspace root (Cargo.lock) not found".into());
         }
     }
+    let mut candidates = Vec::new();
+    if let Some(profile_dir) = current_profile_dir() {
+        candidates.push(profile_dir.join("termlink"));
+    }
     for profile in &["release", "debug"] {
-        let candidate = cursor.join("target").join(profile).join("termlink");
-        if candidate.exists() {
-            return Ok(candidate);
+        candidates.push(cursor.join("target").join(profile).join("termlink"));
+    }
+    pick_current_bin(&candidates, check_age).map_err(|e| format!("{e} (searched {cursor:?}/target)"))
+}
+
+/// The newest source file cargo recorded for `bin` in its dep-info file
+/// (`<bin>.d`, written beside every binary), and its mtime (T-3864). That list
+/// is exact: it holds what this build compiled and nothing else, so a
+/// `#[cfg(test)]` module file (never read by a normal build) does not count.
+/// Only `.rs` and `Cargo.toml` entries count; the `.git/*` and `.build-info`
+/// entries track the version label, not code. None when there is no `.d` file
+/// or no listed source can be read: then the age cannot be judged.
+pub fn newest_dep_source(bin: &Path) -> Option<(PathBuf, std::time::SystemTime)> {
+    let text = std::fs::read_to_string(bin.with_extension("d")).ok()?;
+    let deps = text.lines().next()?.split_once(": ")?.1.replace("\\ ", "\u{0}");
+    deps.split_whitespace()
+        .map(|d| PathBuf::from(d.replace('\u{0}', " ")))
+        .filter(|p| p.extension().is_some_and(|x| x == "rs") || p.file_name().is_some_and(|n| n == "Cargo.toml"))
+        .filter_map(|p| std::fs::metadata(&p).and_then(|m| m.modified()).ok().map(|t| (p, t)))
+        .max_by_key(|(_, t)| *t)
+}
+
+/// The first existing candidate not older than its own recorded sources
+/// ([`newest_dep_source`]); with `check_age` false, simply the first existing one.
+pub fn pick_current_bin(candidates: &[PathBuf], check_age: bool) -> Result<PathBuf, String> {
+    let mut stale: Vec<String> = Vec::new();
+    for c in candidates.iter().filter(|c| c.is_file()) {
+        let bin_t = std::fs::metadata(c).and_then(|m| m.modified()).ok();
+        match (check_age.then(|| newest_dep_source(c)).flatten(), bin_t) {
+            (Some((src, src_t)), Some(b)) if b < src_t => {
+                let s = format!("{} predates {}", c.display(), src.display());
+                if !stale.contains(&s) {
+                    stale.push(s);
+                }
+            }
+            _ => return Ok(c.clone()),
         }
     }
-    Err(format!(
-        "termlink binary not found in {cursor:?}/target/{{release,debug}}/. Run `cargo build -p termlink` first."
-    ))
+    let fix = "run `cargo build -p termlink` (same profile and --target-dir as this test run), \
+               or set TERMLINK_BIN to a current termlink binary";
+    if stale.is_empty() {
+        Err(format!("termlink binary not found; {fix}"))
+    } else {
+        Err(format!("termlink binary is older than its source (T-3864): {}; {fix}", stale.join("; ")))
+    }
 }
 
 /// Like [`find_termlink_bin`], but first runs `cargo build -p termlink`
@@ -351,7 +397,9 @@ pub fn find_termlink_bin_fresh() -> Result<PathBuf, String> {
         Ok(())
     });
     match build_result {
-        Ok(()) => find_termlink_bin(),
+        // T-3864: the build just ran, so it is the authority; cargo may rightly
+        // leave the binary untouched when nothing it compiles changed.
+        Ok(()) => find_termlink_bin_impl(false),
         Err(e) => Err(e.clone()),
     }
 }
@@ -363,6 +411,84 @@ pub fn find_termlink_bin_fresh() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// T-3864 fixture: a scratch dir with a `src/` tree.
+    fn t3864_dir(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("t3864-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("src/nested")).unwrap();
+        d
+    }
+
+    fn t3864_touch(p: &Path, age_secs: u64) {
+        std::fs::write(p, b"x").unwrap();
+        let t = std::time::SystemTime::now() - Duration::from_secs(age_secs);
+        std::fs::File::options().write(true).open(p).unwrap().set_modified(t).unwrap();
+    }
+
+    /// A binary plus the `<bin>.d` file cargo writes beside it, listing `deps`.
+    fn t3864_bin(bin: &Path, age_secs: u64, deps: &[PathBuf]) {
+        t3864_touch(bin, age_secs);
+        let list: Vec<String> = deps.iter().map(|d| d.display().to_string().replace(' ', "\\ ")).collect();
+        std::fs::write(bin.with_extension("d"), format!("{}: {}\n", bin.display(), list.join(" "))).unwrap();
+    }
+
+    /// A stale candidate (older than a file its `.d` lists) is skipped for a current one.
+    #[test]
+    fn t3864_stale_candidate_is_skipped_for_a_current_one() {
+        let d = t3864_dir("skip");
+        let src = d.join("src/nested/a.rs");
+        t3864_touch(&src, 500);
+        t3864_bin(&d.join("old"), 900, std::slice::from_ref(&src));
+        t3864_bin(&d.join("new"), 10, std::slice::from_ref(&src));
+        assert_eq!(pick_current_bin(&[d.join("old"), d.join("new")], true).unwrap(), d.join("new"));
+        assert_eq!(pick_current_bin(&[d.join("old")], false).unwrap(), d.join("old"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Only stale ones: the error names the binary, the newer source file and both fixes.
+    #[test]
+    fn t3864_only_stale_is_an_error_that_names_the_fix() {
+        let d = t3864_dir("err");
+        let src = d.join("src/nested/a.rs");
+        t3864_touch(&src, 500);
+        t3864_bin(&d.join("old"), 900, std::slice::from_ref(&src));
+        let err = pick_current_bin(&[d.join("old"), d.join("absent")], true).unwrap_err();
+        assert!(err.contains("older than its source") && err.contains("old predates"), "{err}");
+        assert!(err.contains("src/nested/a.rs"), "{err}");
+        assert!(err.contains("cargo build -p termlink") && err.contains("TERMLINK_BIN"), "{err}");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Only what the `.d` lists counts: a newer file it does not list (a
+    /// `#[cfg(test)]` module file, a fixture), or a listed non-source entry
+    /// (`.git/HEAD`), never makes the binary stale. A path with a space parses.
+    #[test]
+    fn t3864_only_listed_rust_sources_count() {
+        let d = t3864_dir("kinds");
+        let listed = d.join("src/with space.rs");
+        t3864_touch(&listed, 900);
+        t3864_touch(&d.join("src/nested/tests.rs"), 5); // not listed: cfg(test) module file
+        let head = d.join("HEAD");
+        t3864_touch(&head, 5);
+        t3864_bin(&d.join("bin"), 500, &[listed.clone(), head]);
+        let (p, _) = newest_dep_source(&d.join("bin")).unwrap();
+        assert_eq!(p, listed);
+        assert_eq!(pick_current_bin(&[d.join("bin")], true).unwrap(), d.join("bin"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Nothing found: "not found". No `.d` file: the age cannot be judged, so the binary is used.
+    #[test]
+    fn t3864_missing_binary_and_missing_depinfo() {
+        let d = t3864_dir("missing");
+        let err = pick_current_bin(&[d.join("absent")], true).unwrap_err();
+        assert!(err.contains("not found") && err.contains("TERMLINK_BIN"), "{err}");
+        t3864_touch(&d.join("bin"), 900);
+        assert!(newest_dep_source(&d.join("bin")).is_none());
+        assert_eq!(pick_current_bin(&[d.join("bin")], true).unwrap(), d.join("bin"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     /// T-3755: what the child actually receives, read back with `env`. The
     /// control variable (not project/identity) must survive, so the test fails
