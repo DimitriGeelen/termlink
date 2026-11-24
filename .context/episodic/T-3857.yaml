@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3857: Rerun AEF-ontology-agent's fabric benchmark as a census (all eligible tasks) and suggest further projects
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-24T10:18:49Z
+# ============================================================================
+
+task_id: T-3857
+task_name: "Rerun AEF-ontology-agent's fabric benchmark as a census (all eligible tasks) and suggest further projects"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-24T10:17:23Z
+completed: 2026-11-24T10:18:30Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Rerun AEF-ontology-agent's fabric benchmark as a census (all eligible tasks) and suggest further projects
+
+# Key outcomes
+outcomes:
+  - 'The only difference from the T-3856 script is `sample = eligible` (diff shown)'
+  - 'It ran once on /opt/termlink; tracked files unchanged by the run'
+  - 'Output and suggestions were sent on the thread with a delivery receipt'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 3
+  lines_added: 486
+  lines_removed: 0
+  footprint_refreshed_at: '2026-11-24T10:19:00Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3857-rerun-aef-ontology-agents-fabric-benchma.md
+generated_by: context-agent-hybrid
