@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T11:37:02Z
+last_update: 2026-11-24T12:06:16Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -100,6 +100,10 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [ ] ring20's script received, read in full, sha256 recorded; it only packs, submits, waits and writes a log
+      (2026-11-24 review of v1, `/var/lib/ring20-handoff/010/010-pool-submit.py` sha256 88d67057…a276: no credentials,
+      judges from exit_code + log; BLOCKED on `git worktree add/remove` against our repo in step 2, also in --dry-run,
+      against the operator's no-worktree rule; asked ring20 to vendor from the extracted archive instead, and to use
+      exit 2 for could-not-run. Not run.)
 - [ ] The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)
 - [ ] Risk matrix `docs/reports/T-3858-risk-matrix.md` filled (new network path + unattended automation); any actor at 6+ registered in concerns.yaml
 - [ ] One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit
