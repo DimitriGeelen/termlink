@@ -1,0 +1,13 @@
+# T-3858 / T-3859 — nightly run of TermLink's test suite and clippy on the ring20 build pool (operator "A", 2026-11-24)
+# Source of truth: /opt/termlink/.context/cron/pool-run.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-pool-run (USER field syntax — do NOT load into a user crontab)
+#
+# scripts/pool-run.sh refuses (exit 2) unless ring20's submit script, pool-client.py and poold.py match the pins in
+# scripts/pool-run.pins. Results are ADVISORY: no task close or release depends on them (T-3858 risk 3). Each run
+# writes .context/working/pool-runs/<UTC>-<kind>-<commit>/; one summary line per run goes to the .log, diagnostics
+# to .stderr (T-2685). Test 02:30, clippy 03:30, both at HEAD of the main checkout.
+SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+30 2 * * * root cd /opt/termlink && bash scripts/pool-run.sh test 2>> .context/working/.pool-run.log.stderr | grep -E '^pool-run: ADVISORY|^ALL PASSED|^FAILED|^COULD NOT' >> .context/working/.pool-run.log
+30 3 * * * root cd /opt/termlink && bash scripts/pool-run.sh clippy 2>> .context/working/.pool-run.log.stderr | grep -E '^pool-run: ADVISORY|^ALL PASSED|^FAILED|^COULD NOT' >> .context/working/.pool-run.log

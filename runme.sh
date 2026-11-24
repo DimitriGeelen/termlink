@@ -342,6 +342,10 @@ install_crontab canary-escalation.crontab         "$CRON_DIR/termlink-canary-esc
 # T-3799 (operator yes 2026-11-15): weekly trim of target/debug when no build runs.
 install_crontab target-cache-trim.crontab         "$CRON_DIR/termlink-target-cache-trim"
 
+# T-3858 / T-3859 (operator "A", 2026-11-24) — nightly test + clippy on the ring20 build pool, only through
+# scripts/pool-run.sh, which refuses unless ring20's code matches the reviewed pins. Results are advisory.
+install_crontab pool-run.crontab                  "$CRON_DIR/termlink-pool-run"
+
 # ---------------------------------------------------------------------------
 # ACTION 1b — the background-class env line on every other installed crontab (T-3615)
 #

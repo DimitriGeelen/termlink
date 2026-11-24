@@ -43,7 +43,7 @@ arc_id: risk
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T12:31:17Z
-last_update: 2026-11-24T13:45:35Z
+last_update: 2026-11-24T14:19:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,7 +93,10 @@ could be taken as proof.
       POOL_CLIENT to the pinned client, maps any other exit to 2. `tests/pool-run-fixtures.sh` 10/10; mutant without
       the mismatch refusal fails case 5.)
 - [x] ~~Pool jobs run as a non-root user~~ dropped 2026-11-24, see Decisions: it needs a copy of a hub credential for that user, and pinning alone already brings risk 1 to 5
-- [ ] The pool result is written as advisory; no runme action, release step or task verification treats it as a pass gate (stated where it is wired)
+- [x] The pool result is written as advisory; no runme action, release step or task verification treats it as a pass gate (stated where it is wired)
+      (stated in scripts/pool-run.sh's header, in every run's ADVISORY.txt, in .context/cron/pool-run.crontab and at
+      its runme install line; the only consumer is the cron, which appends a summary line to .pool-run.log)
+- [ ] The first nightly cron run after the operator's runme writes its summary line and heartbeat (checked from a session)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
