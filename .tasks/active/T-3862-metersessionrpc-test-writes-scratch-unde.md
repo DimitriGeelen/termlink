@@ -1,13 +1,17 @@
 ---
 id: T-3862
-name: "meter_session_rpc test writes scratch under the crate's target/ in the source tree; use a temp dir (fails on a read-only source tree)"
+name: "meter_session_rpc test writes scratch under the crate's target/ in the source
+  tree; use a temp dir (fails on a read-only source tree)"
 description: >
-  Found on the ring20 pool (T-3858, 2026-11-24): crates/termlink-sidecar/tests/meter_session_rpc.rs:18-20 creates current_dir()/target/t3687-rpc-<pid>; the pool mounts the source read-only, so the test fails Permission denied. Use a temp dir (e.g. CARGO_TARGET_TMPDIR) like other tests.
+  Found on the ring20 pool (T-3858, 2026-11-24): crates/termlink-sidecar/tests/meter_session_rpc.rs:18-20
+  creates current_dir()/target/t3687-rpc-<pid>; the pool mounts the source read-only,
+  so the test fails Permission denied. Use a temp dir (e.g. CARGO_TARGET_TMPDIR) like
+  other tests.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T13:21:46Z
-last_update: 2026-11-24T13:21:46Z
-date_finished: null
+last_update: 2026-11-24T13:42:33Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +54,43 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-24T13:35:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3862: meter_session_rpc test writes scratch under the crate's target/ in the source tree; use a temp dir (fails on a read-only source tree)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3858's first pool test run (2026-11-24, node1) and the local reference at the same
+commit both failed `s1_read_over_the_session_socket_counts_client_only`: on the pool "Permission denied" (the source
+tree is read-only), locally "path must be shorter than SUN_LEN" (long scratch path).
+
+**Problem / hypothesis:** the test puts its scratch dir and socket under `current_dir()/target/`, i.e. inside the
+source tree, so it depends on that tree being writable and its path being short.
+
+**Goal:** the test puts its scratch dir and socket in the system temp dir.
+
+**Expected outcome:** the test passes on a read-only source tree and with a long build path; the pool test run has
+one failure fewer.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The test's scratch dir and socket are under the system temp dir, not the source tree
+- [ ] The test passes in the repo and no longer uses the current directory (`grep -c current_dir` = 0); the read-only case is proven by the next ring20 pool test run (as root here, a read-only tree cannot be simulated)
+- [x] Sidecar test suite and clippy pass (432 passed, 0 failed with TERMLINK_BIN set; clippy -D warnings clean)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +141,9 @@ date_finished: null
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT TERMLINK_RUNTIME_DIR=/tmp/t3862-rt cargo test -p termlink-sidecar --test meter_session_rpc > /tmp/.t3862 2>&1 && grep -q "1 passed; 0 failed" /tmp/.t3862
+test "$(grep -c current_dir crates/termlink-sidecar/tests/meter_session_rpc.rs)" = 0
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +394,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3862-metersessionrpc-test-writes-scratch-unde.md
 - **Context:** Initial task creation
+
+### 2026-11-24T13:35:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

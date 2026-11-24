@@ -15,7 +15,9 @@ use termlink_sidecar::meter::{S1Source, SessionRpc};
 
 #[test]
 fn s1_read_over_the_session_socket_counts_client_only() {
-    let dir = std::env::current_dir().unwrap().join("target").join(format!("t3687-rpc-{}", std::process::id()));
+    // T-3862: the system temp dir, not the source tree: a pool node mounts the source read-only, and a long
+    // build path pushes the socket path over SUN_LEN.
+    let dir = std::env::temp_dir().join(format!("t3687-rpc-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let sock: PathBuf = dir.join("s.sock");
