@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-21T11:21:17Z
-last_update: 2026-11-24T11:21:47Z
+last_update: 2026-11-24T11:24:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,7 +93,9 @@ Reviews: `docs/reports/T-3843-reviews/`.
 - [x] External review of options A-D saved under `docs/reports/T-3843-reviews/` (bundle, prompt, three seats, independence).
 - [x] Diagnosis settled: the W1 inboxes' consumer list is observed for at least 24 h without recording a read (`termlink hub inbox consumers`), and every advance of the `(unnamed)` row's `last_ms` is attributed to a named process. (2026-11-22T21:05Z, `.context/working/t3843-observe.log`, observer from 2026-11-21T12:02Z, over 33 h: advances only at 19:44–19:45Z on 11-21, the agent's three manual canary runs including the T-3844 probe, and at 06:47Z on 11-22, the cron canary at 07:47 CET; one TOOLING line at 23:15Z, the hub restart in the operator's runme, not a read. No other unnamed reader. The 05:52Z first-seen on 11-20 predates the observer and is consistent with a manual canary run that day.)
 - [x] `check-file-shaped-posts.sh` exits 2 (tooling) when a `channel subscribe` returns an error object or a non-zero status, never 0. `--ack` keeps the stored offsets of topics it did not scan. Fixtures pin both.
-- [ ] The operator's ruling on the replacement route is recorded in Decisions with his words, and the route is built or filed as its own task.
+- [x] The operator's ruling on the replacement route is recorded in Decisions with his words, and the route is built or filed as its own task.
+- [x] The canary no longer reads `inbox:*` topics by default; their findings come from the hub's `file-shaped-post` rows; no readable admin log or no watch-on is exit 2; `FILE_SHAPED_INBOX_SCAN=1` restores the scan (rollback). Fixtures 27/27; mutant that reads inboxes again fails 3 cases. Live run 2026-11-24 11:23Z rc 0, and the W1 inboxes' `(unnamed)` reader did not advance (last 11:21:33Z, the final old-script run)
+- [ ] runme action 37 passes on a run after the `(unnamed)` row leaves the 24 h window (after 2026-11-25 11:22Z)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -145,6 +147,7 @@ Reviews: `docs/reports/T-3843-reviews/`.
 
 ## Verification
 
+bash tests/file-shaped-posts-canary-fixtures.sh > /tmp/.t3843fx 2>&1 && grep -q "27 passed, 0 failed" /tmp/.t3843fx
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.

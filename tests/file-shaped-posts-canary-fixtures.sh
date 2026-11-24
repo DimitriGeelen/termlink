@@ -24,7 +24,10 @@ cat > "$D/inbox_p.ndjson" <<'EOF'
 {"offset":1,"msg_type":"turn","metadata":{"from_project":"p3"}}
 {"offset":2,"msg_type":"note","metadata":{"filename":"r.md","from_project":"p3"}}
 EOF
-run() { FILE_SHAPED_TEST_DIR="$D" FILE_SHAPED_STATE="$T/state" bash "$SUT" --no-heartbeat "$@" 2>&1; }
+# Cases 1-21 pin the inbox scan, kept as the rollback route (FILE_SHAPED_INBOX_SCAN=1, T-3843 ruling B).
+# Cases 22+ pin the default: inboxes are never read, their findings come from the hub's record.
+INBOX_SCAN=1
+run() { FILE_SHAPED_TEST_DIR="$D" FILE_SHAPED_STATE="$T/state" FILE_SHAPED_INBOX_SCAN="$INBOX_SCAN" bash "$SUT" --no-heartbeat "$@" 2>&1; }
 
 out=$(run); rc=$?
 check "1 unacknowledged file-shaped posts fire, per topic, with shapes and senders" '[ $rc = 1 ] && grep -q "xfer-a: 2 new (2 total)" <<< "$out" && grep -q "inbox:p: 1 new" <<< "$out" && grep -q "from=p1,p2" <<< "$out"'
@@ -109,6 +112,35 @@ printf '%s\n' '{"event":"file-shaped-post","topic":"inbox:p","offset":2,"shape":
   '{"event":"file-shaped-post","topic":"inbox:p","offset":3,"shape":"attachment","post_ts":300}' > "$D/admin.jsonl"
 out=$(run); rc=$?
 check "21 the watch-on row pruned from the log: the kept start still applies" '[ $rc = 0 ] && grep -q "agree on 2 inbox post(s) since 100" <<< "$out"'
+
+# T-3843 ruling B (default): inboxes are not read; the hub's post-time record is their only source.
+INBOX_SCAN=0
+rm -rf "$D"/* "$T/state" "$T/state.parity"
+cat > "$D/list.json" <<'EOF'
+{"topics":[{"name":"inbox:p","count":5},{"name":"xfer-c","count":1}]}
+EOF
+# A read of inbox:p would be refused: if the canary reads it, a TOOLING line appears.
+echo '{"error":{"code":-32050,"message":"inbox is bound: unsigned read refused"}}' > "$D/inbox_p.raw"
+echo '{"offset":0,"ts":10,"msg_type":"note","metadata":{"from_project":"p1"}}' > "$D/xfer-c.ndjson"
+printf '%s\n' '{"event":"file-shaped-watch-on","ts":100}' \
+  '{"event":"file-shaped-post","topic":"inbox:p","offset":4,"shape":"document","sender":"p5","post_ts":200}' \
+  '{"event":"file-shaped-post","topic":"xfer-c","offset":0,"shape":"document","sender":"p6","post_ts":210}' > "$D/admin.jsonl"
+out=$(run); rc=$?
+check "22 an inbox file-shaped post fires from the hub record, and the inbox is never read" '[ $rc = 1 ] && grep -q "inbox:p: 1 new (1 total)  shapes=document  from=p5" <<< "$out" && ! grep -q "TOOLING: subscribe inbox:p" <<< "$out"'
+check "23 a hub row for a non-inbox topic is not a finding (non-inbox topics are scanned, xfer-c holds a plain note)" '! grep -q "xfer-c" <<< "$out"'
+out=$(run --ack); rc=$?
+out=$(run); rc=$?
+check "24 after --ack the inbox post is healthy and the source is named" '[ $rc = 0 ] && grep -q "inbox:p: 1" <<< "$out" && grep -q "Inboxes (T-3843): not read; from the hub" <<< "$out"'
+echo '{"event":"file-shaped-post","topic":"inbox:p","offset":7,"shape":"note+filename","sender":"p8","post_ts":300}' >> "$D/admin.jsonl"
+out=$(run --json); rc=$?
+check "25 a new hub row fires again, only it counted new, in --json" '[ $rc = 1 ] && python3 -c "import json,sys; d=json.loads(sys.argv[1]); t=[r for r in d[\"topics\"] if r[\"topic\"]==\"inbox:p\"][0]; sys.exit(0 if d[\"firing\"]==[\"inbox:p\"] and t[\"new\"]==1 and t[\"total\"]==2 and not d[\"tooling\"] else 1)" "$out"'
+run --ack >/dev/null
+mv "$D/admin.jsonl" "$D/admin.gone"
+out=$(run); rc=$?
+check "26 no readable admin log: inbox coverage gap, rc 2, never clean" '[ $rc = 2 ] && grep -q "TOOLING: inbox coverage: admin log unreadable" <<< "$out"'
+grep -v watch-on "$D/admin.gone" > "$D/admin.jsonl"; rm -f "$T/state.parity"
+out=$(run); rc=$?
+check "27 a hub that never started watching: inbox coverage gap, rc 2" '[ $rc = 2 ] && grep -q "TOOLING: inbox coverage: the hub has not started watching" <<< "$out"'
 
 echo "---"
 echo "file-shaped-posts canary fixtures: $PASS passed, $FAIL failed"

@@ -22,8 +22,14 @@
 # unparseable output, or a topic read the hub refused or failed; never a false clean). A refused
 # read is named on stderr and the scan continues; a finding elsewhere still exits 1 (T-3843).
 # --ack keeps the stored offset of a topic it did not scan (T-3843).
+# INBOXES (T-3843 ruling B, 2026-11-24): `inbox:*` topics are NOT read. Their file-shaped posts come
+# from the hub's post-time record (`file-shaped-post` rows in the admin log, T-3844), so this canary
+# is no second reader of any inbox (P-12). No readable admin log, or a hub that never started
+# watching, is a coverage gap (exit 2), never clean. Rollback: FILE_SHAPED_INBOX_SCAN=1 restores the
+# inbox scan with the hub/scan parity check.
 # Usage: check-file-shaped-posts.sh [--json] [--quiet] [--ack] [--no-heartbeat]
-# Seams: FILE_SHAPED_TEST_DIR (list.json + <topic-slug>.ndjson), FILE_SHAPED_STATE, FILE_SHAPED_HEARTBEAT
+# Seams: FILE_SHAPED_TEST_DIR (list.json + <topic-slug>.ndjson [+ admin.jsonl]), FILE_SHAPED_STATE,
+#   FILE_SHAPED_HEARTBEAT, FILE_SHAPED_ADMIN_LOG, FILE_SHAPED_INBOX_SCAN
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 JSON=0 QUIET=0 ACK=0 HB=1
@@ -44,6 +50,8 @@ import json, os, re, subprocess, sys
 
 test_dir = os.environ.get("FILE_SHAPED_TEST_DIR")
 state_path = os.environ["FILE_SHAPED_STATE"]
+# T-3843 ruling B: inboxes come from the hub's record unless the rollback flag restores the scan.
+inbox_scan = os.environ.get("FILE_SHAPED_INBOX_SCAN") == "1"
 FILE_TYPES = {"document", "artifact-chunk", "attachment", "file-chunk"}
 
 def tooling(msg):
@@ -130,13 +138,48 @@ try: acked = json.load(open(state_path))
 except FileNotFoundError: acked = {}
 except Exception: tooling(f"state file unreadable: {state_path}")
 
+# T-3844 (T-3843 ruling H): the hub records file-shaped inbox posts at post time in its admin log. The
+# earliest watch-on time is kept in <state>.parity, because the admin log prunes rows older than 30 days.
+admin_path = os.environ.get("FILE_SHAPED_ADMIN_LOG") or (os.path.join(test_dir, "admin.jsonl") if test_dir else "/var/lib/termlink/rpc-admin.jsonl")
+parity_path = state_path + ".parity"
+parity = {"state": "unknown", "since": None, "matched": 0, "hub_only": [], "scan_only": []}
+hub_rows, watch_on = None, []
+try:
+    hub_rows = []
+    for line in open(admin_path):
+        try: r = json.loads(line)
+        except Exception: continue
+        if r.get("event") == "file-shaped-watch-on" and isinstance(r.get("ts"), int): watch_on.append(r["ts"])
+        elif r.get("event") == "file-shaped-post" and isinstance(r.get("offset"), int) and isinstance(r.get("topic"), str): hub_rows.append(r)
+except OSError as e:
+    hub_rows = None
+    parity["why"] = f"admin log unreadable: {admin_path}: {e.strerror}"
+try: since = json.load(open(parity_path)).get("since")
+except Exception: since = None
+if watch_on: since = min([since] + watch_on) if since else min(watch_on)
+if hub_rows is not None and since is None:
+    parity["why"] = "the hub has not started watching (no file-shaped-watch-on row)"
+# T-3843 ruling B: without the scan, the hub record IS the inbox coverage, so its absence is a gap.
+if not inbox_scan and (hub_rows is None or since is None):
+    problems.append(f"inbox coverage: {parity['why']} (inboxes are not read; the hub record is their only source)")
+
 # T-3843: --ack starts from the stored offsets, so a topic this run did not scan (or could not
 # read) keeps its acknowledgement instead of having it erased.
 report, new_acked = [], dict(acked)
 # T-3844: inbox findings of this scan, and the first offset scanned per inbox, for the hub parity check.
 scan_inbox, first_off = {}, {}
+
+def add_report(name, found):
+    if not found: return
+    new_acked[name] = max(f["offset"] for f in found)
+    fresh = [f for f in found if f["offset"] > acked.get(name, -1)]
+    report.append({"topic": name, "total": len(found), "new": len(fresh),
+                   "shapes": sorted({f["shape"] for f in found}),
+                   "senders": sorted({str(f["from"]) for f in found})})
+
 for name, count in topics():
     if not count: continue
+    if name.startswith("inbox:") and not inbox_scan: continue  # never read an inbox (P-12)
     found = []
     for env in envelopes(name):
         if name.startswith("inbox:"):
@@ -148,39 +191,27 @@ for name, count in topics():
                           "from": md.get("from_project") or env.get("sender_id", "?")[:16]})
             if name.startswith("inbox:"):
                 scan_inbox[(name, env["offset"])] = env.get("ts")
-    if not found: continue
-    newest = max(f["offset"] for f in found)
-    new_acked[name] = newest
-    fresh = [f for f in found if f["offset"] > acked.get(name, -1)]
-    report.append({"topic": name, "total": len(found), "new": len(fresh),
-                   "shapes": sorted({f["shape"] for f in found}),
-                   "senders": sorted({str(f["from"]) for f in found})})
+    add_report(name, found)
+
+# T-3843 ruling B: inbox findings from the hub's post-time record, one row per post.
+if not inbox_scan and hub_rows:
+    by_topic = {}
+    for r in hub_rows:
+        if not r["topic"].startswith("inbox:"): continue
+        by_topic.setdefault(r["topic"], {})[r["offset"]] = {"offset": r["offset"], "shape": str(r.get("shape") or "?"),
+                                                             "from": r.get("sender") or "?"}
+    for name in sorted(by_topic):
+        add_report(name, list(by_topic[name].values()))
 
 firing = [r for r in report if r["new"]]
 
-# T-3844 (T-3843 ruling H): the hub records file-shaped inbox posts at post time in its admin log. While
-# both run, compare them: a post one side saw and the other did not, since the hub started watching, is a
-# PARITY MISMATCH (fires). The earliest watch-on time is kept in <state>.parity, because the admin log
-# prunes rows older than 30 days. No readable admin log = parity unknown: reported, never a pass.
-admin_path = os.environ.get("FILE_SHAPED_ADMIN_LOG") or (os.path.join(test_dir, "admin.jsonl") if test_dir else "/var/lib/termlink/rpc-admin.jsonl")
-parity_path = state_path + ".parity"
-parity = {"state": "unknown", "since": None, "matched": 0, "hub_only": [], "scan_only": []}
-hub_rows, watch_on = None, []
-try:
-    hub_rows = []
-    for line in open(admin_path):
-        try: r = json.loads(line)
-        except Exception: continue
-        if r.get("event") == "file-shaped-watch-on" and isinstance(r.get("ts"), int): watch_on.append(r["ts"])
-        elif r.get("event") == "file-shaped-post" and isinstance(r.get("offset"), int): hub_rows.append(r)
-except OSError as e:
-    parity["why"] = f"admin log unreadable: {admin_path}: {e.strerror}"
-try: since = json.load(open(parity_path)).get("since")
-except Exception: since = None
-if watch_on: since = min([since] + watch_on) if since else min(watch_on)
-if hub_rows is not None and since is None:
-    parity["why"] = "the hub has not started watching (no file-shaped-watch-on row)"
-if hub_rows is not None and since is not None:
+if not inbox_scan and hub_rows is not None and since is not None:
+    try:
+        json.dump({"since": since}, open(parity_path, "w"))
+    except OSError: pass
+    parity.update(state="hub-record", since=since,
+                  matched=sum(1 for r in hub_rows if r["topic"].startswith("inbox:")))
+if inbox_scan and hub_rows is not None and since is not None:
     try:
         json.dump({"since": since}, open(parity_path, "w"))
     except OSError: pass
@@ -221,7 +252,9 @@ else:
         print(f"file-shaped-posts canary: PARITY MISMATCH — the hub's post-time record and this scan disagree on inbox posts "
               f"(hub only: {', '.join(parity['hub_only']) or 'none'}; scan only: {', '.join(parity['scan_only']) or 'none'})")
     elif not quiet:
-        if parity["state"] == "ok":
+        if parity["state"] == "hub-record":
+            print(f"  Inboxes (T-3843): not read; from the hub's post-time record, {parity['matched']} file-shaped inbox post(s) since {parity['since']}")
+        elif parity["state"] == "ok":
             print(f"  Parity (T-3844): hub record and scan agree on {parity['matched']} inbox post(s) since {parity['since']}")
         else:
             print(f"  Parity (T-3844): unknown — {parity.get('why', 'not compared')} (not a pass)")
