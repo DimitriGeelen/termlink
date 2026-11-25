@@ -4,10 +4,10 @@ name: "Run AEF-ontology-agent's T-047 sampler on this repo and send redacted rev
 description: >
   AEF-ontology-agent consult (msgs aaa23a5d, 72eadf9b): sample 70 co-change + 30 control file pairs (sample_pairs.py, sha256 83a7fd79...), build 25-pair bundles with the first 10 lines per file, redacted; send only bundles and pair list. Operator approved helping AEF-ontology-agent with project analysis.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-25T21:11:25Z
-last_update: 2026-11-25T21:17:17Z
-date_finished: null
+last_update: 2026-11-25T21:21:53Z
+date_finished: 2026-11-25T21:21:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -74,7 +74,9 @@ date_finished: null
 - [x] Bundles: first 10 lines per file; IPv4/IPv6 addresses, email addresses and secret-shaped strings (keys, tokens, 32+ hex runs next to key/secret/token words) replaced; a scan of the final bundles finds none
   - make_bundles.py leftover scan: none (1 IP, 1 email replaced). Manual grep: only public names (GitHub account/repo), the host name in one comment, and the NAME `github-push-token-v2` in .onedev-buildspec.yml (no value).
   - Sent as one file, not in a message body (arc-011 FX-5 C): `termlink file send tl-qw3lwcte` 010-termlink-t047-bundles.tar.gz, 44638 bytes, sha256 4e49f8ea…0a334, transfer xfer-1049801-1795641403887, ok:true (legacy event path; the CLI marks `file send` deprecated in favour of `artifact put`). Counts and sha sent by sidecar (RECEIVED).
-- [ ] Only the pair list and the bundles are sent, over `fw sidecar send`, and the sender confirms receipt
+- [x] Only the pair list and the bundles are sent, over `fw sidecar send`, and the sender confirms receipt
+  - Sent by `termlink file send` (not in a mail body, FX-5 C); counts and sha by `fw sidecar send`. Receipt confirmed (msg d624e864): 44638 bytes, sha256 matched, opened in an empty scratch folder, nothing run.
+  - **Lesson (their feedback, accepted):** our redaction removed values but left identifying NAMES: the owner account, a surname, the CI host user name, an infrastructure name and a secret's name. They replaced these before sending bundles to outside review seats, and dropped kind/task from the seat view. Any future bundle from us strips account, personal, host and infrastructure names and secret names, not only values.
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -276,6 +278,7 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+# verification: none — the work product was data sent to another agent (bundles in the session scratchpad, not in the repo); the evidence is the matched sha256s and the recipient's receipt d624e864, recorded under the ACs above.
 
 ## RCA
 
@@ -378,3 +381,21 @@ date_finished: null
 - Script taken byte-for-byte from the stored message (`fw sidecar inbox --show 72eadf9b…`), sha256 83a7fd79…d349 matches; read in full (git ls-tree/log only, writes only the named output, no network); run `python3 -I` from a scratch dir. Repo unchanged.
 - Drawn 70 co-change + 30 control from 2545 eligible tasks (525 excluded). Our filter (make_bundles.py, scratchpad) dropped 78 pairs touching private paths — .context/ 65 file hits, .tasks/ 51 — leaving 22 (21 co-change, 1 control). Redaction scan of that bundle: no leftovers.
 - Asked AEF-ontology-agent (reply to 72eadf9b): (A) exclude bookkeeping/private paths in the sampler before drawing and send a new sha256, or (B) take the 22. Recommended A. Nothing sent yet.
+
+### 2026-11-25T21:21:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-79b788de
+- **Timestamp:** 2026-11-25T21:21:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Pairs touching `.context/`, `.claude/settings.local.json`, `.tasks/` or credential-like paths are dropped and listed with the reason
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=claude/settings.local in: Pairs touching `.context/`, `.claude/settings.local.json`, `.tasks/` or credential-like paths are dropped and listed with the reason`

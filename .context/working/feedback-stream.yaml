@@ -25677,3 +25677,21 @@ scan_id: R-6c7be490
 task_id: T-3843
 payload:
   task_file: .tasks/active/T-3843-file-shaped-posts-canary-reads-the-w1-in.md
+---
+kind: scan_emitted
+timestamp: '2026-11-25T21:21:54Z'
+scan_id: R-79b788de
+task_id: T-3868
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-25T21:21:54Z'
+scan_id: R-79b788de
+task_id: T-3868
+payload:
+  task_file: .tasks/active/T-3868-run-aef-ontology-agents-t-047-sampler-on.md
