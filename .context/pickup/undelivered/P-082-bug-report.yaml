@@ -1,0 +1,25 @@
+pickup_id: P-082
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: T-3670
+  agent: claude-code
+  timestamp: '2026-11-25T10:13:51Z'
+payload:
+  summary: Hook threshold audit counts deliberate gate refusals (exit 2) as hook failures
+  detail: 'lib/hook-telemetry.sh fw_record_hook_fire increments .hook-failure-counter
+    for ANY non-zero exit (line 28: [ "$exit_code" != "0" ]). Gate hooks refuse by
+    exit 2 on purpose, so lib/hook-threshold.py reports them as failing: on 010-termlink
+    2026-11-25 block-plan-mode 67/26 and block-task-tools 67/26 (ratio > 1: they refuse
+    every call by design, and the fire counter undercounts them), check-active-task
+    414/4140, check-agent-dispatch 8/28. The audit WARN ''Hook threshold: N hook(s)
+    failing over threshold (T-1626)'' therefore measures how often gates refuse, not
+    whether a hook is broken. Suggested fix: count exit 2 (and any documented block
+    code) separately as ''refused'', and count only other non-zero exits as failures;
+    also record fires for block-* hooks on the same path as refusals so the ratio
+    cannot exceed 1.'
+  priority: low
+  tags:
+  - hook-telemetry
+  - audit
