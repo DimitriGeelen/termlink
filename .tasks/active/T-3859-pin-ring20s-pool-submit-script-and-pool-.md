@@ -96,7 +96,8 @@ could be taken as proof.
 - [x] The pool result is written as advisory; no runme action, release step or task verification treats it as a pass gate (stated where it is wired)
       (stated in scripts/pool-run.sh's header, in every run's ADVISORY.txt, in .context/cron/pool-run.crontab and at
       its runme install line; the only consumer is the cron, which appends a summary line to .pool-run.log)
-- [ ] The first nightly cron run after the operator's runme writes its summary line and heartbeat (checked from a session)
+- [x] The first nightly cron run after the operator's runme writes its summary line and heartbeat (checked from a session)
+  - Evidence 2026-11-25 09:35Z: `.context/working/.pool-run.log` has both summary pairs ("COULD NOT RUN ... 20261125T013001Z-test-13d23f60a16d" / "ADVISORY result rc=2", and "ALL PASSED ... 20261125T023001Z-clippy-13d23f60a16d" / "ADVISORY result rc=0"); `.pool-run.log.stderr` empty; heartbeat touched 2026-11-25 03:48 local. The pins held across three ring20 republishes that day (each reviewed and re-pinned before the run).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

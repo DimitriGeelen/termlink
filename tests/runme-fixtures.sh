@@ -1247,6 +1247,9 @@ else bad "sidecar unit template install" "$out"; fi
 if cmp -s .context/cron/sidecar-backstop.crontab "$TMP/cron/termlink-sidecar-backstop"; then
     ok "default run installs the sidecar cron backstop and verifies it on disk (T-3435)"
 else bad "sidecar-backstop crontab install" "$out"; fi
+if cmp -s .context/cron/pool-run.crontab "$TMP/cron/termlink-pool-run"; then
+    ok "default run installs the nightly ring20 pool-run crontab and verifies it on disk (T-3858)"
+else bad "pool-run crontab install" "$out"; fi
 
 # ---------------------------------------------------------------------------
 # 5-6. IDEMPOTENCE. Re-running must do nothing and say so — the operator has to

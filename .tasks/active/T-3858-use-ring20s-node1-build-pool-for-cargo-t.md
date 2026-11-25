@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-24T17:43:21Z
+last_update: 2026-11-25T10:08:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -138,7 +138,8 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
       vendor ref was not unpacked); reported to ring20. Local reference at the same commit from a clean git archive:
       2465 passed, 1 failed, 5 ignored; the failure `hub_bus_state_reports_durable_for_var_lib_path` is an artifact of
       the local target dir under /tmp, which the hub correctly calls volatile.)
-- [ ] Only then: a cron line or runme action calls it, with a fixture in tests/runme-fixtures.sh if runme
+- [x] Only then: a cron line or runme action calls it, with a fixture in tests/runme-fixtures.sh if runme
+  - Evidence 2026-11-25: `/etc/cron.d/termlink-pool-run` installed by runme action 1 (`install_crontab pool-run.crontab`); fixture case "default run installs the nightly ring20 pool-run crontab and verifies it on disk (T-3858)" added; `tests/runme-fixtures.sh` 476/0. First nightly runs: 01:30Z test COULD NOT RUN (node1 refused: code.tar ref lost when the .122 hub trimmed pool:ref past its 64 MiB ceiling and ring20's relay missed the gap; ring20 fixed the relay 10:14Z, their T-2878); 02:30Z clippy ALL PASSED. Both reported as ADVISORY, rc passed through correctly (2 and 0).
       (2026-11-24: clippy entry on node1 exit 0, no warnings. test-crate at 7f1ae5507, 9 jobs: node1's 5 ran (only
       the known parity_version, T-3861); pool-w2's 3 and pool-132's 1 failed in the build on node capacity ("No space
       left on device"; linker Bus error), reported to ring20. Cron built under T-3859: .context/cron/pool-run.crontab
