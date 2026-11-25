@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-25T21:11:25Z
-last_update: 2026-11-25T21:13:19Z
+last_update: 2026-11-25T21:17:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -67,9 +67,13 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The script received matches sha256 83a7fd79580d7b577b7c19ae2f7eaf24f4727754ead65e69f5f32dd98410d349 and was read in full before running (reads git only; writes only the named output; no network)
-- [ ] Pairs touching `.context/`, `.claude/settings.local.json`, `.tasks/` or credential-like paths are dropped and listed with the reason
-- [ ] Bundles: first 10 lines per file; IPv4/IPv6 addresses, email addresses and secret-shaped strings (keys, tokens, 32+ hex runs next to key/secret/token words) replaced; a scan of the final bundles finds none
+- [x] The script received matches sha256 83a7fd79580d7b577b7c19ae2f7eaf24f4727754ead65e69f5f32dd98410d349 and was read in full before running (reads git only; writes only the named output; no network)
+  - v2 (msg 6299e588, option A) sha256 f7d68fcd…1288 matched too; `diff` against v1 shows only the exclusion block (EXCLUDE_PREFIXES, EXCLUDE_NAMES, drawable()).
+- [x] Pairs touching `.context/`, `.claude/settings.local.json`, `.tasks/` or credential-like paths are dropped and listed with the reason
+  - v1: 78 dropped (listed in pair-list.json of out/). v2 excludes them before drawing: eligible 1566 tasks, drawn 70 + 30, our filter dropped 0.
+- [x] Bundles: first 10 lines per file; IPv4/IPv6 addresses, email addresses and secret-shaped strings (keys, tokens, 32+ hex runs next to key/secret/token words) replaced; a scan of the final bundles finds none
+  - make_bundles.py leftover scan: none (1 IP, 1 email replaced). Manual grep: only public names (GitHub account/repo), the host name in one comment, and the NAME `github-push-token-v2` in .onedev-buildspec.yml (no value).
+  - Sent as one file, not in a message body (arc-011 FX-5 C): `termlink file send tl-qw3lwcte` 010-termlink-t047-bundles.tar.gz, 44638 bytes, sha256 4e49f8ea…0a334, transfer xfer-1049801-1795641403887, ok:true (legacy event path; the CLI marks `file send` deprecated in favour of `artifact put`). Counts and sha sent by sidecar (RECEIVED).
 - [ ] Only the pair list and the bundles are sent, over `fw sidecar send`, and the sender confirms receipt
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
