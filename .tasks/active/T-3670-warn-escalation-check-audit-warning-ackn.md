@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-04T06:41:41Z
-last_update: 2026-11-25T10:16:02Z
+last_update: 2026-11-25T21:09:26Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -448,5 +448,9 @@ while the member is still red restarts a 14-day window from the close date, then
 1. **Hook threshold** — acknowledged in `.context/checks/audit-warning-allowlist` (8 -> 7 unexamined). Vendored `lib/hook-telemetry.sh:28` counts every non-zero exit, so gates refusing by exit 2 read as "failing" (block-plan-mode 67/26, block-task-tools 67/26, check-active-task 414/4140, check-agent-dispatch 8/28); `.hook-crashes.log` has no entry since 2026-10-01. Upstream report saved locally as `.context/pickup/undelivered/P-082-bug-report.yaml` — not delivered: no AEF recipient address found (`fw upstream report` would open a GitHub issue; not used without the operator).
 2. **Fabric drift (102 files)** — fixable, not acknowledgeable: 28 crate src files, 3 scripts, tests, 10 crontabs. `fw fabric scan` would add TODO-purpose skeletons and re-fire the under-populated check (whose ledger entry says TODO purposes must stay 0). Filed as T-3867 (horizon next).
 3. **20 orphan inboxes** — three groups, inboxes NOT read (a read would register this session as an unnamed consumer, the T-3843 class): (a) 17 left by our own test runs on the live hub (t3684b-* x6, t3684d-* x8, t3782a-0ndtp4, t3843-parity-probe-2, t3844-parity-probe) — test-hygiene gap plus cleanup; (b) agentic-engineering-framework (10 unread) and aef-greenfield-test (9) — mail to framework nicknames, senders may believe it was delivered; (c) proxmox-ring20-management (29) on OUR hub — ring20 reads on .122, so the bare name here is never read. Open: who sent (b) and (c), cleanup of (a) (deletes hub topics: operator approval).
+   - **Resolved 2026-11-25 ~21:15Z** (headers only — sender, ids, times — read with `channel subscribe`; no bodies; neither nickname inbox has a sidecar reader, so no P-12 consumer was affected):
+     - `proxmox-ring20-management` (29 new since T-3804): all from AEF-ontology-agent — 3 consults (370292f5 2026-11-22 19:07Z, beb8b377 22:32Z, 55d7de14 2026-11-24 18:34Z), 11 sends with retries, then 18 automatic nudges to a bare name ring20 never reads. Told AEF-ontology-agent the real circuit `22c19fedafd73da2/proxmox-ring20-management` (RECEIVED).
+     - `agentic-engineering-framework` (12): 150-skills-manager 27ae7029 (C-010), 050-email-archive 0e7a33eb + 10 nudges, an old 0909 consult, and AEF's own `t5416-alias-selftest`. Told 150 (HUB_ACCEPTED, no sidecar) and 050 (RECEIVED) the real id `999-Agentic-Engineering-Framework`; told AEF (RECEIVED), with the hook-telemetry bug report (item 1) in the same message.
+     - All 20 orphans acknowledged with `fw sidecar orphan-inboxes --ack` (T-3804 precedent; acks delete nothing, only newer posts re-report): detector now "orphan inboxes: none". Test-residue cleanup and the test-hygiene gap stay open.
 4. **Two idle arcs** (arc-parallel-substrate 48 tasks, comms-loudness 4 tasks; no commits in 30 days) — closing or abandoning an arc is the operator's call.
 5. **Three reviewer-closed act-in-the-world criteria under the T-3800 widening** (T-3685 AC#1, T-1632 AC#1, T-2258 AC#1) — the warning asks whether the operator's widening still holds; operator's call.
