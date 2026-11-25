@@ -1,0 +1,114 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3859: Pin ring20's pool submit script and pool client by sha256 and run pool jobs as a non-root user (T-3858 risk 1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-25T10:09:08Z
+# ============================================================================
+
+task_id: T-3859
+task_name: "Pin ring20's pool submit script and pool client by sha256 and run pool jobs as a non-root user (T-3858 risk 1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-24T12:31:17Z
+completed: 2026-11-25T10:08:52Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-24T14:45:36+01:00
+last_commit: 2026-11-24T21:59:53+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scripts/pool-run.sh runs pool jobs only when ring20's submit script, pool-client.py and poold.py match pinned sha256 (exit 2 otherwise); ADVISORY.txt per run; fixtures 10/0, mutant fails; non-root dropped (needs a hub credential copy), matrix updated. nightly pool test + clippy cron (pool-run.crontab, 02:30/03:30) via pinned scripts/pool-run.sh; runme action 1 installs it; guard-cap baseline lists it operational (34/34 canary); runme fixtures 475/0. pool-run.sh runs private, re-checked copies of all three pinned files (a client replaced mid-run executed from its live path); fixtures 11/0, old script fails the 2 new cases. re-pin pool-client.py c1675cfb after diff review against the reviewed copy (one env check: also oci-<id>); pool-run.sh passes crate names for 'crates'; fixtures 13/0. re-pin poold.py cc319cf0 after review (ring20 node release republished it; client and submit unchanged); pins comment states the real poold review scope; fixtures 13/0. re-pin pool-client.py 37328a0b after full diff review (additions only: read-only status-jobs command); fixtures 13/0. re-pin poold.py f7a96c5b after full diff review (one line in Poold.usage_high, node-side); fixtures 13/0
+
+# Key outcomes
+outcomes:
+  - 'The scheduled entry point checks the sha256 of the submit script, the pool client and poold.py against pinned values and exits 2 without running when any differs (fixture with a changed file)'
+  - '~~Pool jobs run as a non-root user~~ dropped 2026-11-24, see Decisions: it needs a copy of a hub credential for that user, and pinning alone already brings risk 1 to 5'
+  - 'The pool result is written as advisory; no runme action, release step or task verification treats it as a pass gate (stated where it is wired)'
+  - 'The first nightly cron run after the operator''s runme writes its summary line and heartbeat (checked from a session)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 're-pin poold.py f7a96c5b after full diff review (one line in Poold.usage_high, node-side); fixtures 13/0'
+    source: git-mined
+  - description: 're-pin pool-client.py 37328a0b after full diff review (additions only: read-only status-jobs command); fixtures 13/0'
+    source: git-mined
+  - description: 're-pin poold.py cc319cf0 after review (ring20 node release republished it; client and submit unchanged); pins comment states the real poold review scope; fixtures 13/0'
+    source: git-mined
+  - description: 're-pin pool-client.py c1675cfb after diff review against the reviewed copy (one env check: also oci-<id>); pool-run.sh passes crate names for ''crates''; fixtures 13/0'
+    source: git-mined
+  - description: 'pool-run.sh runs private, re-checked copies of all three pinned files (a client replaced mid-run executed from its live path); fixtures 11/0, old script fails the 2 new cases'
+    source: git-mined
+  - description: 'nightly pool test + clippy cron (pool-run.crontab, 02:30/03:30) via pinned scripts/pool-run.sh; runme action 1 installs it; guard-cap baseline lists it operational (34/34 canary); runme fixtures 475/0'
+    source: git-mined
+  - description: 'scripts/pool-run.sh runs pool jobs only when ring20''s submit script, pool-client.py and poold.py match pinned sha256 (exit 2 otherwise); ADVISORY.txt per run; fixtures 10/0, mutant fails; non-root dropped (needs a hub credential copy), matrix updated'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-24 — pinning only; no non-root user (agent decision, open to the operator)'
+    chose: 'keep the pool jobs under root''s TermLink identity and rely on pinning: the entry point refuses unless the submit script, pool-client.py and poold.py match their reviewed sha256; a new version is read in full and re-pinned in a commit.'
+    rationale: 'root reaches .122 through profile `ring20-management`, whose `secret_file` is that hub''s full HMAC secret. A non-root user would need a copy of that secret or a separately minted token: a new credential use with its own risk. And the matrix (docs/reports/T-3858-risk-matrix.md, risk 1) reaches 5 with pinning alone: pinning sets likelihood to 1; non-root would only lower impact, which the matrix already left at 5.'
+    alternatives_rejected: ['a non-root user with a copied hub secret (spreads a full-control credential); a non-root user with a minted Interact token (workable, but a second credential lifecycle for no score change). Revisit if the operator wants the impact side lowered too.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/guard-cap-baseline'
+  - '.context/cron/pool-run.crontab'
+  - '.tasks/active/T-3859-pin-ring20s-pool-submit-script-and-pool-.md'
+  - 'docs/reports/T-3858-risk-matrix.md'
+  - 'runme.sh'
+  - 'scripts/pool-run.pins'
+  - 'scripts/pool-run.sh'
+  - 'tests/pool-run-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-24T14:45:36'
+    action: 'T-3859: scripts/pool-run.sh runs pool jobs only when ring20''s submit script, pool-client.py and poold.py match pinned sha256 (exit 2 otherwise); ADVISORY.txt per run; fixtures 10/0, mutant fails; non-root dropped (needs a hub credential copy), matrix updated'
+  - time: '2026-11-24T15:19:23'
+    action: 'T-3859: nightly pool test + clippy cron (pool-run.crontab, 02:30/03:30) via pinned scripts/pool-run.sh; runme action 1 installs it; guard-cap baseline lists it operational (34/34 canary); runme fixtures 475/0'
+  - time: '2026-11-24T17:05:39'
+    action: 'T-3859: pool-run.sh runs private, re-checked copies of all three pinned files (a client replaced mid-run executed from its live path); fixtures 11/0, old script fails the 2 new cases'
+  - time: '2026-11-24T17:08:06'
+    action: 'T-3859: re-pin pool-client.py c1675cfb after diff review against the reviewed copy (one env check: also oci-<id>); pool-run.sh passes crate names for ''crates''; fixtures 13/0'
+  - time: '2026-11-24T20:06:03'
+    action: 'T-3859: re-pin poold.py cc319cf0 after review (ring20 node release republished it; client and submit unchanged); pins comment states the real poold review scope; fixtures 13/0'
+  - time: '2026-11-24T20:28:46'
+    action: 'T-3859: re-pin pool-client.py 37328a0b after full diff review (additions only: read-only status-jobs command); fixtures 13/0'
+  - time: '2026-11-24T21:59:53'
+    action: 'T-3859: re-pin poold.py f7a96c5b after full diff review (one line in Poold.usage_high, node-side); fixtures 13/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 7 commit(s), 1297 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:risk]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1297
+  commits: 8
+  files_changed: 12
+  lines_added: 435
+  lines_removed: 38
+  footprint_refreshed_at: '2026-11-25T10:09:13Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3859-pin-ring20s-pool-submit-script-and-pool-.md
+generated_by: context-agent-hybrid

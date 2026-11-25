@@ -8,12 +8,12 @@ description: >
   run when either file's sha256 differs from the pinned one; run as a non-root user;
   pool results stay advisory.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:risk]
-components: []
+components: [runme.sh]
 related_tasks: [T-3858]
 arc_id: risk
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
@@ -43,8 +43,8 @@ arc_id: risk
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T12:31:17Z
-last_update: 2026-11-24T20:59:53Z
-date_finished:
+last_update: 2026-11-25T10:08:52Z
+date_finished: 2026-11-25T10:08:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -464,3 +464,16 @@ bash tests/pool-run-fixtures.sh > /tmp/.t3859 2>&1 && grep -q "13 passed, 0 fail
 
 ### 2026-11-24T13:45:16Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-25T10:08:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b902adfc
+- **Timestamp:** 2026-11-25T10:08:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
