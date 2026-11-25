@@ -1,0 +1,120 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3843: file-shaped-posts canary reads the W1 inboxes as an unnamed second reader, so P-12 / runme action 37 can never pass
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-25T16:24:39Z
+# ============================================================================
+
+task_id: T-3843
+task_name: "file-shaped-posts canary reads the W1 inboxes as an unnamed second reader, so P-12 / runme action 37 can never pass"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-21T11:21:17Z
+completed: 2026-11-25T16:24:23Z
+duration_days: 4
+updates_count: 3
+first_commit: 2026-11-21T13:00:27+01:00
+last_commit: 2026-11-25T17:22:47+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  external review (claude-code, codex, opencode) of the canary-vs-P-12 options; operator ruling H (hub flags file-shaped inbox posts at post time); diagnosis + canary bug fixes agreed. file-shaped-posts canary no longer reports a refused/failed read as clean (exit 2, scan continues, finding still wins) and --ack keeps unscanned topics' offsets; 5 new fixtures, failing on the old script. first parity evidence. Manual run matched 0 (no file-shaped inbox post since watch-on). A synthetic document probe on a throwaway inbox was seen by both the hub record and the scan (matched 1, no mismatch). Probe acknowledged; canary healthy. diagnosis criterion met (33 h observation: every unnamed-reader advance is the canary, manual or cron; no other reader). operator ruling B recorded; fresh positive control on 0.12.13+356 matched (hub row + canary scan agree on 2 inbox posts). canary no longer reads inbox:* topics (ruling B); inbox findings from the hub's file-shaped-post rows; missing record = exit 2; FILE_SHAPED_INBOX_SCAN=1 rollback. Fixtures 27/0; mutant fails 3; live rc 0, W1 unnamed reader not advanced. runme action 37 passes (one proven consumer per W1 inbox, P-12 live) on run 20261125T160649Z. close (file-shaped canary off the W1 inboxes; P-12 live)
+
+# Key outcomes
+outcomes:
+  - 'External review of options A-D saved under `docs/reports/T-3843-reviews/` (bundle, prompt, three seats, independence).'
+  - 'Diagnosis settled: the W1 inboxes'' consumer list is observed for at least 24 h without recording a read (`termlink hub inbox consumers`), and every advance of the `(unnamed)` row''s `last_ms` is attributed to a named process. (2026-11-22T21:05Z, `.context/working/t3843-observe.log`, observer from 2026-11-21T12:02Z, over 33 h: advances only at 19:44–19:45Z on 11-21, the agent''s three manual canary runs including the T-3844 probe, and at 06:47Z on 11-22, the cron canary at 07:47 CET; one TOOLING line at 23:15Z, the hub restart in the operator''s runme, not a read. No other unnamed reader. The 05:52Z first-seen on 11-20 predates the observer and is consistent with a manual canary run that day.)'
+  - '`check-file-shaped-posts.sh` exits 2 (tooling) when a `channel subscribe` returns an error object or a non-zero status, never 0. `--ack` keeps the stored offsets of topics it did not scan. Fixtures pin both.'
+  - 'The operator''s ruling on the replacement route is recorded in Decisions with his words, and the route is built or filed as its own task.'
+  - 'The canary no longer reads `inbox:*` topics by default; their findings come from the hub''s `file-shaped-post` rows; no readable admin log or no watch-on is exit 2; `FILE_SHAPED_INBOX_SCAN=1` restores the scan (rollback). Fixtures 27/27; mutant that reads inboxes again fails 3 cases. Live run 2026-11-24 11:23Z rc 0, and the W1 inboxes'' `(unnamed)` reader did not advance (last 11:21:33Z, the final old-script run)'
+  - 'runme action 37 passes on a run after the `(unnamed)` row leaves the 24 h window (after 2026-11-25 11:22Z)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'canary no longer reads inbox:* topics (ruling B); inbox findings from the hub''s file-shaped-post rows; missing record = exit 2; FILE_SHAPED_INBOX_SCAN=1 rollback. Fixtures 27/0; mutant fails 3; live rc 0, W1 unnamed reader not advanced'
+    source: git-mined
+  - description: 'file-shaped-posts canary no longer reports a refused/failed read as clean (exit 2, scan continues, finding still wins) and --ack keeps unscanned topics'' offsets; 5 new fixtures, failing on the old script'
+    source: git-mined
+  - description: 'external review (claude-code, codex, opencode) of the canary-vs-P-12 options; operator ruling H (hub flags file-shaped inbox posts at post time); diagnosis + canary bug fixes agreed'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-21 — How inbox file-shape coverage is replaced so P-12 can pass (operator ruling: "H")'
+    chose: 'H. The hub flags file-shaped posts on `inbox:*` topics at post time with a durable finding (admin row). The canary reads those findings instead of reading the inboxes. Both run in parallel until they agree. Then the canary''s inbox scanning is retired, and that retirement comes back to the operator for its own approval (standing rule: nothing switched off without a proven replacement). - **Agent''s recorded assumption (overturnable):** until H is proven, action 37 stays red on record (option D as the interim). runme ends rc=1 on those two lines, and no exception is added to P-12.'
+    rationale: 'the only route with no second reader of any inbox. It covers bound and unbound inboxes and meets the replacement rule literally (claude-code review). Brief scores: H +37, F +16, E +13.'
+    alternatives_rejected: ['1. A or B (narrow the canary without a replacement; B as worded also deadlocks on the canary''s own row: all three reviewers). 2. C (blinds P-12). 3. F (covers only inboxes with a sidecar). 4. E (amends P-12 and puts a signing key in a cron job). - **Also agreed (no coverage change):** a read-only 24-48 h observation of the W1 reader lists to settle the diagnosis, and fixes for two canary bugs: a refused or errored read is reported clean, and `--ack` drops the offsets of unscanned topics.']
+  - decision: '2026-11-21 19:44Z — first parity evidence (agent, with a positive control)'
+  - decision: '2026-11-24 — retire the canary''s inbox reading after one fresh positive control (operator ruling: "B")'
+    chose: 'B. Operator: "what''s B, if that''s what needs to be done, then do it." One synthetic file-shaped post to a throwaway inbox on today''s hub build (0.12.13+356); if the hub''s admin row and the canary''s scan match, the canary stops reading `inbox:*` topics and reads the hub''s `file-shaped-post` rows for them; other topics stay scanned. If they do not match, stop and report; nothing is retired.'
+    rationale: 'since the 11-21 probe there was no real file-shaped inbox post (one `file-shaped-post` row ever, the probe), and the hub restarted 7 times, so the only match was on an older build. Brief scores: B +42, A +26, C +11, D −33.'
+    alternatives_rejected: ['A (retire on old-build evidence), C (wait for a real post: may never come), D (runme red for good).']
+  - decision: '2026-11-24 — the fresh positive control matched (agent)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3841.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3843-file-shaped-posts-canary-reads-the-w1-in.md'
+  - '.tasks/completed/T-3841-clear-the-9-clippy--d-warnings-lints-in-.md'
+  - 'docs/reports/T-3843-reviews/bundle.md'
+  - 'docs/reports/T-3843-reviews/independence.json'
+  - 'docs/reports/T-3843-reviews/prompt.md'
+  - 'docs/reports/T-3843-reviews/review-claude-code.md'
+  - 'docs/reports/T-3843-reviews/review-codex.md'
+  - 'docs/reports/T-3843-reviews/review-opencode.md'
+  - 'scripts/check-file-shaped-posts.sh'
+  - 'tests/file-shaped-posts-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-21T13:00:27'
+    action: 'T-3843: external review (claude-code, codex, opencode) of the canary-vs-P-12 options; operator ruling H (hub flags file-shaped inbox posts at post time); diagnosis + canary bug fixes agreed'
+  - time: '2026-11-21T13:05:10'
+    action: 'T-3843: file-shaped-posts canary no longer reports a refused/failed read as clean (exit 2, scan continues, finding still wins) and --ack keeps unscanned topics'' offsets; 5 new fixtures, failing on the old script'
+  - time: '2026-11-21T20:45:50'
+    action: 'T-3843: first parity evidence. Manual run matched 0 (no file-shaped inbox post since watch-on). A synthetic document probe on a throwaway inbox was seen by both the hub record and the scan (matched 1, no mismatch). Probe acknowledged; canary healthy'
+  - time: '2026-11-22T22:02:39'
+    action: 'T-3843: diagnosis criterion met (33 h observation: every unnamed-reader advance is the canary, manual or cron; no other reader)'
+  - time: '2026-11-24T12:21:47'
+    action: 'T-3843: operator ruling B recorded; fresh positive control on 0.12.13+356 matched (hub row + canary scan agree on 2 inbox posts)'
+  - time: '2026-11-24T12:24:23'
+    action: 'T-3843: canary no longer reads inbox:* topics (ruling B); inbox findings from the hub''s file-shaped-post rows; missing record = exit 2; FILE_SHAPED_INBOX_SCAN=1 rollback. Fixtures 27/0; mutant fails 3; live rc 0, W1 unnamed reader not advanced'
+  - time: '2026-11-25T17:22:36'
+    action: 'T-3843: runme action 37 passes (one proven consumer per W1 inbox, P-12 live) on run 20261125T160649Z'
+  - time: '2026-11-25T17:22:47'
+    action: 'T-3843: close (file-shaped canary off the W1 inboxes; P-12 live)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 6063 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6063
+  commits: 9
+  files_changed: 14
+  lines_added: 1961
+  lines_removed: 67
+  footprint_refreshed_at: '2026-11-25T16:24:41Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3843-file-shaped-posts-canary-reads-the-w1-in.md
+generated_by: context-agent-hybrid

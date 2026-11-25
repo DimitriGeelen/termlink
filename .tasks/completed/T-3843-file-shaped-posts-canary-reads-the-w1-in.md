@@ -8,12 +8,12 @@ description: >
   last_ms 2026-11-21T06:47:08Z on both W1 inboxes, so the 24 h window never empties.
   Operator decision pending (options A-D; external review requested 2026-11-21).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-file-shaped-posts.sh, tests/file-shaped-posts-canary-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-21T11:21:17Z
-last_update: 2026-11-25T16:22:47Z
-date_finished:
+last_update: 2026-11-25T16:24:23Z
+date_finished: 2026-11-25T16:24:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -172,7 +172,7 @@ bash tests/file-shaped-posts-canary-fixtures.sh > /tmp/.t3843fx 2>&1 && grep -q 
 # Origin: T-2969 line grepping live audit for one arc's status; T-2871's census
 # test pinning exact live counts (56→74 files) — both blocked closes (OBS-377).
 #
-bash tests/file-shaped-posts-canary-fixtures.sh > /tmp/t3843-fsp.out 2>&1 && grep -q "15 passed, 0 failed" /tmp/t3843-fsp.out
+# (2026-11-25: the earlier "15 passed" line was removed; the suite grew to 27 under ruling B and line 1 of this block checks it)
 test -s docs/reports/T-3843-reviews/review-claude-code.md && test -s docs/reports/T-3843-reviews/review-codex.md && test -s docs/reports/T-3843-reviews/review-opencode.md
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
@@ -446,3 +446,21 @@ test -s docs/reports/T-3843-reviews/review-claude-code.md && test -s docs/report
 
 ### 2026-11-21T11:30:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-25T16:24:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6c7be490
+- **Timestamp:** 2026-11-25T16:24:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Diagnosis settled: the W1 inboxes' consumer list is observed for at least 24 h without recording a read (`termlink hub inbox consumers`), and every advance of the `(unnamed)` row's `last_ms` is attrib
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/t3843-observe.log in: Diagnosis settled: the W1 inboxes' consumer list is observed for at least 24 h without recording a read (`termlink hub inbox consumers`), and every ad`
