@@ -586,6 +586,27 @@ crates_unchanged_since_binary() {
     [ -z "$touched" ]
 }
 
+# T-3865: what Checks 4/5 actually compared, when the version names its commit.
+# The verdict above comes from that commit, not from the VERSION number (whose
+# pre-T-3774 counter form, e.g. 0.12.256, compares with nothing — PL-243), so the
+# message must say so. Prints "built from <sha>; N crates/ commit(s) since
+# (newest: <sha> <subject>)" or "built from <sha>; no crates/ commit since", and
+# nothing when the version carries no commit that HEAD descends from (callers
+# then keep the VERSION wording).
+binary_commit_note() {
+    local sha n newest
+    sha="$(version_commit "$1")"
+    [ -n "$sha" ] || return 0
+    git merge-base --is-ancestor "$sha" HEAD >/dev/null 2>&1 || return 0
+    n=$(git rev-list --count "${sha}..HEAD" -- crates/ 2>/dev/null) || return 0
+    if [ "${n:-0}" -gt 0 ]; then
+        newest=$(git log -1 --format='%h %s' "${sha}..HEAD" -- crates/ 2>/dev/null | cut -c1-80)
+        printf 'built from %s; %s crates/ commit(s) since (newest: %s)' "$sha" "$n" "$newest"
+    else
+        printf 'built from %s; no crates/ commit since' "$sha"
+    fi
+}
+
 check_binary_freshness() {
     local version_file="VERSION"
     if [ ! -r "$version_file" ]; then
@@ -614,15 +635,23 @@ check_binary_freshness() {
         return
     fi
 
+    local note
+    note="$(binary_commit_note "$binary_version")"
     if version_lt "$binary_version" "$repo_version"; then
         if crates_unchanged_since_binary "$binary_version" "$repo_version"; then
             # T-2226: version number drifted but no crates/ change since the
             # installed binary — features are current, rebuild not required.
-            emit_check "binary" "medium" "pass" \
-                "termlink $binary_version < VERSION $repo_version but no crates/ change since binary — version drift only, rebuild not required (T-2226)"
+            if [ -n "$note" ]; then
+                emit_check "binary" "medium" "pass" \
+                    "termlink $binary_version: $note — rebuild not required (T-2226)"
+            else
+                emit_check "binary" "medium" "pass" \
+                    "termlink $binary_version < VERSION $repo_version but no crates/ change since binary — version drift only, rebuild not required (T-2226)"
+            fi
         else
+            local why="${note:-older than project VERSION $repo_version}"
             emit_check "binary" "medium" "warn" \
-                "termlink $binary_version older than project VERSION $repo_version — catalog features may surface as 'unknown flag' / 'unrecognized subcommand'" \
+                "termlink $binary_version $why — catalog features may surface as 'unknown flag' / 'unrecognized subcommand'" \
                 "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/ (build from source, NOT brew/releases: VERSION is git-derived, so unless $repo_version is a published tag no release artifact carries it and installing one would leave this check firing)"
         fi
     else
@@ -705,15 +734,23 @@ check_hub_binary_freshness() {
     fi
 
     if [ -n "$hub_version" ] && [ -n "$repo_version" ]; then
+        local hnote
+        hnote="$(binary_commit_note "$hub_version")"
         if version_lt "$hub_version" "$repo_version"; then
             if crates_unchanged_since_binary "$hub_version" "$repo_version"; then
                 # T-2226 suppression, inherited rather than reinvented: VERSION
                 # is git-derived and moves on doc-only commits too.
-                emit_check "hub-binary" "medium" "pass" \
-                    "running hub serves $hub_version < VERSION $repo_version but no crates/ change since — version drift only, restart not required (T-2226)"
+                if [ -n "$hnote" ]; then
+                    emit_check "hub-binary" "medium" "pass" \
+                        "running hub serves $hub_version: $hnote — restart not required (T-2226)"
+                else
+                    emit_check "hub-binary" "medium" "pass" \
+                        "running hub serves $hub_version < VERSION $repo_version but no crates/ change since — version drift only, restart not required (T-2226)"
+                fi
             else
+                local hwhy="${hnote:-older than project VERSION $repo_version}"
                 emit_check "hub-binary" "medium" "warn" \
-                    "running hub serves $hub_version, older than project VERSION $repo_version — hub-side features land only after a restart onto the new binary" \
+                    "running hub serves $hub_version, $hwhy — hub-side features land only after a restart onto the new binary" \
                     "Rebuild and install first if the on-disk binary is also stale (Check 4), then restart the hub THROUGH its systemd unit (G-070)."
             fi
         else
