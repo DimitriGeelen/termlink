@@ -15,9 +15,9 @@ owner: human
 horizon: null
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3533, T-3534]
 created: 2026-10-20T14:38:15Z
-last_update: 2026-10-21T17:43:30Z
+last_update: 2026-11-25T09:31:52Z
 date_finished: 2026-10-21T17:43:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -222,6 +222,12 @@ requires, but its design is a separate decision with the peer projects.
 sidecar doorbell) and O-7 names injection. Two independent external reviewers (codex, Antigravity; docs/reports/T-3493-consult/)
 both chose B as an interim fix and both improved it into B′. C (signed inject + spawn-time allowlist) is what O-7
 requires, but its design is a separate decision with the peer projects.
+
+### 2026-11-25T09:31:50Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3533
+
+### 2026-11-25T09:31:52Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3534
 
 ## Reviewer Verdict (v1.5)
 

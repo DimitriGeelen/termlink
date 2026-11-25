@@ -14,9 +14,9 @@ owner: agent
 horizon: null
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3788]
 created: 2026-11-14T10:24:14Z
-last_update: 2026-11-14T14:17:15Z
+last_update: 2026-11-25T09:31:57Z
 date_finished: 2026-11-14T14:17:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -232,6 +232,9 @@ TCP hub when it has a hub link) is one bounded, reversible rule that fixes every
 ### 2026-11-14T14:17:15Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-11-25T09:31:57Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3788
 
 ## Reviewer Verdict (v1.5)
 

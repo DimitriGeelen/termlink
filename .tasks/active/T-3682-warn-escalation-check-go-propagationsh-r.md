@@ -1,10 +1,13 @@
 ---
 id: T-3682
-name: "WARN escalation: check-go-propagation.sh red 14d (since 2026-10-27T06:41:01Z) — fix or reclassify"
+name: "WARN escalation: check-go-propagation.sh red 14d (since 2026-10-27T06:41:01Z)
+  — fix or reclassify"
 description: >
-  WARN-tier guard member check-go-propagation.sh has been red for more than 14 days (first seen red 2026-10-27T06:41:01Z). Operator binding condition (T-3258 rulings): a stale WARN becomes an action.
+  WARN-tier guard member check-go-propagation.sh has been red for more than 14 days
+  (first seen red 2026-10-27T06:41:01Z). Operator binding condition (T-3258 rulings):
+  a stale WARN becomes an action.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-10T06:42:25Z
-last_update: 2026-11-10T06:42:25Z
-date_finished: null
+last_update: 2026-11-25T09:32:10Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-25T09:31:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3682: WARN escalation: check-go-propagation.sh red 14d (since 2026-10-27T06:41:01Z) — fix or reclassify
@@ -58,6 +73,14 @@ date_finished: null
 
 <!-- warn-escalation: member=check-go-propagation.sh -->
 Filed automatically by scripts/warn-escalation-file.sh (T-3267) from the host release canary.
+
+**Background / trigger:** The release-publication canary escalated `check-go-propagation.sh` (red since 2026-10-27, 28d on 2026-11-24). Re-run 2026-11-25: 6 GO inceptions firing (T-3372, T-3483, T-3493, T-3524, T-3759, T-3786).
+
+**Problem / hypothesis:** Each GO'd inception needs a machine-readable link to the work it approved. For five of the six the build tasks exist and name the inception in their own text, but nobody wrote `related_tasks:` in either direction. T-3372 (TermLink's share of OpenCode parity) has no build task at all.
+
+**Goal:** The check reports only what is genuinely unresolved.
+
+**Expected outcome:** Five inceptions linked both ways (evidence: each slice's own text cites the GO); T-3372 brought to the operator as one decision (file the slices, or acknowledge the approval as lapsed in `.context/checks/go-propagation-allowlist`). The check is green after his ruling.
 
 - **Member:** `check-go-propagation.sh` (tier WARN — never gates CI or a release)
 - **First seen red:** 2026-10-27T06:41:01Z (14d ago; escalation threshold 14d)
@@ -385,3 +408,6 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3682-warn-escalation-check-go-propagationsh-r.md
 - **Context:** Initial task creation
+
+### 2026-11-25T09:31:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

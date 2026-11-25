@@ -17,7 +17,7 @@ owner: agent
 horizon: null
 tags: [dispatch, orchestration, 1409-suggestion]
 components: []
-related_tasks: []
+related_tasks: [T-3484]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T15:38:49Z
-last_update: 2026-10-19T22:02:43Z
+last_update: 2026-11-25T09:31:49Z
 date_finished: 2026-10-19T22:02:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -462,6 +462,9 @@ keyed by a dispatch id with attempts and fencing, `done`/`lost` written by the s
 evidence, not by the worker; ring20 already runs exactly this in production (arc-009). Building a
 second model would leave the orchestrator, Watchtower and T-3476 with two formats. GO authorises
 the three-way agreement and, after it, a TermLink build task for the ledger primitive.
+
+### 2026-11-25T09:31:49Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3484
 
 ## Reviewer Verdict (v1.5)
 

@@ -13,7 +13,7 @@ owner: agent
 horizon: now
 tags: [orchestration, dispatch, 3way]
 components: []
-related_tasks: []
+related_tasks: [T-3483]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-11-20T16:34:29Z
+last_update: 2026-11-25T09:31:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -490,3 +490,6 @@ from its own evidence, and accept a supervisor writing on behalf of a worker wit
 - TermLink impact, checked 2026-10-26: none. derive_outcome (crates/termlink-bus/src/worker_contract.rs:605-628)
   already checks refused before the hand-back; our hub never closes dispatches, so it never emits
   dispatch_closed and our FenceReason list needs no change. Adoption = the operator's yes/no.
+
+### 2026-11-25T09:31:50Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3483

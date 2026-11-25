@@ -12,9 +12,9 @@ owner: human
 horizon: null
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3760, T-3781]
 created: 2026-11-12T23:13:17Z
-last_update: 2026-11-13T12:53:27Z
+last_update: 2026-11-25T09:31:56Z
 date_finished: 2026-11-13T12:53:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -209,6 +209,12 @@ session with a fixed request form only.
 ### 2026-11-13T12:53:27Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-11-25T09:31:54Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3760
+
+### 2026-11-25T09:31:56Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3781
 
 ## Reviewer Verdict (v1.5)
 

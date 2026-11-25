@@ -20,7 +20,7 @@ owner: agent
 horizon: null
 tags: [arc:arc-011, security]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/server.rs]
-related_tasks: []
+related_tasks: [T-3759]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -48,7 +48,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T00:18:49Z
-last_update: 2026-11-13T17:59:56Z
+last_update: 2026-11-25T09:31:55Z
 date_finished: 2026-11-13T17:59:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -479,6 +479,9 @@ grep -q "owner KILLED" .context/working/t3760/mutants.out && grep -q "prefix KIL
 
 ### 2026-11-13T17:59:56Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-11-25T09:31:55Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3759
 
 ## Reviewer Verdict (v1.5)
 

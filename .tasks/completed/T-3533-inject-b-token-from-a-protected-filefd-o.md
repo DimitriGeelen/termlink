@@ -19,7 +19,7 @@ owner: agent
 horizon: null
 tags: [arc:arc-011, security]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/mcp_integration.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/client.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/server.rs]
-related_tasks: []
+related_tasks: [T-3493]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T18:35:58Z
-last_update: 2026-10-21T22:08:08Z
+last_update: 2026-11-25T09:31:51Z
 date_finished: 2026-10-21T22:08:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -418,6 +418,9 @@ bash scripts/check-drain-sink-caps.sh --no-heartbeat
 
 ### 2026-10-21T18:38:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-25T09:31:51Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3493
 
 ## Reviewer Verdict (v1.5)
 

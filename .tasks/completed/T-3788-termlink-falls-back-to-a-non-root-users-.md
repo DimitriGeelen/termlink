@@ -16,7 +16,7 @@ owner: agent
 horizon: null
 tags: [arc:arc-011]
 components: [crates/termlink-cli/src/commands/channel.rs]
-related_tasks: []
+related_tasks: [T-3786]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-14T14:17:50Z
-last_update: 2026-11-14T15:02:49Z
+last_update: 2026-11-25T09:31:58Z
 date_finished: 2026-11-14T15:02:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -440,6 +440,9 @@ grep -q "nofallback KILLED" .context/working/t3788/mutants.out && grep -q "noroo
 
 ### 2026-11-14T15:02:49Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-11-25T09:31:58Z — status-update [task-update-agent]
+- **Change:** related_tasks: +T-3786
 
 ## Reviewer Verdict (v1.5)
 
