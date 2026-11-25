@@ -138,7 +138,22 @@ export TASK_COLLISION_NO_TITLES="$NO_TITLES"
 export TASK_COLLISION_NO_FIXES="$NO_FIXES"
 
 python3 - <<'PYEOF'
-import json, os, re, subprocess, sys
+import json, os, re, subprocess, sys, traceback
+
+
+def _tooling_error(exc_type, exc, tb):
+    # T-3866: an uncaught exception used to exit 1, which the guard layer reads as
+    # FIRING — a crash reported as a finding for 34 days. It is a tooling error.
+    traceback.print_exception(exc_type, exc, tb)
+    sys.stderr.write("check-task-id-collisions: could not look (%s) — tooling error, exit 2\n"
+                     % exc_type.__name__)
+    sys.stderr.flush()
+    os._exit(2)
+
+
+sys.excepthook = _tooling_error
+if os.environ.get("TASK_COLLISION_TEST_CRASH") == "1":   # fixture seam (T-3866)
+    raise RuntimeError("forced crash for the fixture")
 
 BASE      = os.environ["TASK_COLLISION_BASE"]
 BRANCHES  = os.environ.get("TASK_COLLISION_BRANCHES", "").split()
@@ -151,7 +166,10 @@ FIX_MIN_LEN = int(os.environ.get("TASK_COLLISION_FIX_MIN_LEN") or 11)
 
 
 def git(*args):
-    return subprocess.run(("git",) + args, capture_output=True, text=True).stdout
+    # T-3866: git output is bytes, not guaranteed UTF-8 (a diff of a non-UTF-8 file, or
+    # a hunk cut through a multi-byte character). Replace what does not decode.
+    return subprocess.run(("git",) + args, capture_output=True, text=True,
+                          errors="replace").stdout
 
 
 def task_files(ref):

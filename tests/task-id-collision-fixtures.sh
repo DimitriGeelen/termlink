@@ -387,6 +387,29 @@ if grep -q "no colliding IDs\|clean (" <<< "$mout"; then
   ok "mutant still reports clean — proving the scope line is the only thing lost"
 else bad "mutant still reports clean" "$mout"; fi
 
+# ---------------------------------------------------------------------------
+# 9. T-3866 — git output that is not UTF-8 must not crash the check, and a crash
+#    must be a tooling error (exit 2), never a finding (exit 1). The real tree
+#    crashed in axis D's `git diff` for 34 days and was read as "firing".
+# ---------------------------------------------------------------------------
+D="$TMP/nonutf8"; mk_repo "$D"
+mkdir -p "$D/scripts"; printf 'plain original line one\nbroken byte \342( original line two\n' > "$D/scripts/data.txt"
+commit_all "$D" base-data
+branch_with "$D" alpha; printf 'plain original line one\nalpha replaced it \342(\n' > "$D/scripts/data.txt"; commit_all "$D" a
+( cd "$D" && git checkout -q main )
+branch_with "$D" beta;  printf 'plain original line one\nbeta replaced it \342(\n' > "$D/scripts/data.txt"; commit_all "$D" b
+out=$(run_check "$D"); rc=$?
+if [ "$rc" = "0" ] && ! grep -q "Traceback" <<< "$out"; then ok "non-UTF-8 diff output: the check runs to a verdict (exit 0, no traceback)"
+else bad "non-UTF-8 diff output runs to a verdict" "rc=$rc: $(tail -3 <<< "$out")"; fi
+out=$( cd "$D" && TASK_COLLISION_TEST_CRASH=1 bash "$CHECK" 2>&1 ); rc=$?
+if [ "$rc" = "2" ] && grep -q "could not look" <<< "$out"; then ok "an uncaught exception exits 2 (tooling), not 1 (firing)"
+else bad "an uncaught exception exits 2" "rc=$rc: $(tail -2 <<< "$out")"; fi
+MUT="$TMP/mutant-strict-decode.sh"
+sed 's/text=True,$/text=True)/; /^ *errors="replace").stdout$/d' "$CHECK" | sed 's/capture_output=True, text=True)$/capture_output=True, text=True).stdout/' > "$MUT"
+mout=$( cd "$D" && bash "$MUT" 2>&1 ); mrc=$?
+if [ "$mrc" != "0" ] && grep -q "UnicodeDecodeError" <<< "$mout"; then ok "mutant: strict decoding crashes on the same repo (the fixture can see the bug)"
+else bad "mutant: strict decoding crashes" "rc=$mrc: $(tail -2 <<< "$mout")"; fi
+
 echo ""
 echo "----------------------------------------"
 printf 'T-2800 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
