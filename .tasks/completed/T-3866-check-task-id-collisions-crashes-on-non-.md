@@ -4,12 +4,12 @@ name: "check-task-id-collisions crashes on non-UTF-8 git diff output and reports
 description: >
   Escalated WARN guard red since 2026-10-21 (release-publication canary). The Python part dies with UnicodeDecodeError in git(); an uncaught exception exits 1, which the guard layer reads as a finding.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-task-id-collisions.sh, tests/task-id-collision-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-25T09:25:16Z
-last_update: 2026-11-25T09:27:18Z
-date_finished: null
+last_update: 2026-11-25T09:28:30Z
+date_finished: 2026-11-25T09:28:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -282,6 +282,14 @@ grep -q 'errors="replace"' scripts/check-task-id-collisions.sh
 
 ## RCA
 
+**Symptom:** The guard layer reported check-task-id-collisions.sh red from 2026-10-21; the release-publication canary escalated it at 34 days. The check never found a collision: its embedded Python died with UnicodeDecodeError on `git diff` output (axis D, added by T-2915) and exited 1.
+
+**Root cause:** Two gaps together. (1) `git()` used `text=True` with strict UTF-8 decoding, while git emits raw bytes; once the branch history held a diff with a non-UTF-8 byte sequence, every run crashed. (2) The embedded Python had no top-level handler, and Python's default exit code for an uncaught exception is 1 — the same code as "firing" under the project's 0/1/2 contract.
+
+**Why structurally allowed:** The fixtures built only ASCII repos, so axis D was never fed real-world bytes. The 0/1/2 contract was enforced at the bash layer (bad args, no repo, unknown base all exit 2, with fixtures) but not inside the Python heredoc, where an uncaught exception falls back to Python's own exit 1. The guard layer cannot tell a crash from a finding by exit code, and "red for 34 days" was read as "real collisions nobody fixed" — nobody re-ran it to look at the output.
+
+**Prevention:** The fixture now has a non-UTF-8 repo and a forced-crash case, each pinned by a mutant. The crash hook turns any future uncaught exception into exit 2 with "could not look". Wider lesson (same class, other scripts): any embedded `python3 - <<EOF` in a guard exits 1 on an uncaught exception; a static check for guards whose Python part lacks a top-level handler would catch the class — noted, not built here (guard cap DP-3: one in, one out).
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -376,3 +384,16 @@ grep -q 'errors="replace"' scripts/check-task-id-collisions.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3866-check-task-id-collisions-crashes-on-non-.md
 - **Context:** Initial task creation
+
+### 2026-11-25T09:28:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ba458ff3
+- **Timestamp:** 2026-11-25T09:28:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3866: check-task-id-collisions crashes on non-UTF-8 git diff output and reports the crash as FIRING (exit 1) instead of tooling (exit 2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-25T09:28:44Z
+# ============================================================================
+
+task_id: T-3866
+task_name: "check-task-id-collisions crashes on non-UTF-8 git diff output and reports the crash as FIRING (exit 1) instead of tooling (exit 2)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-25T09:25:16Z
+completed: 2026-11-25T09:28:30Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-25T10:27:13+01:00
+last_commit: 2026-11-25T10:27:18+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  check-task-id-collisions decodes git output tolerantly and reports a crash as tooling (exit 2), not firing; it was red 34d on the crash alone, real tree now clean; fixtures 46/0. close (collision check no longer crashes; a crash is exit 2)
+
+# Key outcomes
+outcomes:
+  - '`git()` decodes with `errors="replace"`, so non-UTF-8 diff output does not crash the check'
+  - 'Any uncaught exception in the embedded Python exits 2 (tooling), with the traceback and a one-line "could not look" on stderr'
+  - 'A fixture: a throwaway repo whose branch diff contains invalid UTF-8 runs to a verdict (exit 0); a forced crash exits 2; the old script (mutant) crashes/exits 1 on the first case'
+  - 'The check on the real tree finishes with exit 0 or 1 and a verdict line, not a traceback'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'check-task-id-collisions decodes git output tolerantly and reports a crash as tooling (exit 2), not firing; it was red 34d on the crash alone, real tree now clean; fixtures 46/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3866-check-task-id-collisions-crashes-on-non-.md'
+  - 'scripts/check-task-id-collisions.sh'
+  - 'tests/task-id-collision-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-25T10:27:13'
+    action: 'T-3866: check-task-id-collisions decodes git output tolerantly and reports a crash as tooling (exit 2), not firing; it was red 34d on the crash alone, real tree now clean; fixtures 46/0'
+  - time: '2026-11-25T10:27:18'
+    action: 'T-3866: close (collision check no longer crashes; a crash is exit 2)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 6
+  lines_added: 550
+  lines_removed: 8
+  footprint_refreshed_at: '2026-11-25T09:29:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3866-check-task-id-collisions-crashes-on-non-.md
+generated_by: context-agent-hybrid
