@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-18T10:02:27Z
+last_update: 2026-11-25T20:30:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -465,6 +465,11 @@ date_finished: null
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-11-25T20:40Z — why claude-termlink-alt reads "NOT CLEAR" in runme action 38 [agent]
+- **Seen:** operator run `runme-20261125T160649Z-3512177.log` (rc=0): action 38 `claude-termlink-alt: ... clear: NOT CLEAR (no hand-over after mail that was pending in the last hour)`; claude-termlink reads CLEAR.
+- **Cause (read from the alt sidecar's status socket and its store, not the inbox):** one pending message, `c-4520ef6f08e86257/e340a9b7…`, STORED 2026-10-16T23:05Z, sender 6738c073bbcc587a: this task's own W1 kill-switch drill probe ("W1 kill-switch drill probe from the main session (T-3426). No reply needed"). `attention.jsonl`: "attempt 1: no transcript registered for session claim-op; the attempt stays open". -alt has no live Claude session (last hand-over 2026-10-14T19:05Z), so this probe can never be handed over and `last_surface` stays `unknown`/pending: 1.
+- **Judgement:** drill residue, no real mail stranded. CLEAR is reported, not judged, by action 38. Left as is; if a clean CLEAR on -alt is wanted, the probe needs an operator-side dismissal or an -alt session to take it — not done here.
 
 ### 2026-10-18T10:01Z — W1 joined: the main session runs on its sidecar [agent]
 - **How:** 055 T-563 (operator ruling C) started the fleet /opt/termlink agent with `TERMLINK_SIDECAR_SOCKET=/var/lib/termlink/sidecar/claude-termlink.send.sock`; the operator did Stop/Start from the cockpit.
