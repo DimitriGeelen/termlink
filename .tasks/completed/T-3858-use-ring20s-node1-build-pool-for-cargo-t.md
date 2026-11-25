@@ -7,12 +7,12 @@ description: >
   packs git archive + vendor tar, submits 010.termlink-test / -build, waits, writes
   the result log next to ours.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-24T11:30:43Z
-last_update: 2026-11-25T10:09:11Z
-date_finished:
+last_update: 2026-11-25T10:10:30Z
+date_finished: 2026-11-25T10:10:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -352,6 +352,11 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -s docs/reports/T-3858-risk-matrix.md
+grep -q "pool-run.sh test" .context/cron/pool-run.crontab
+grep -q "termlink-pool-run" runme.sh
+grep -q "installs the nightly ring20 pool-run crontab" tests/runme-fixtures.sh
+bash tests/pool-run-fixtures.sh > .context/working/.t3858-fx.out 2>&1 && grep -q "13 passed, 0 failed" .context/working/.t3858-fx.out
 
 ## RCA
 
@@ -464,3 +469,21 @@ tracked files include `.claude/settings.local.json`, so the packing must exclude
 
 ### 2026-11-24T11:31:29Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-25T10:10:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e8bc6a22
+- **Timestamp:** 2026-11-25T10:10:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=claude/settings.local in: The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)`

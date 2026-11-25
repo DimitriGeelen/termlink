@@ -1,0 +1,117 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3858: Use ring20's node1 build pool for cargo test (and release build) via a one-command script
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-25T10:10:46Z
+# ============================================================================
+
+task_id: T-3858
+task_name: "Use ring20's node1 build pool for cargo test (and release build) via a one-command script"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-24T11:30:43Z
+completed: 2026-11-25T10:10:30Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-24T12:31:34+01:00
+last_commit: 2026-11-25T11:08:51+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture (operator ruling A: use ring20's build pool; scope widened to the whole pool via its dispatcher, by role). ruling A (whole pool via dispatcher) recorded with route, entries and toolchain plan from ring20. review of ring20's submit script v1: blocked on git worktree use (operator rule); change requested, not run. submit script v2 reviewed + dry run (stops on our tracked .cargo/config.toml by design; merge requested). v3 dry run passes; vendor 327 MiB over cap, code 209 MiB; excludes planned, compression asked. submit script v4 reviewed; dry run with excludes fits (code 6.0 MiB, vendor 28.1 MiB xz); archive checked for secrets. risk matrix (4 risks, 0 errors, no acceptance needed); R-001/R-002 registered; standing risk arc created; mitigation T-3859 (pin ring20 code by sha256, non-root, results advisory). first pool test run failed on node1 (vendor ref not unpacked); local reference 2465/1 env-artifact/5; reported to ring20. capture T-3861 (archive builds lose version/commit) and T-3862 (meter_session_rpc writes into the source tree), both found on the ring20 pool. pool test run matches local (4839 tests both sides; all failures environmental: T-3861, T-3862, local /tmp target). clippy entry passes on node1; per-crate: node1 ok, pool-w2/pool-132 out of build space (reported to ring20). pool trial complete on node1 (test, clippy, per-crate, release build with correct version 0.12.13+386.g285162a51); cron installed; first nightly run pending. runme fixture pins the pool-run crontab install (476/0); first nightly runs recorded (test refused on a lost ref, ring20 relay fixed; clippy passed); T-3859 heartbeat AC met
+
+# Key outcomes
+outcomes:
+  - 'ring20''s script received, read in full, sha256 recorded; it only packs, submits, waits and writes a log'
+  - 'The archive it sends was listed and holds no secret (`.claude/settings.local.json` and any credential file excluded or checked)'
+  - 'Risk matrix `docs/reports/T-3858-risk-matrix.md` filled (new network path + unattended automation); any actor at 6+ registered in concerns.yaml'
+  - 'One real node1 test run at a known commit; its pass/fail count matches a local run at the same commit'
+  - 'Only then: a cron line or runme action calls it, with a fixture in tests/runme-fixtures.sh if runme'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme fixture pins the pool-run crontab install (476/0); first nightly runs recorded (test refused on a lost ref, ring20 relay fixed; clippy passed); T-3859 heartbeat AC met'
+    source: git-mined
+  - description: 'risk matrix (4 risks, 0 errors, no acceptance needed); R-001/R-002 registered; standing risk arc created; mitigation T-3859 (pin ring20 code by sha256, non-root, results advisory)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-24 — use the ring20 pool through its dispatcher, whole pool, by entry (operator ruling: "A", widened)'
+    chose: 'A, widened by the operator mid-turn: "why only node one, why not use the whole build pool, anything that''s available or has its role, as we have for others, and use the dispatching mechanisms for appropriate jobs." Route (ring20 msg b47f191c): the shared pool client on .107 (`pool-client.py submit-cmd --entry --env --client 010-termlink --ref ...`, then `wait`); the relay picks any node that offers the entry and has room. Auth: our hub identity only. Entries: 010.termlink-test, 010.termlink-build (exist), 010.termlink-clippy and 010.termlink-test-crate (new; crate list from `cargo metadata --no-deps` at the archived commit). Toolchain rust-1.94.0 to be added on pool-w2 and pool-132 beside node1.'
+    rationale: 'appropriate jobs (tests, clippy, release build, parallel per-crate tests) offload to idle estate capacity through the same mechanism other projects use.'
+    alternatives_rejected: ['B (not now) and C (never), the agent''s recommendation was B; a node1-only script (operator: whole pool).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/risk.yaml'
+  - '.context/project/concerns.yaml'
+  - '.tasks/active/T-3858-use-ring20s-node1-build-pool-for-cargo-t.md'
+  - '.tasks/active/T-3859-pin-ring20s-pool-submit-script-and-pool-.md'
+  - '.tasks/active/T-3861-builds-from-a-git-archive-no-git-report-.md'
+  - '.tasks/active/T-3862-metersessionrpc-test-writes-scratch-unde.md'
+  - 'docs/reports/T-3858-risk-matrix.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-24T12:31:34'
+    action: 'T-3858: capture (operator ruling A: use ring20''s build pool; scope widened to the whole pool via its dispatcher, by role)'
+  - time: '2026-11-24T12:37:02'
+    action: 'T-3858: ruling A (whole pool via dispatcher) recorded with route, entries and toolchain plan from ring20'
+  - time: '2026-11-24T13:06:16'
+    action: 'T-3858: review of ring20''s submit script v1: blocked on git worktree use (operator rule); change requested, not run'
+  - time: '2026-11-24T13:16:31'
+    action: 'T-3858: submit script v2 reviewed + dry run (stops on our tracked .cargo/config.toml by design; merge requested)'
+  - time: '2026-11-24T13:23:45'
+    action: 'T-3858: v3 dry run passes; vendor 327 MiB over cap, code 209 MiB; excludes planned, compression asked'
+  - time: '2026-11-24T13:28:39'
+    action: 'T-3858: submit script v4 reviewed; dry run with excludes fits (code 6.0 MiB, vendor 28.1 MiB xz); archive checked for secrets'
+  - time: '2026-11-24T13:32:05'
+    action: 'T-3858: risk matrix (4 risks, 0 errors, no acceptance needed); R-001/R-002 registered; standing risk arc created; mitigation T-3859 (pin ring20 code by sha256, non-root, results advisory)'
+  - time: '2026-11-24T13:53:00'
+    action: 'T-3858: first pool test run failed on node1 (vendor ref not unpacked); local reference 2465/1 env-artifact/5; reported to ring20'
+  - time: '2026-11-24T14:21:53'
+    action: 'T-3858: capture T-3861 (archive builds lose version/commit) and T-3862 (meter_session_rpc writes into the source tree), both found on the ring20 pool'
+  - time: '2026-11-24T14:29:18'
+    action: 'T-3858: pool test run matches local (4839 tests both sides; all failures environmental: T-3861, T-3862, local /tmp target)'
+  - time: '2026-11-24T15:33:05'
+    action: 'T-3858: clippy entry passes on node1; per-crate: node1 ok, pool-w2/pool-132 out of build space (reported to ring20)'
+  - time: '2026-11-24T18:43:21'
+    action: 'T-3858: pool trial complete on node1 (test, clippy, per-crate, release build with correct version 0.12.13+386.g285162a51); cron installed; first nightly run pending'
+  - time: '2026-11-25T11:08:51'
+    action: 'T-3858: runme fixture pins the pool-run crontab install (476/0); first nightly runs recorded (test refused on a lost ref, ring20 relay fixed; clippy passed); T-3859 heartbeat AC met'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 13 commit(s), 1359 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1359
+  commits: 14
+  files_changed: 11
+  lines_added: 1941
+  lines_removed: 23
+  footprint_refreshed_at: '2026-11-25T10:10:48Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3858-use-ring20s-node1-build-pool-for-cargo-t.md
+generated_by: context-agent-hybrid

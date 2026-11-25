@@ -25641,3 +25641,21 @@ scan_id: R-b902adfc
 task_id: T-3859
 payload:
   task_file: .tasks/active/T-3859-pin-ring20s-pool-submit-script-and-pool-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-25T10:10:33Z'
+scan_id: R-e8bc6a22
+task_id: T-3858
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-25T10:10:33Z'
+scan_id: R-e8bc6a22
+task_id: T-3858
+payload:
+  task_file: .tasks/active/T-3858-use-ring20s-node1-build-pool-for-cargo-t.md
