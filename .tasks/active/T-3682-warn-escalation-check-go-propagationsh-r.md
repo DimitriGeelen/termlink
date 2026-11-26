@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-10T06:42:25Z
-last_update: 2026-11-25T09:32:10Z
+last_update: 2026-11-26T15:44:34Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -107,7 +107,8 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `check-go-propagation.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+- [x] `check-go-propagation.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+  - 2026-11-26: green, rc 0 — "185 GO inception(s) — 114 linked, 0 firing, 0 in grace (<7d), 71 acknowledged". Five inceptions linked to their existing build tasks (2026-11-25), T-3372 linked to parked slices T-3870..T-3873 per operator ruling A (see Decisions).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -311,6 +312,7 @@ while the member is still red restarts a 14-day window from the close date, then
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash scripts/check-go-propagation.sh --no-heartbeat > .context/working/.t3682-gp.out 2>&1
 
 ## RCA
 
@@ -382,6 +384,12 @@ while the member is still red restarts a 14-day window from the close date, then
 -->
 
 ## Decisions
+
+### 2026-11-26 — T-3372 (TermLink under OpenCode, GO 2026-11-13, no build task): what to do (operator ruling)
+- **Chose:** A — file TermLink's four pieces as parked (horizon later) build tasks and link them to T-3372; nothing is built now.
+- **Operator's words:** "proceed as suggested" (2026-11-26), after the brief whose recommendation was A. Recorded as A; the agent stated this reading and that it can be overturned.
+- **Why:** the operator asked for OpenCode parity (2026-10-03) and has not withdrawn it; parking keeps the approval honest without taking time from the arc-011 one-main focus.
+- **Rejected:** B (build now: competes with the focus anchor); C (record as lapsed: nothing says OpenCode was dropped).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
