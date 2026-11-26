@@ -8,7 +8,7 @@ description: >
 status: started-work
 workflow_type: build
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
@@ -19,7 +19,7 @@ arc_id: comms-loudness
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: '2026-09-27T21:34:04Z'
+last_update: 2026-11-26T18:29:08Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -559,3 +559,7 @@ upgrade; .141 down (no route).
 
 ### 2026-08-30T18:12:25Z — status-update [task-update-agent]
 - **Change:** owner: agent → human
+
+### 2026-11-26T18:29:08Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: preserved at started-work (T-1589 shipping evidence)

@@ -10,6 +10,7 @@ description: "Re-homes the round-trip-loudness tasks orphaned when arc-003 (reli
   \ number skipped (reserved by T-1918 value-prioritisation comments)."
 status: in-progress
 anchor_task: T-2385
+close_task: T-3874
 headline_mechanic: "Every failure mode between 'message sent' and 'peer acted on it' surfaces\
   \ loudly in-band at the moment it happens, instead of days later via an out-of-band canary."
 demo_evidence: ""

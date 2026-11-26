@@ -11,12 +11,12 @@ description: >
 status: started-work
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:46Z
-last_update: 2026-10-18T20:40:35Z
+last_update: 2026-11-26T18:29:08Z
 date_finished:
 revisit_at: 2026-09-08            # T-1451: DEFER until Foundation primitives (T-2019/T-2021) ship and stabilize
 revisit_evidence_needed: "Foundation primitives (T-2019, T-2020, T-2021, T-2027) shipped
@@ -288,3 +288,7 @@ Typed RPCs are a real ergonomics + integration win — structured return shape f
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
 - **Reason:** Inception decision in progress
+
+### 2026-11-26T18:29:08Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: preserved at started-work (T-1589 shipping evidence)
