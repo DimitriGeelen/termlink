@@ -25695,3 +25695,21 @@ scan_id: R-79b788de
 task_id: T-3868
 payload:
   task_file: .tasks/active/T-3868-run-aef-ontology-agents-t-047-sampler-on.md
+---
+kind: scan_emitted
+timestamp: '2026-11-26T15:44:40Z'
+scan_id: R-2db0b2cf
+task_id: T-3682
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-26T15:44:40Z'
+scan_id: R-2db0b2cf
+task_id: T-3682
+payload:
+  task_file: .tasks/active/T-3682-warn-escalation-check-go-propagationsh-r.md

@@ -1,0 +1,101 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3682: WARN escalation: check-go-propagation.sh red 14d (since 2026-10-27T06:41:01Z) — fix or reclassify
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-26T15:44:48Z
+# ============================================================================
+
+task_id: T-3682
+task_name: "WARN escalation: check-go-propagation.sh red 14d (since 2026-10-27T06:41:01Z) — fix or reclassify"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-10T06:42:25Z
+completed: 2026-11-26T15:44:37Z
+duration_days: 16
+updates_count: 3
+first_commit: 2026-11-25T10:32:10+01:00
+last_commit: 2026-11-26T16:44:34+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  link five GO inceptions to the build tasks that already cite them (T-3483/3484, T-3493/3533+3534, T-3524/3540, T-3759/3760+3781, T-3786/3788); go-propagation 6 -> 1 firing (T-3372, operator decision). operator ruling A on T-3372 (OpenCode): four parked slices T-3870..T-3873 filed and linked; check-go-propagation green (0 firing)
+
+# Key outcomes
+outcomes:
+  - '`check-go-propagation.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-26 — T-3372 (TermLink under OpenCode, GO 2026-11-13, no build task): what to do (operator ruling)'
+    chose: 'A — file TermLink''s four pieces as parked (horizon later) build tasks and link them to T-3372; nothing is built now. - **Operator''s words:** "proceed as suggested" (2026-11-26), after the brief whose recommendation was A. Recorded as A; the agent stated this reading and that it can be overturned.'
+    rationale: 'the operator asked for OpenCode parity (2026-10-03) and has not withdrawn it; parking keeps the approval honest without taking time from the arc-011 one-main focus.'
+    alternatives_rejected: ['B (build now: competes with the focus anchor); C (record as lapsed: nothing says OpenCode was dropped).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/.id-highwater'
+  - '.tasks/.id-ledger.jsonl'
+  - '.tasks/active/T-3484-shared-dispatched-worker-contract-reach-.md'
+  - '.tasks/active/T-3534-signed-inject-and-spawn-time-allowlist-t.md'
+  - '.tasks/active/T-3540-wc03-consumers-refuse-an-attested-done-a.md'
+  - '.tasks/active/T-3682-warn-escalation-check-go-propagationsh-r.md'
+  - '.tasks/active/T-3781-non-root-dispatch-termlink-dispatch--fw-.md'
+  - '.tasks/active/T-3869-warn-escalation-check-human-ac-escalatio.md'
+  - '.tasks/active/T-3870-opencode-an-opencode-agent-is-reachable-.md'
+  - '.tasks/active/T-3871-opencode-termlinks-mcp-tools-work-in-an-.md'
+  - '.tasks/active/T-3872-opencode-sidecar-mail-delivery-and-wake-.md'
+  - '.tasks/active/T-3873-opencode-a-release-check-that-fails-when.md'
+  - '.tasks/completed/T-3372-termlink-functionality-under-opencode-op.md'
+  - '.tasks/completed/T-3483-dispatch-emits-a-first-class-worker-fini.md'
+  - '.tasks/completed/T-3493-inject-acl-for-registered-sessions-signe.md'
+  - '.tasks/completed/T-3524-wc03-which-remaining-vector-capabilities.md'
+  - '.tasks/completed/T-3533-inject-b-token-from-a-protected-filefd-o.md'
+  - '.tasks/completed/T-3759-non-root-design-session-needs-dispatch-o.md'
+  - '.tasks/completed/T-3760-non-root-dispatch-worker-runs-as-the-req.md'
+  - '.tasks/completed/T-3786-reach-the-1409-design-session-in-claude-.md'
+  - '.tasks/completed/T-3788-termlink-falls-back-to-a-non-root-users-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-25T10:32:10'
+    action: 'T-3682: link five GO inceptions to the build tasks that already cite them (T-3483/3484, T-3493/3533+3534, T-3524/3540, T-3759/3760+3781, T-3786/3788); go-propagation 6 -> 1 firing (T-3372, operator decision)'
+  - time: '2026-11-26T16:44:34'
+    action: 'T-3682: operator ruling A on T-3372 (OpenCode): four parked slices T-3870..T-3873 filed and linked; check-go-propagation green (0 firing)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 23582 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [warn-escalation, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 23582
+  commits: 3
+  files_changed: 24
+  lines_added: 2164
+  lines_removed: 38
+  footprint_refreshed_at: '2026-11-26T15:44:50Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3682-warn-escalation-check-go-propagationsh-r.md
+generated_by: context-agent-hybrid
