@@ -2255,7 +2255,13 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
-# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.61 (T-3851; was be.59, T-3824)
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.67 (T-3875; was be.61, T-3851)
+#
+# T-3875 retarget be.61 -> be.67 (a32434f98 -> ca1f5fb45): AEF T-5425, a hook that refuses by exit 2 counts as a
+# refusal, not a failure (our report P-082, T-3670's Hook-threshold WARN). Three preserved files changed upstream
+# (agents/termlink/bvp-estimator/estimator.py, lib/bvp.sh, lib/sidecar_cli.py); merges in .context/vendor-merges/T-3875.
+# estimator.py had one conflict, resolved to keep BOTH fallbacks: upstream T-3513 (fabric paths) first, our T-3189
+# (text-derived) last before UNMEASURED; tests/bvp-derived-blast-radius-fixtures.sh 34/0 on the merge.
 #
 # T-3824 retarget be.57 -> be.59 (tag -> commit ea167a69d, 170 commits; be.58 skipped): AEF T-5225, the PreToolUse
 # hook agents/context/block-cross-session-messages.sh that refuses SendMessage / SendToProject / SendToProjectContext
@@ -2310,7 +2316,7 @@ seam AEFU_WORKROOT RUNME_AEFU_WORKROOT "/var/tmp"
 seam AEFU_DIVCHECK RUNME_AEFU_DIVCHECK "$PROJECT_ROOT/scripts/check-vendor-divergence.sh"
 seam AEFU_URL RUNME_AEFU_URL "http://192.168.10.107:3003"
 seam AEFU_CURL RUNME_AEFU_CURL "curl"
-seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3851"
+seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3875"
 # T-3794: retargeted be.49 -> be.51 (AEF T-5137, the send-guard fix from our T-3790). The tag,
 # the marker that proves the wanted fix landed, and the task the commit names are seams, so the
 # fixtures keep their be.49 scenario while a real run takes be.51.
@@ -2322,10 +2328,10 @@ seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3851"
 # (T-3694 ruling A step 3). Five preserved files changed be.59 -> be.61 (check-active-task.sh, handover.sh, bvp.sh,
 # sidecar/inject.py, sidecar_cli.py); all 3-way merged clean (base be.59) into .context/vendor-merges/T-3851, base and
 # theirs from the public mirror at the tags with blob ids checked against AEF's (msg 0bee0f32).
-seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.61"
-seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/adapter2.py"
-seam AEFU_MARK RUNME_AEFU_MARK "T-5351"
-seam AEFU_TASK RUNME_AEFU_TASK "T-3851"
+seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.67"
+seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/hook-telemetry.sh"
+seam AEFU_MARK RUNME_AEFU_MARK "T-5425"
+seam AEFU_TASK RUNME_AEFU_TASK "T-3875"
 AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
 
 aefu_fw()  { (cd "$AEFU_PROJECT" && "$AEFU_PROJECT/.agentic-framework/bin/fw" "$@"); }
