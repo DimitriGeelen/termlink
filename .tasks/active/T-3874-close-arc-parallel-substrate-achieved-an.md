@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-26T18:28:37Z
-last_update: 2026-11-26T18:29:19Z
+last_update: 2026-11-27T22:13:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -352,6 +352,7 @@ date_finished: null
 - arc-001 demo: `scripts/substrate-drain-demo.sh` (T-2211, 2026-06-13): N workers drain an M-unit queue via the claim primitive, each unit won exactly once.
 - arc-001 task count from the task files 2026-11-26: 47 work-completed, 1 started-work (T-2026), 1 captured (T-3471).
 - arc-007: no runtime demo of its own; the in-band loudness it promised is arc-011's receipt path, live on the W1 sidecars (runme action 37/38, 2026-11-25 run rc=0).
+- arc-substrate-fitness (arc-002), added 2026-11-27 under operator ruling A ("finish T-3466 on proof, then close"): all 14 tasks work-completed (T-3466 last, after T-3878 fixed the fleet view). Demo: `docs/reports/T-3874-arc-substrate-fitness-close-demo.md` — presence bounded at messages(1000) (was ~30k stale beats on forever), dead-letter check healthy (0 pending, 0 dead-lettered), fleet view shows four hosts reporting daily 2026-11-20..26.
 
 ## Decisions
 

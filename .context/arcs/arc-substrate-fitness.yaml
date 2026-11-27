@@ -10,6 +10,7 @@ description: "Remediation arc from HANDOFF-termlink-remediation-2026-06-22 (buil
   Sovereign and unresolved."
 status: in-progress
 anchor_task: T-2242
+close_task: T-3874
 headline_mechanic: "An operator querying presence sees only LIVE agents (no multi-day-stale
   ghosts), and a worker's 'complete' is never silently lost — a discarded post surfaces
   in a recoverable dead-letter instead of vanishing"
