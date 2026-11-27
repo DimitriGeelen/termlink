@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-23T21:43:22Z
+last_update: 2026-11-27T21:25:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -349,6 +349,12 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
 -->
 
 ## Evolution
+
+### 2026-11-27 21:30Z — AEF T-5379 vendored (be.70), and its first field sample still misses
+- **What changed:** T-3876 vendored AEF v1.8.16-be.70 (operator run runme-20261127T211732Z, 11a OK, commit ac58e4a38). be.70 carries T-5379: the origin check matches the transcript record by prompt_id and re-reads for up to 0.4 s, logging each lookup to `.context/sidecar/receiver/origin-lookup.log`.
+- **First sample (this session's transcript):** a task-notification turn at 2026-11-27T21:21:45.599Z (promptId f9972525…, origin.kind task-notification, turnOrigin task_notification, promptSource system). Its lookup: `mark=none by=none prompt_id=yes reads=9 waited_ms=420`, i.e. the hook had a prompt_id but no record matched it within the window, so `classify_origin` (interactive session) returned human/inferred, the same misclassification as before.
+- **Plan impact:** step 5 (the operator's origin-reporting go, runme action 39) stays on hold. The step-4 entry condition is NOT met yet: "a task-notification arrives automated/harness-mark".
+- **Triggered:** reported to AEF with the record and the log line (2026-11-27 ~21:30Z), asking for the hook's prompt_id and the newest promptId seen to be logged, to tell an id mismatch from a late write.
 
 ### 2026-11-23 21:41Z — a harness-generated prompt was counted human and re-took main (finding)
 - **What changed:** the main lease had lapsed while the session was idle (action 39 at 21:40:56Z: "no main holder").
