@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-04T06:41:41Z
-last_update: 2026-11-25T21:09:26Z
+last_update: 2026-11-27T12:19:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -414,6 +414,17 @@ while the member is still red restarts a 14-day window from the close date, then
 -->
 
 ## Decisions
+
+### 2026-11-27 — Does the T-3800 widening still hold for T-3685, T-1632, T-2258? (operator ruling)
+- **Chose:** A — keep the widening (SD-ab145e8e, expires 2027-02-15); acknowledge the three audit warnings in `.context/checks/audit-warning-allowlist`, one task-specific entry each, citing T-3800 and each task's measured evidence.
+- **Operator's words:** "A" (2026-11-27).
+- **Why:** each close met the T-3800 conditions (measured proof + independent reviewer green, 2026-11-17); re-asking the operator would be the rubber-stamping T-3800 rejected.
+- **Rejected:** B (revoke and re-verify), C (spot-check T-3685 first), D (leave the warning red).
+- **Note:** entries are per task, not a blanket pattern, so any new reviewer-closed act-in-the-world criterion still surfaces.
+
+### 2026-11-26 — Two idle arcs (operator ruling)
+- **Chose:** A — close arc-parallel-substrate as achieved (demo T-2211) and comms-loudness as superseded by arc-011; carried by T-3874; the operator approves each close in Watchtower.
+- **Operator's words:** "Only two are open, then close them, it's fine" and "So as you suggested, as you suggest" (2026-11-26).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
