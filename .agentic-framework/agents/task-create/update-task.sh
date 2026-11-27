@@ -268,7 +268,7 @@ check_human_sovereignty() {
             # T-4199: with no Human criteria, /review/<id> shows 0/0 and has no close
             # control — name the route that closes this class (T-4156) instead.
             local _route=""
-            _route=$(PYTHONPATH="$FRAMEWORK_ROOT" python3 -m lib.unclosable_misfiled route "$TASK_FILE" 2>/dev/null || true)
+            _route=$(PYTHONPATH="$FRAMEWORK_ROOT" python3 "$FRAMEWORK_ROOT/lib/run_module.py" lib.unclosable_misfiled route "$TASK_FILE" 2>/dev/null || true)
             if [ "$_route" = "delegate" ]; then
                 echo "This task has no Human criteria and every Agent AC is ticked, so the" >&2
                 echo "review page has nothing to approve. Route it to the reviewer ladder (T-4156):" >&2
@@ -2506,17 +2506,16 @@ if [ -n "$NEW_STATUS" ]; then
         # Skipping is logged Tier-2 only for tracking adoption; not punitive.
         if [ "$NEW_STATUS" = "started-work" ] && [ -z "${FW_SKIP_L387_ADVISORY:-}" ]; then
             if command -v python3 >/dev/null 2>&1; then
-                _l387_findings=$(python3 - "$TASK_FILE" 2>/dev/null <<'PY' || true
+                _l387_findings=$(python3 - "$TASK_FILE" "$FRAMEWORK_ROOT" 2>/dev/null <<'PY' || true
 import sys
 from pathlib import Path
-ROOT = Path(__file__).resolve()
-# Walk up from script dir to find lib/reviewer
-for parent in [Path(sys.argv[0]).resolve()] + list(Path(sys.argv[0]).resolve().parents):
-    if (parent / "lib" / "reviewer" / "static_scan.py").exists():
-        sys.path.insert(0, str(parent))
-        break
-else:
+# T-5373: the framework root arrives as argv[2]. This script is read from stdin,
+# so sys.argv[0] is '-' and walking up from it walked the CWD: in a consumer it
+# found no lib/reviewer and the advisory silently never ran.
+_fw = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+if not _fw or not (_fw / "lib" / "reviewer" / "static_scan.py").exists():
     sys.exit(0)
+sys.path.insert(0, str(_fw))
 try:
     from lib.reviewer import static_scan as ss
 except Exception:
@@ -2561,15 +2560,16 @@ PY
         # Bypass: FW_SKIP_DECAY_ADVISORY=1 (advisory anyway — does NOT block).
         if [ "$NEW_STATUS" = "started-work" ] && [ -z "${FW_SKIP_DECAY_ADVISORY:-}" ]; then
             if command -v python3 >/dev/null 2>&1; then
-                _decay_findings=$(python3 - "$TASK_FILE" 2>/dev/null <<'PY' || true
+                _decay_findings=$(python3 - "$TASK_FILE" "$FRAMEWORK_ROOT" 2>/dev/null <<'PY' || true
 import sys
 from pathlib import Path
-for parent in [Path(sys.argv[0]).resolve()] + list(Path(sys.argv[0]).resolve().parents):
-    if (parent / "lib" / "reviewer" / "static_scan.py").exists():
-        sys.path.insert(0, str(parent))
-        break
-else:
+# T-5373: the framework root arrives as argv[2]. This script is read from stdin,
+# so sys.argv[0] is '-' and walking up from it walked the CWD: in a consumer it
+# found no lib/reviewer and the advisory silently never ran.
+_fw = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+if not _fw or not (_fw / "lib" / "reviewer" / "static_scan.py").exists():
     sys.exit(0)
+sys.path.insert(0, str(_fw))
 try:
     from lib.reviewer import static_scan as ss
 except Exception:
@@ -3058,6 +3058,13 @@ tags: $tag_yaml" "$TASK_FILE"
         echo "Tags:    $tag_yaml (added)"
         CHANGES+=("tags: $tag_yaml (added)")
     fi
+fi
+
+# T-5391: tags changed — a task now tagged outside-contributor links the PR
+# workflow map (idempotent; untagged tasks are not touched).
+if [ -n "$NEW_TAGS" ] || [ -n "$ADD_TAGS" ]; then
+    source "$FRAMEWORK_ROOT/lib/workflow-map-link.sh"
+    fw_link_workflow_map "$TASK_FILE"
 fi
 
 # Update last_update timestamp

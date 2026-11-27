@@ -417,6 +417,10 @@ WGIT
     # shellcheck source=lib/dispatch-gitignore.sh
     source "$FRAMEWORK_ROOT/lib/dispatch-gitignore.sh"
     fw_dispatch_ensure_ignored "$target_dir" >/dev/null
+    # T-5373: flock anchors (.context/locks/*.lock) — one list shared with fw upgrade.
+    # shellcheck source=lib/locks-gitignore.sh
+    source "$FRAMEWORK_ROOT/lib/locks-gitignore.sh"
+    fw_locks_ensure_ignored "$target_dir" >/dev/null
     # T-5271: operator-dropped files (.context/inbox/files/) — one list shared with fw upgrade, doctor, audit.
     # shellcheck source=lib/inbox-files-gitignore.sh
     source "$FRAMEWORK_ROOT/lib/inbox-files-gitignore.sh"
@@ -1314,6 +1318,24 @@ generate_claude_code_config() {
         ]
       },
       {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-mcp-egress"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-hook-wiring"
+          }
+        ]
+      },
+      {
         "matcher": "mcp__termlink__termlink_channel_post",
         "hooks": [
           {
@@ -1464,6 +1486,14 @@ except Exception:
 print(n)
 " 2>/dev/null || echo "?")
         echo -e "  ${GREEN}OK${NC}  .claude/settings.json written ($_t2912_hook_count hook command(s) configured)"
+        # T-5405: publishing to Anthropic is blocked by default (deny rules; key allow = off).
+        local _pb_py="${FW_LIB_DIR:-$(dirname "${BASH_SOURCE[0]}")}/publish_ban.py" _pb_mode
+        if [ -f "$_pb_py" ] && command -v python3 >/dev/null 2>&1; then
+            _pb_mode=$(PROJECT_ROOT="$dir" python3 "$_pb_py" mode 2>/dev/null || echo deny)
+            python3 "$_pb_py" ensure "$dir/.claude/settings.json" "$_pb_mode" >/dev/null 2>&1 \
+                && echo -e "  ${GREEN}OK${NC}  publishing to Anthropic: ${_pb_mode/deny/blocked (default)}" \
+                || echo -e "  ${YELLOW}WARN${NC}  could not write publish-to-Anthropic deny rules"
+        fi
     else
         # T-677: Pre-existing settings.json — back up and overwrite with framework hooks
         # The framework's governance hooks are authoritative; project-specific hooks from

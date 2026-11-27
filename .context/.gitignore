@@ -2,3 +2,5 @@
 /dispatch/
 # T-5271: operator-dropped files (fleet cockpit /drop) — never committed.
 /inbox/files/
+# T-5373: flock anchors (.context/locks/*.lock) — persist by design, never committed.
+/locks/

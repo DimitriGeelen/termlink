@@ -5571,7 +5571,7 @@ check_delegation_surface() {
     _threshold="${FW_DELEGATION_SURFACE_WARN:-50}"
     _facts=$(PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
              PYTHONPATH="$FRAMEWORK_ROOT" FW_DELEGATION_SURFACE_WARN="$_threshold" \
-             python3 -m lib.delegation_cli surface --facts 2>/dev/null || true)
+             python3 "$FRAMEWORK_ROOT/lib/run_module.py" lib.delegation_cli surface --facts 2>/dev/null || true)
     [ -n "$_facts" ] || return 0
 
     local _level _rc _rj _as _oo _tasks _thr _delegable
@@ -6386,6 +6386,22 @@ if [ -f "$FRAMEWORK_ROOT/lib/subscriptions.py" ]; then
                     "Run: python3 lib/subscriptions.py audit" ;;
         esac
     done < <(PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" python3 "$FRAMEWORK_ROOT/lib/subscriptions.py" audit 2>&1)
+fi
+
+# MCP egress gate (T-5394, G-140): lists every registered MCP server with the egress-capable
+# tools/rules that cover it and the gate; FAIL when the PreToolUse hook is not wired.
+if [ -f "$FRAMEWORK_ROOT/lib/mcp_egress.py" ]; then
+    while IFS=$'\t' read -r _eg_lvl _eg_msg; do
+        case "$_eg_lvl" in
+            PASS) pass "$_eg_msg" ;;
+            FAIL) fail "$_eg_msg" "policy/mcp-egress.yaml / .claude/settings.json" \
+                       "Read the message: unwired hook -> fw upgrade (consumers) or fw hook-enable --name check-mcp-egress --matcher 'mcp__.*' --event PreToolUse; missing publish-ban rules -> fw upgrade" ;;
+            WARN) warn "$_eg_msg" "lib/mcp_egress.py audit" "Run: bin/fw egress audit" ;;
+            INFO|"") ;;
+            *) warn "MCP egress audit emitted unexpected output: ${_eg_lvl:0:120}" "lib/mcp_egress.py audit" \
+                    "Run: python3 lib/mcp_egress.py audit" ;;
+        esac
+    done < <(PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" python3 "$FRAMEWORK_ROOT/lib/mcp_egress.py" audit 2>&1)
 fi
 
 # Check for commit-msg hook (validates task references)
@@ -8178,7 +8194,7 @@ PYEOF
     _um_cli="$FRAMEWORK_ROOT/lib/unclosable_misfiled.py"
     if [ -f "$_um_cli" ] && [ -d "$PROJECT_ROOT/.tasks/active" ]; then
         _um_facts=$(PROJECT_ROOT="$PROJECT_ROOT" PYTHONPATH="$FRAMEWORK_ROOT" \
-                    python3 -m lib.unclosable_misfiled scan --facts 2>/dev/null || true)
+                    python3 "$FRAMEWORK_ROOT/lib/run_module.py" lib.unclosable_misfiled scan --facts 2>/dev/null || true)
         if [ -n "$_um_facts" ]; then
             IFS=$'\t' read -r _um_count _um_ids <<< "$_um_facts"
             if [ "${_um_count:-0}" -gt 0 ] 2>/dev/null; then

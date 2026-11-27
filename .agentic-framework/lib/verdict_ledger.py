@@ -715,16 +715,16 @@ PROJECT_CONFIG = ("CLAUDE.md", "CLAUDE.local.md", ".claude", ".mcp.json")
 #:                 CLAUDE.md, .claude/ agents, commands, skills or settings, and no .mcp.json
 #:                 (probed 2026-10-01 with marker files: user-only NONE, default launch found them).
 #:   ollama-loop — reads its worker directory only.
-#:   codex, opencode, antigravity (HARNESS_KINDS) — run in a `git archive` export of the pinned
+#:   codex, opencode, antigravity, vibe (HARNESS_KINDS) — run in a `git archive` export of the pinned
 #:                 revision, never in the working tree: what they load IS the reviewed revision.
 #: A kind not listed here is checked against all of PROJECT_CONFIG (fail closed).
 WORKTREE_CONFIG: dict[str, tuple[str, ...]] = {
-    "claude": (), "ollama-loop": (), "codex": (), "opencode": (), "antigravity": ()}
+    "claude": (), "ollama-loop": (), "codex": (), "opencode": (), "antigravity": (), "vibe": ()}
 #: T-3582: kinds the runtime launches read-only in an export of the reviewed revision, whose
 #: printed verdict the RUNTIME records on the worker's behalf (`record_for_worker`), because the
 #: harness itself cannot run `fw reviewer verdict record` and commit. Mirrored by the case
 #: statement in run.sh (agents/termlink/termlink.sh; a test pins the two equal).
-HARNESS_KINDS = ("codex", "opencode", "antigravity")
+HARNESS_KINDS = ("codex", "opencode", "antigravity", "vibe")
 
 
 def _worker_settings(root: Path, revision: str) -> str:
@@ -1416,8 +1416,8 @@ def _worker_session(wdir: Path) -> str:
             except ValueError:
                 continue
             # claude: session_id; codex --json: thread_id; opencode --format json: sessionID;
-            # antigravity stream-json (T-5309): conversation_id.
-            for key in ("session_id", "thread_id", "sessionID", "conversation_id"):
+            # antigravity stream-json (T-5309): conversation_id; vibe --output streaming (T-5370): sessionId.
+            for key in ("session_id", "thread_id", "sessionID", "conversation_id", "sessionId"):
                 if isinstance(ev, dict) and str(ev.get(key) or "").strip():
                     return str(ev[key]).strip()
     except OSError:
@@ -2961,7 +2961,9 @@ def _needs_view(ctx: "_Ctx", crit) -> bool:
     """T-5353: does this criterion's evidence need a proven view of screenshots of pages? The
     judge's own test (`evidence_need.needs_view`: render, or names a page whatever its class), so
     the judge, `_run_fault` and the vote checker never disagree on which criteria it covers."""
-    return evidence_need.needs_view(_is_render_review(ctx, crit), crit.title, criterion_body(crit))
+    root = getattr(ctx, "root", None)   # T-5367: only this project's Watchtower URLs are pages
+    return evidence_need.needs_view(_is_render_review(ctx, crit), crit.title, criterion_body(crit),
+                                    evidence_need.own_origin(root))
 
 
 def _run_fault(ctx: "_Ctx", row: dict, crit, recording: bool) -> tuple[str, str] | None:

@@ -329,16 +329,6 @@ def _subagent_evidence(name: str, runner) -> str | None:
     return None
 
 
-def _project_inbox_read(own: str, name: str, runner) -> bool:
-    """Does `inbox:<own>/<name>` exist on our hub, read since its last write (T-4529)?"""
-    topic = circuit.topic_for_circuit(f"{own}/{name}")
-    try:
-        rows = hub_inbox_topics(own, None, runner) or []
-    except Exception:
-        return False
-    return any(r.get("name") == topic and topic_is_read(r) for r in rows)
-
-
 def _project_inboxes_on(hub: str, hub_id: str, runner) -> list[str] | None:
     """Project names with an inbox on a remote hub (`inbox:<hub_id>/<project>`,
     no deeper segment), or None when the hub could not be asked (T-3899)."""
@@ -477,16 +467,18 @@ def resolve(to: str, *, hub: str | None = None, level: str = "auto",
     why = _subagent_evidence(name, runner)
     if why:
         return out(f"{own}/{circuit.project_id()}/{name}", hub_arg, f"sub-agent: {why}")
-    if level == "auto" and _project_inbox_read(own, name, runner):
-        # T-4529: a project outside the numbering, registered on this hub —
-        # its inbox exists and something fetched it after its last write. A
-        # topic nobody reads (a nickname, T-4418) is not evidence.
-        return out(f"{own}/{name}", hub_arg, "project address on this hub, its inbox is read")
+    # T-5427 (AEF-ontology-agent RCA): the T-4529 route that accepted a bare name
+    # here because `inbox:<own>/<name>` had been fetched after its last write is
+    # gone. The hub counts any fetch as a read, a peek or a host-wide scan included
+    # (T-5149), so a nickname nobody reads passed: three consults to
+    # `proxmox-ring20-management` were stored on our own hub, reported delivered,
+    # and never read. An unnumbered project on this hub is now a deliberate choice.
     raise AddressError(
         f"recipient {name!r} is not resolvable: not a project id on this hub, not in "
         f"the peer directory ({peers_path()}), and not a sub-agent of this agent "
         f"(no inbox:{own}/{circuit.project_id()}/{name} on this hub). Address it as "
-        f"--to <hubid>/{name}, or --hub <profile> for a peer on another hub, or "
+        f"--to <hubid>/{name}, or --hub <profile> for a peer on another hub, "
+        f"--level project if it IS a project on this hub outside the numbering, or "
         f"--level agent if it IS your sub-agent" + _close_peers_hint(name))
 
 
@@ -725,12 +717,53 @@ def orphan_inboxes(*, runner=None) -> list[dict] | None:
         row = {"topic": topic, "count": count,
                "unread_since_ms": a.get("unread_since_ms"),
                "last_writer": a.get("last_writer"),
-               "nickname_of": nickname_candidates(rest)}
+               "nickname_of": nickname_candidates(rest),
+               # T-5418: a topic named like THIS project (its id, or the id without the
+               # numeric prefix — what peers derive from the repo name) is mail to us.
+               "own_nickname": rest.lower() in own_nicknames()}
+        if row["own_nickname"]:
+            acked = orphan_acks().get(topic)
+            row["first_unacked"] = (acked + 1) if isinstance(acked, int) else 0
         if state == "unknown":
             row["readers_checked"] = False
             row["readers_reason"] = detail
         out.append(row)
     return out
+
+
+def own_nicknames() -> set:
+    """T-5418: names peers use for THIS project — its id and the id without the numeric
+    prefix (999-Agentic-Engineering-Framework -> agentic-engineering-framework), lower-cased.
+    Aliases already read (SIDECAR_INBOX_ALIASES) never reach the orphan check."""
+    try:
+        pid = circuit.project_id()
+    except Exception:
+        return set()
+    names = {pid.lower()}
+    m = circuit._PROJECT_ID_RE.match(pid)
+    if m and pid[m.end():]:
+        names.add(pid[m.end():].lower())
+    return {n for n in names if n}
+
+
+def topic_senders(topic: str, first_offset: int = 0, limit: int = 5, *, reader=None,
+                  now_ms: int | None = None) -> list[dict] | None:
+    """T-5418: the latest `limit` posts on `topic` from `first_offset`: sender, conversation,
+    age in seconds. None when the topic could not be read. Read-only (no cursor moves)."""
+    from . import inbox
+    read = reader or inbox.default_reader
+    env = read(topic, first_offset, 200)
+    if not isinstance(env, list):
+        return None
+    now_ms = now_ms if now_ms is not None else int(datetime.now(timezone.utc).timestamp() * 1000)
+    out = []
+    for e in env:
+        md = e.get("metadata") or {}
+        ts = e.get("ts") or e.get("timestamp")
+        out.append({"from": md.get("from_project") or md.get("from_agent") or "?",
+                    "conversation": md.get("conversation_id") or "-",
+                    "age_s": max(0, (now_ms - int(ts)) // 1000) if isinstance(ts, (int, float)) else None})
+    return out[-limit:]
 
 
 def _orphan_acks_path() -> Path:

@@ -127,16 +127,21 @@ if best:
 PY
 }
 
-# _derive_task_type — read the active task's workflow_type from focus.yaml.
+# _derive_task_type — workflow_type of the dispatched task ($1), else of the focused task.
 # Echoes the derived value (e.g. "build", "inception") or empty if no focus
 # or the focused task file cannot be read. Never errors — failures are silent
 # (caller treats empty as "no derivation").
 _derive_task_type() {
+    # T-5407: $1 = the dispatched task (--task). It decides the type; focus.yaml is only
+    # the fallback when no task was given. Reading focus first mislabelled a build
+    # dispatch as 'inception' when focus sat on another task (w-t5405, 2026-11-24).
     local project_root="${PROJECT_ROOT:-$FRAMEWORK_ROOT}"
-    local focus_file="$project_root/.context/working/focus.yaml"
-    [ -f "$focus_file" ] || return 0
-    local current_task
-    current_task=$(awk -F': ' '/^current_task:/ {print $2; exit}' "$focus_file" 2>/dev/null | tr -d ' "')
+    local current_task="${1:-}"
+    if [ -z "$current_task" ]; then
+        local focus_file="$project_root/.context/working/focus.yaml"
+        [ -f "$focus_file" ] || return 0
+        current_task=$(awk -F': ' '/^current_task:/ {print $2; exit}' "$focus_file" 2>/dev/null | tr -d ' "')
+    fi
     [ -n "$current_task" ] && [ "$current_task" != "null" ] || return 0
     local task_file
     task_file=$({ ls "$project_root"/.tasks/{active,completed}/"$current_task"-*.md 2>/dev/null || true; } | head -1)
@@ -461,7 +466,7 @@ USAGE
 
     # T-1643/W2: derive task_type from active-task workflow_type when omitted.
     if [ -z "$task_type" ]; then
-        task_type=$(_derive_task_type)
+        task_type=$(_derive_task_type "$task")
     fi
 
     local wdir
@@ -1138,11 +1143,11 @@ _retention_kick() {
 # `fw termlink worker-kinds` so a caller (fw reviewer judge) learns what can actually be
 # dispatched instead of hardcoding it. Must match the case statement in cmd_dispatch
 # (pinned by tests/unit/t3580_round3_test.py).
-# T-3582: codex (openai), opencode (zai) and antigravity (google) are HARNESS kinds — review-only,
+# T-3582: codex (openai), opencode (zai), antigravity (google) and vibe (mistral, T-5370) are HARNESS kinds — review-only,
 # run read-only in a `git archive` export of the reviewed revision, launched by the binary and
 # model policy/review-backends.yaml commits, their printed verdict recorded by the runtime
 # (lib/verdict_ledger.py HARNESS_KINDS, record-for-worker). See docs/harnesses.md.
-DISPATCH_WORKER_KINDS="claude ollama-loop codex opencode antigravity"
+DISPATCH_WORKER_KINDS="claude ollama-loop codex opencode antigravity vibe"
 
 # T-3580 round 7 (Claude F2): the ONLY caller --env keys a REVIEW dispatch accepts — deny by
 # default. Round 8 (Claude N7): none. A reviewer needs nothing from its caller's environment:
@@ -1371,7 +1376,7 @@ cmd_dispatch() {
     ensure_termlink
 
     case "$worker_kind" in
-        ""|claude|ollama-loop|codex|opencode|antigravity) : ;;
+        ""|claude|ollama-loop|codex|opencode|antigravity|vibe) : ;;
         *) die "Unknown --worker-kind: $worker_kind (allowed: $DISPATCH_WORKER_KINDS)" ;;
     esac
 
@@ -1412,11 +1417,11 @@ cmd_dispatch() {
 
     # T-1643/W1: auto-derive task_type from focus.yaml when omitted.
     if [ -z "$task_type" ]; then
-        task_type=$(_derive_task_type)
+        task_type=$(_derive_task_type "$task")
     fi
     # T-3582: a harness kind is a review worker only — run.sh has no build/test path for it.
     case "$worker_kind" in
-        codex|opencode|antigravity)
+        codex|opencode|antigravity|vibe)
             [ "$task_type" = "review" ] || die "--worker-kind $worker_kind runs only as a review dispatch (--task-type review); got task type '${task_type:-none}'" ;;
     esac
 
@@ -1466,7 +1471,7 @@ cmd_dispatch() {
     # keeps the /tmp root (scratch for a run the ledger re-verifies, not a result store).
     local wdir="$DISPATCH_DIR/$name" prev_wdir
     case "$worker_kind" in
-        codex|opencode|antigravity)
+        codex|opencode|antigravity|vibe)
             [ "${#DISPATCH_ROOTS[@]}" -gt 1 ] && wdir="$LEGACY_DISPATCH_DIR/$name" ;;
     esac
     prev_wdir=$(_wdir_of "$name")
@@ -2097,7 +2102,7 @@ WORKER_KIND=""
 [ -f "$WDIR/worker_kind.txt" ] && WORKER_KIND=$(cat "$WDIR/worker_kind.txt")
 # T-3582: harness kinds (lib/verdict_ledger.py HARNESS_KINDS; a test pins the two equal).
 HARNESS=""
-case "$WORKER_KIND" in codex|opencode|antigravity) HARNESS=1 ;; esac
+case "$WORKER_KIND" in codex|opencode|antigravity|vibe) HARNESS=1 ;; esac
 
 if [ "$WORKER_KIND" = "ollama-loop" ]; then
     # Resolve project's ollama-tool-loop.py — prefer FRAMEWORK_ROOT if vendored,
@@ -2195,6 +2200,14 @@ elif [ -n "$HARNESS" ]; then
                 # SDK into the export (+3,650 files) and the seat is voided. Same isolation as codex.
                 ( cd "$TREE" && _fw_seat_env && TMPDIR="$SEAT_TMP" OPENCODE_DISABLE_PROJECT_CONFIG=1 exec ${SEAT_PIDNS[@]+"${SEAT_PIDNS[@]}"} "$WORKER_BIN" run ${MODEL:+-m "$MODEL"} --agent plan --pure --format json "$PROMPT_TEXT" < /dev/null > "$WDIR/result.jsonl" 2>> "$WDIR/stderr.log" ) &
                 ;;
+            vibe)
+                # T-5370: Mistral Vibe headless (-p) in the export. --agent plan: vibe's built-in
+                # read-only agent (reads auto-approved; anything needing approval is refused
+                # headless); --workdir is the export and is NOT --trust'ed, so a .vibe/ config in
+                # the reviewed tree is not trusted; --output streaming: JSONL events (sessionId,
+                # assistant text), normalised to result.md below. vibe has no --model flag.
+                ( cd "$TREE" && _fw_seat_env && TMPDIR="$SEAT_TMP" exec ${SEAT_PIDNS[@]+"${SEAT_PIDNS[@]}"} "$WORKER_BIN" --workdir "$TREE" --agent plan --output streaming -p "$PROMPT_TEXT" < /dev/null > "$WDIR/result.jsonl" 2>> "$WDIR/stderr.log" ) &
+                ;;
             antigravity)
                 # The operator-approved form (2026-09-30), with the registered absolute binary:
                 # sudo's secure_path does not reach ~/.local/bin. sudo drops this environment
@@ -2254,6 +2267,20 @@ if kind == "opencode":
         if isinstance(ev, dict) and ev.get("type") == "text":
             parts.append(str((ev.get("part") or {}).get("text") or ""))
     (w / "result.md").write_text("\n".join(p for p in parts if p).strip() + "\n")
+elif kind == "vibe":
+    # T-5370: --output streaming, one JSON event per line; the final text is the assistant
+    # message events' text parts (role "assistant"), in order.
+    parts = []
+    for line in (w / "result.jsonl").read_text(errors="replace").splitlines() if (w / "result.jsonl").is_file() else []:
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(ev, dict) and ev.get("type") == "message" and ev.get("role") == "assistant":
+            for c in ev.get("content") or []:
+                if isinstance(c, dict) and c.get("type") == "text":
+                    parts.append(str(c.get("text") or ""))
+    (w / "result.md").write_text(ansi.sub("", "\n".join(p for p in parts if p)).strip() + "\n" if any(parts) else "")
 elif kind == "antigravity":
     # T-5309: stream-json. The final text is the `result` event's response; without one (a run cut
     # short), the agent_response text deltas. A non-SUCCESS result is named on stderr.

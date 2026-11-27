@@ -108,6 +108,24 @@ backends:
       - '\bapply_patch\b'
       - '"type"\s*:\s*"tool_use"'
 
+  - id: antigravity
+    name: "Google Antigravity (agy CLI)"
+    harness_class: "subscription"
+    cost_class: "internal"
+    approval_required: false
+    cost_estimate_method: "unmetered"
+    description: "Antigravity 1.1.15 CLI on the operator's Google account; runs as user dimitri-mint-dev via sudo -n -u dimitri-mint-dev -H <binary> -p ... --mode plan --sandbox (operator approved 2026-09-30; the absolute path is needed because sudo's secure_path does not include ~/.local/bin). Third rung-5 panel seat: moved ahead of opencode by the operator 2026-11-23 (opencode votes were refused three times on citation format, T-5301)."
+    worker_kind: antigravity
+    vision: true   # T-5175: probe 2026-11-16 (fw reviewer probe-vision, T-5176): 8 cards + exact title via read_file; set on the operator's yes (2026-11-16)
+    vendor: google
+    credential:
+      source: cli-login
+      note: "agy CLI signed in to the operator's Google account as user dimitri-mint-dev — the CLI authenticates itself"
+    binary: /home/dimitri-mint-dev/.local/bin/agy
+    match:
+      - "\\bagy\\b"
+      - '--worker-kind[= ]antigravity\b'
+
   - id: opencode
     name: "Z.ai Coding Plan (opencode)"
     harness_class: subscription
@@ -121,7 +139,7 @@ backends:
     credential:
       source: cli-login
       note: "opencode auth login with the Z.ai coding plan (opencode's own auth store) — the CLI authenticates itself"
-    model: zai-coding-plan/glm-5.3
+    model: zai-coding-plan/glm-5.4  # operator 2026-11-24 (was glm-5.3)
     binary: /root/.opencode/bin/opencode
     match:
       - '(^|[;&|]\s*|/)opencode\s'
@@ -137,6 +155,34 @@ backends:
       tool_markers:
       - '^\s*[|│]\s+(Read|Glob|Grep|List|Bash|Edit|Write|Patch|WebFetch|Webfetch|Task|Skill|Todo\w*)\b'
       - '"type"\s*:\s*"tool_use"'
+
+  - id: mistral-vibe
+    name: "Mistral Vibe (subscription)"
+    harness_class: subscription
+    cost_class: internal      # T-5370: operator 2026-11-23 — "a true subscription"
+    approval_required: false
+    cost_estimate_method: unmetered
+    description: "Mistral Vibe CLI via the operator's Mistral subscription"
+    worker_kind: vibe
+    vendor: mistral
+    vision: false  # T-5370: not probed for image input; no image attachment path in the seat
+    credential:
+      source: cli-login
+      note: "vibe's own login (vibe --setup; auth state under its VIBE_HOME) — the CLI authenticates itself"
+    binary: /root/.local/bin/vibe
+    match:
+      - '(^|[;&|]\s*|/)vibe\s'
+      - '--worker-kind[= ]vibe\b'
+    isolation:   # T-5370: headless, every tool denied, one turn, workdir untrusted, stdin closed
+      # vibe has no --model flag (the model is vibe's own config). `--enabled-tools <a name
+      # that matches no tool>` in headless mode disables every tool: the model may still ASK
+      # for one, and each ask is refused ("Tool execution denied by approval policy", probed
+      # 2026-11-23). --output streaming: JSONL events, so an attempted tool call is visible.
+      argv: ["{binary}", "--workdir", "{seat_dir}", "--agent", "plan", "--enabled-tools", "__no_tool__", "--max-turns", "1", "--output", "streaming", "-p", "{prompt}"]
+      stdin: closed
+      tool_markers:
+      - '"type"\s*:\s*"effect"'
+      - '"toolName"\s*:'
 
   - id: local-gpu
     name: "Local GPU (operator's machine)"
@@ -168,22 +214,3 @@ backends:
       - '(^|[;&|]\s*|/)openrouter\s'
       - '\$\{?OPENROUTER_API_KEY'
       - '\breview\s+credential\s+openrouter\b.*--exec\b'
-
-  - id: antigravity
-    name: "Google Antigravity (agy CLI)"
-    harness_class: "subscription"
-    cost_class: "internal"
-    approval_required: false
-    cost_estimate_method: "unmetered"
-    description: "Antigravity 1.1.15 CLI on the operator's Google account; runs as user dimitri-mint-dev via sudo -n -u dimitri-mint-dev -H <binary> -p ... --mode plan --sandbox (operator approved 2026-09-30; the absolute path is needed because sudo's secure_path does not include ~/.local/bin). Spare panel seat (after claude, codex, opencode in registry order)."
-    worker_kind: antigravity
-    vision: true   # T-5175: probe 2026-11-16 (fw reviewer probe-vision, T-5176): 8 cards + exact title via read_file; set on the operator's yes (2026-11-16)
-    vendor: google
-    credential:
-      source: cli-login
-      note: "agy CLI signed in to the operator's Google account as user dimitri-mint-dev — the CLI authenticates itself"
-    binary: /home/dimitri-mint-dev/.local/bin/agy
-    match:
-      - "\\bagy\\b"
-      - '--worker-kind[= ]antigravity\b'
-

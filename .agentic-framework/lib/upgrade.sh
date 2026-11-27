@@ -233,6 +233,24 @@ _sv_is_withheld() {
 }
 
 # T-4419: scoped detection for `fw vendor self --check --task T-XXXX | --paths p…`.
+# T-3156: the copy decision used to be content-only (`diff -q` / `cmp -s`), so a
+# source whose ONLY change was its exec bit never re-copied: T-3051 chmod'ed
+# agents/handover/discard-manifest.sh 644 -> 755 and the vendored copy stayed 644
+# for three months behind a clean --check and a clean `git status` (the wrong mode
+# was the recorded mode). Every helper that propagates the exec bit now also
+# treats an exec-bit mismatch as drift, and syncs the bit in both directions.
+# 0 = exec bits differ (dst exists), 1 = same.
+_sv_mode_differs() {
+    [ -f "$2" ] || return 1
+    if [ -x "$1" ]; then [ ! -x "$2" ]; else [ -x "$2" ]; fi
+}
+
+# Make dst's exec bit match src's. Always returns 0.
+_sv_sync_mode() {
+    if [ -x "$1" ]; then chmod +x "$2"; else chmod a-x "$2"; fi
+    return 0
+}
+
 # The whole-tree --check answers "is every vendored class in sync", which is right for
 # audit and pre-push but wrong at a task close: with parallel workers in one checkout,
 # another worker's uncommitted edit is drift for everyone. When _SV_SCOPE_ACTIVE=1,
@@ -245,7 +263,7 @@ _sv_scope_skip() {
     [ "${_SV_SCOPE_ACTIVE:-0}" = "1" ] || return 1
     rel="${src#$FRAMEWORK_ROOT/}"
     printf '%s\n' "${_SV_SCOPE:-}" | grep -qxF -- "$rel" && return 1
-    if [ ! -f "$dst" ] || ! cmp -s "$src" "$dst"; then
+    if [ ! -f "$dst" ] || ! cmp -s "$src" "$dst" || _sv_mode_differs "$src" "$dst"; then
         echo "  Self-vendor: in flight, not this task: $rel"
     fi
     return 0
@@ -283,12 +301,12 @@ _self_vendor_libs() {
         _sv_rel="${_sv_src#$FRAMEWORK_ROOT/lib/}"
         _sv_dst="$_self_vendor/lib/$_sv_rel"
         _sv_scope_skip "$_sv_src" "$_sv_dst" && continue   # T-4419
-        if [ ! -f "$_sv_dst" ] || ! diff -q "$_sv_src" "$_sv_dst" > /dev/null 2>&1; then
+        if [ ! -f "$_sv_dst" ] || ! diff -q "$_sv_src" "$_sv_dst" > /dev/null 2>&1 || _sv_mode_differs "$_sv_src" "$_sv_dst"; then
             if [ "$dry_run" != true ]; then
                 _sv_dst_dir=$(dirname "$_sv_dst")
                 [ -d "$_sv_dst_dir" ] || mkdir -p "$_sv_dst_dir"
                 cp "$_sv_src" "$_sv_dst"
-                [ -x "$_sv_src" ] && chmod +x "$_sv_dst"
+                _sv_sync_mode "$_sv_src" "$_sv_dst"
             fi
             _sv_updated=$((_sv_updated + 1))
         fi
@@ -437,7 +455,9 @@ _self_vendor_policy() {
     # lib/verdict_ledger.py derives every review dispatch's vendor from (it falls back to
     # FRAMEWORK_ROOT/policy/, which in a consumer is .agentic-framework/policy/).
     # T-4411: issue-areas.yaml is the area mapping the vendored lib/issues.py reads beside it.
-    for _svp_name in value-drivers.yaml bvp-scoring-rubric.md capability-overlay/tool-set.yaml anti-patterns.yaml escalation-patterns.yaml designer-pin.yaml driver-scoring-example.yaml review-backends.yaml issue-areas.yaml; do
+    # T-5394: mcp-egress.yaml is the classification the vendored lib/mcp_egress.py reads; without
+    # it the check-mcp-egress hook fails closed and refuses EVERY MCP tool.
+    for _svp_name in value-drivers.yaml bvp-scoring-rubric.md capability-overlay/tool-set.yaml anti-patterns.yaml escalation-patterns.yaml designer-pin.yaml driver-scoring-example.yaml review-backends.yaml issue-areas.yaml mcp-egress.yaml; do
         _svp_src="$FRAMEWORK_ROOT/policy/$_svp_name"
         _svp_dst="$_self_vendor/policy/$_svp_name"
         [ -f "$_svp_src" ] || continue
@@ -520,11 +540,11 @@ _self_vendor_shim() {
         _svs_rel="${_svs_src#$FRAMEWORK_ROOT/bin/}"
         _svs_dst="$_self_vendor/bin/$_svs_rel"
         _sv_scope_skip "$_svs_src" "$_svs_dst" && continue   # T-4419
-        if [ ! -f "$_svs_dst" ] || ! diff -q "$_svs_src" "$_svs_dst" > /dev/null 2>&1; then
+        if [ ! -f "$_svs_dst" ] || ! diff -q "$_svs_src" "$_svs_dst" > /dev/null 2>&1 || _sv_mode_differs "$_svs_src" "$_svs_dst"; then
             if [ "$dry_run" != true ]; then
                 mkdir -p "$(dirname "$_svs_dst")"
                 cp "$_svs_src" "$_svs_dst"
-                [ -x "$_svs_src" ] && chmod +x "$_svs_dst"
+                _sv_sync_mode "$_svs_src" "$_svs_dst"
             fi
             _svs_updated=$((_svs_updated + 1))
         fi
@@ -606,12 +626,12 @@ _self_vendor_agents() {
         _sva_rel="${_sva_src#$FRAMEWORK_ROOT/agents/}"
         _sva_dst="$_self_vendor/agents/$_sva_rel"
         _sv_scope_skip "$_sva_src" "$_sva_dst" && continue   # T-4419
-        if [ ! -f "$_sva_dst" ] || ! diff -q "$_sva_src" "$_sva_dst" > /dev/null 2>&1; then
+        if [ ! -f "$_sva_dst" ] || ! diff -q "$_sva_src" "$_sva_dst" > /dev/null 2>&1 || _sv_mode_differs "$_sva_src" "$_sva_dst"; then
             if [ "$dry_run" != true ]; then
                 _sva_dst_dir=$(dirname "$_sva_dst")
                 [ -d "$_sva_dst_dir" ] || mkdir -p "$_sva_dst_dir"
                 cp "$_sva_src" "$_sva_dst"
-                [ -x "$_sva_src" ] && chmod +x "$_sva_dst"
+                _sv_sync_mode "$_sva_src" "$_sva_dst"
             fi
             _sva_updated=$((_sva_updated + 1))
         fi
@@ -672,12 +692,12 @@ _self_vendor_web() {
         _svw_rel="${_svw_src#$FRAMEWORK_ROOT/web/}"
         _svw_dst="$_self_vendor/web/$_svw_rel"
         _sv_scope_skip "$_svw_src" "$_svw_dst" && continue   # T-4419
-        if [ ! -f "$_svw_dst" ] || ! diff -q "$_svw_src" "$_svw_dst" > /dev/null 2>&1; then
+        if [ ! -f "$_svw_dst" ] || ! diff -q "$_svw_src" "$_svw_dst" > /dev/null 2>&1 || _sv_mode_differs "$_svw_src" "$_svw_dst"; then
             if [ "$dry_run" != true ]; then
                 _svw_dst_dir=$(dirname "$_svw_dst")
                 [ -d "$_svw_dst_dir" ] || mkdir -p "$_svw_dst_dir"
                 cp "$_svw_src" "$_svw_dst"
-                [ -x "$_svw_src" ] && chmod +x "$_svw_dst"
+                _sv_sync_mode "$_svw_src" "$_svw_dst"
             fi
             _svw_updated=$((_svw_updated + 1))
         fi
@@ -725,12 +745,12 @@ _self_vendor_tools() {
         _svx_rel="${_svx_src#$FRAMEWORK_ROOT/tools/}"
         _svx_dst="$_self_vendor/tools/$_svx_rel"
         _sv_scope_skip "$_svx_src" "$_svx_dst" && continue   # T-4419
-        if [ ! -f "$_svx_dst" ] || ! diff -q "$_svx_src" "$_svx_dst" > /dev/null 2>&1; then
+        if [ ! -f "$_svx_dst" ] || ! diff -q "$_svx_src" "$_svx_dst" > /dev/null 2>&1 || _sv_mode_differs "$_svx_src" "$_svx_dst"; then
             if [ "$dry_run" != true ]; then
                 _svx_dst_dir=$(dirname "$_svx_dst")
                 [ -d "$_svx_dst_dir" ] || mkdir -p "$_svx_dst_dir"
                 cp "$_svx_src" "$_svx_dst"
-                [ -x "$_svx_src" ] && chmod +x "$_svx_dst"
+                _sv_sync_mode "$_svx_src" "$_svx_dst"
             fi
             _svx_updated=$((_svx_updated + 1))
         fi
@@ -773,10 +793,10 @@ _self_vendor_root_data() {
         # T-3165: real runs withhold a concurrent task's uncommitted files.
         [ "$dry_run" = true ] || ! _sv_is_withheld "$_svr_src" || continue
         _sv_scope_skip "$_svr_src" "$_svr_dst" && continue   # T-4419
-        if [ ! -f "$_svr_dst" ] || ! cmp -s "$_svr_src" "$_svr_dst"; then
+        if [ ! -f "$_svr_dst" ] || ! cmp -s "$_svr_src" "$_svr_dst" || _sv_mode_differs "$_svr_src" "$_svr_dst"; then
             if [ "$dry_run" != true ]; then
                 cp "$_svr_src" "$_svr_dst"
-                [ -x "$_svr_src" ] && chmod +x "$_svr_dst"
+                _sv_sync_mode "$_svr_src" "$_svr_dst"
             fi
             _svr_updated=$((_svr_updated + 1))
         fi
@@ -1129,15 +1149,21 @@ fw_upgrade_render_pin_line() {
         fi
     fi
 
+    # T-5372: equal strings with a non-`same` relation were decided by the
+    # recorded commit (be-tags keep VERSION); say so, or "behind v1.8.15" next
+    # to "v1.8.15" reads as a contradiction.
+    local same_str=""
+    [ "$cversion" = "$fversion" ] && same_str=" by commit; same version string"
+
     case "$relation" in
         same)
             echo -e "  Pinned:    v${cversion} ${GREEN}(current)${NC}" ;;
         behind)
-            echo -e "  Pinned:    v${cversion} ${YELLOW}(behind v${fversion})${NC}" ;;
+            echo -e "  Pinned:    v${cversion} ${YELLOW}(behind v${fversion}${same_str})${NC}" ;;
         ahead)
-            echo -e "  Pinned:    v${cversion} ${RED}(AHEAD of v${fversion}${note})${NC}" ;;
+            echo -e "  Pinned:    v${cversion} ${RED}(AHEAD of v${fversion}${same_str}${note})${NC}" ;;
         diverged)
-            echo -e "  Pinned:    v${cversion} ${RED}(diverged from v${fversion}${note})${NC}" ;;
+            echo -e "  Pinned:    v${cversion} ${RED}(diverged from v${fversion}${same_str}${note})${NC}" ;;
         foreign-source)
             # T-2762: the fault is the SOURCE, not the consumer's pin — so the line
             # names the source. Rendering this as "undecidable" (the old fallthrough)
@@ -1892,8 +1918,9 @@ do_upgrade() {
     # example: 2026-05-18 dimitri-mint-dev consumer at v1.6.260 against
     # framework at v1.6.225. T-1839 closed the pin door; T-1912 closes
     # the runtime door at the same checkpoint so the guard is complete.
+    # T-5372: no `project_version != fw_version` condition — be-tags share
+    # VERSION with master, so equal strings must still be decided by ancestry.
     if [ -n "$project_version" ] \
-       && [ "$project_version" != "$fw_version" ] \
        && [ "$fw_version" != "unknown" ] \
        && [ "$force_downgrade" != true ]; then
         # T-2713: relation via git ancestry, not `sort -V`. The guard below is
@@ -3019,6 +3046,35 @@ print(sum(len(v) for v in data.get('hooks', {}).values()))
         fi
     fi
 
+    # T-5405: publishing to Anthropic is blocked by default (operator ruling 2026-11-24).
+    # Keep the seven permissions.deny entries in step with PUBLISH_TO_ANTHROPIC; every other
+    # entry is left alone. Runs for every branch above (converged, regenerated, created).
+    if [ -f "$settings_file" ] && [ -f "$FRAMEWORK_ROOT/lib/publish_ban.py" ]; then
+        local _pb_mode _pb_out _pb_act _pb_what
+        _pb_mode=$(PROJECT_ROOT="$target_dir" python3 "$FRAMEWORK_ROOT/lib/publish_ban.py" mode 2>/dev/null || echo deny)
+        if [ "$dry_run" = true ]; then
+            _pb_out=$(python3 -c "
+import sys; sys.path.insert(0, sys.argv[1]); import publish_ban as p
+h = p.present(__import__('pathlib').Path(sys.argv[2])); m = sys.argv[3]
+print('would-add' if m != 'allow' and len(h) < len(p.TOOLS) else 'would-remove' if m == 'allow' and h else 'none')
+" "$FRAMEWORK_ROOT/lib" "$settings_file" "$_pb_mode" 2>/dev/null || echo none)
+            if [ "$_pb_out" != none ]; then
+                echo -e "  ${CYAN}WOULD UPDATE${NC}  publish-to-Anthropic deny rules (${_pb_out#would-}, PUBLISH_TO_ANTHROPIC=$_pb_mode)"
+                changes=$((changes + 1))
+            fi
+        else
+            _pb_out=$(python3 "$FRAMEWORK_ROOT/lib/publish_ban.py" ensure "$settings_file" "$_pb_mode" 2>/dev/null || echo "skipped	")
+            _pb_act="${_pb_out%%	*}"; _pb_what="${_pb_out#*	}"
+            case "$_pb_act" in
+                added|removed)
+                    _t4697_wrote .claude/settings.json
+                    echo -e "  ${GREEN}${_pb_act^^}${NC}  publish-to-Anthropic deny rules: $_pb_what (PUBLISH_TO_ANTHROPIC=$_pb_mode)"
+                    changes=$((changes + 1)) ;;
+                skipped) echo -e "  ${YELLOW}WARN${NC}  could not update publish-to-Anthropic deny rules in $settings_file (unparseable JSON?)" ;;
+            esac
+        fi
+    fi
+
     # ── 6. .mcp.json (MCP server configuration) ──
     echo -e "${YELLOW}[6/10] MCP server configuration (.mcp.json)${NC}"
 
@@ -3415,6 +3471,34 @@ MCPJSON
     if [ "${_dp_tracked:-0}" -gt 0 ]; then
         echo -e "  ${YELLOW}NOTE${NC}  $_dp_tracked file(s) under .context/dispatch are already tracked (env.sh may hold environment values); untrack with:"
         echo -e "        git -C \"$target_dir\" rm -r --cached -- .context/dispatch"
+    fi
+
+    # T-5373: keylock's flock anchors persist under .context/locks/ by design,
+    # ignored only by the framework's own root .gitignore.
+    # shellcheck source=lib/locks-gitignore.sh
+    source "$FRAMEWORK_ROOT/lib/locks-gitignore.sh"
+    local _lk_added _lk_tracked
+    if [ "$dry_run" = true ]; then
+        _lk_added=$(fw_locks_ensure_ignored "$target_dir" --dry-run)
+    else
+        _lk_added=$(fw_locks_ensure_ignored "$target_dir")
+    fi
+    if [ "${_lk_added:-0}" -gt 0 ]; then
+        changes=$((changes + 1))
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${CYAN}WOULD ADD${NC}  lock-file ignore rule to .context/.gitignore"
+            [ -e "$target_dir/.context/.gitignore" ] || _t4692_would+=(".context/.gitignore")
+        else
+            _t4697_wrote .context/.gitignore
+            echo -e "  ${GREEN}ADDED${NC}  lock-file ignore rule to .context/.gitignore"
+        fi
+    else
+        echo -e "  ${GREEN}OK${NC}  Lock files (.context/locks/) gitignored"
+    fi
+    _lk_tracked=$(fw_locks_tracked "$target_dir" | wc -l | tr -d ' ')
+    if [ "${_lk_tracked:-0}" -gt 0 ]; then
+        echo -e "  ${YELLOW}NOTE${NC}  $_lk_tracked file(s) under .context/locks are already tracked; untrack with:"
+        echo -e "        git -C \"$target_dir\" rm -r --cached -- .context/locks"
     fi
 
     # T-5271: the fleet cockpit's /drop page writes operator files (possibly
