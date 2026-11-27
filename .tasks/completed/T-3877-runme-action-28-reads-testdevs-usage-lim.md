@@ -4,12 +4,12 @@ name: "runme action 28 reads testdev's usage limit as a broken token and asks th
 description: >
   runme-20261127T131450Z: action 28 ran claude setup-token at the operator's terminal because the stored token did not answer; the new token was fine, the account had hit its weekly limit (resets Nov 30). testdev_token_answers treats any non-OK reply as a broken token.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-27T13:53:53Z
-last_update: 2026-11-27T14:18:11Z
-date_finished: null
+last_update: 2026-11-27T14:33:08Z
+date_finished: 2026-11-27T14:33:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -70,7 +70,8 @@ date_finished: null
 - [x] A usage-limit reply ("hit your ... limit", "usage limit", "rate limit") from the stored token gives HELD with the reply text, and no `claude setup-token` runs
 - [x] The same reply right after storing a new token gives HELD, not FAILED
   - runme.sh: `testdev_limited` (reads TESTDEV_LAST_ANSWER) and `testdev_answer_shown` (token-shaped strings hidden); checked after the stored-token prompt (HELD, nothing asked) and after a fresh store (HELD, not FAILED). Fixtures: fake `claude -p` answers the weekly-limit line for the good token when FAKE_TD_LIMIT is set; two new cases pass; suite 478/0.
-- [ ] A hermetic case in `tests/runme-fixtures.sh` covers the limit reply (and a mutant that drops the limit branch fails it); the suite passes
+- [x] A hermetic case in `tests/runme-fixtures.sh` covers the limit reply (and a mutant that drops the limit branch fails it); the suite passes
+  - Suite 478/0. Mutant (`testdev_limited` returns 1 first; run with RUNME_FIXTURE_TARGET from the scratchpad) fails both new cases ("28 limit (stored)", "28 limit (after store)"); its other 166 failures are the copy living outside the repo (runme finds its helper scripts beside itself), not signal.
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -272,8 +273,19 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "^testdev_limited()" runme.sh
+grep -q "28: a stored token at its usage limit" tests/runme-fixtures.sh
+bash -n runme.sh
 
 ## RCA
+
+**Symptom:** Operator run 2026-11-27 13:14Z: action 28 made the operator log in to create a new testdev token; afterwards it reported FAILED with "You've hit your weekly limit".
+
+**Root cause:** `testdev_token_answers` reduced every outcome to "replied exactly OK, or not"; a reply that proves the token is accepted but the account is limited fell into "not", and the action's only answer to "not" was a new token.
+
+**Why structurally allowed:** The fixtures modelled two worlds only (good token answers OK, bad token fails authentication); no case exercised an accepted token whose account was limited, so the two-way reading was never challenged.
+
+**Prevention:** A third outcome (`testdev_limited`) with its own HELD message, and two fixture cases for it pinned by a mutant. Same pattern to watch elsewhere: any check that reads a model's reply as pass/fail should treat quota and rate-limit replies as "could not test now", not as a broken credential.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -369,3 +381,16 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3877-runme-action-28-reads-testdevs-usage-lim.md
 - **Context:** Initial task creation
+
+### 2026-11-27T14:33:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b0137970
+- **Timestamp:** 2026-11-27T14:33:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

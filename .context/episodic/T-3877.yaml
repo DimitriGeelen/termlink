@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3877: runme action 28 reads testdev's usage limit as a broken token and asks the operator to log in again
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-27T14:33:17Z
+# ============================================================================
+
+task_id: T-3877
+task_name: "runme action 28 reads testdev's usage limit as a broken token and asks the operator to log in again"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-27T13:53:53Z
+completed: 2026-11-27T14:33:08Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-27T15:18:11+01:00
+last_commit: 2026-11-27T15:18:11+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 28 reports an account at its usage limit as HELD (token accepted), never a new login; fixtures 478/0 (+2 cases). T-3876: be.69 merge set staged (sidecar_cli.py, clean)
+
+# Key outcomes
+outcomes:
+  - 'A usage-limit reply ("hit your ... limit", "usage limit", "rate limit") from the stored token gives HELD with the reply text, and no `claude setup-token` runs'
+  - 'The same reply right after storing a new token gives HELD, not FAILED'
+  - 'A hermetic case in `tests/runme-fixtures.sh` covers the limit reply (and a mutant that drops the limit branch fails it); the suite passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 28 reports an account at its usage limit as HELD (token accepted), never a new login; fixtures 478/0 (+2 cases). T-3876: be.69 merge set staged (sidecar_cli.py, clean)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/vendor-merges/T-3876/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3876/lib/sidecar_cli.py.merged'
+  - '.tasks/.id-highwater'
+  - '.tasks/.id-ledger.jsonl'
+  - '.tasks/active/T-3876-retarget-runme-action-11a-be67---v1816-b.md'
+  - '.tasks/active/T-3877-runme-action-28-reads-testdevs-usage-lim.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-27T15:18:11'
+    action: 'T-3877: runme action 28 reports an account at its usage limit as HELD (token accepted), never a new login; fixtures 478/0 (+2 cases). T-3876: be.69 merge set staged (sidecar_cli.py, clean)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 39 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 39
+  commits: 2
+  files_changed: 11
+  lines_added: 2461
+  lines_removed: 17
+  footprint_refreshed_at: '2026-11-27T14:33:19Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3877-runme-action-28-reads-testdevs-usage-lim.md
+generated_by: context-agent-hybrid
