@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3466: R5b: daily telemetry rollup over TermLink to a bounded collection topic (T-2250 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-27T22:11:25Z
+# ============================================================================
+
+task_id: T-3466
+task_name: "R5b: daily telemetry rollup over TermLink to a bounded collection topic (T-2250 GO)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-18T18:30:29Z
+completed: 2026-11-27T22:09:44Z
+duration_days: 40
+updates_count: 4
+first_commit: 2026-10-20T11:33:00+02:00
+last_commit: 2026-10-20T13:18:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rollup reads only the last day of the T-3465 logs (keeps the 24-48 h intent); log paths named. daily telemetry rollup to telemetry:daily (bounded) + fleet view naming missing reports; 25 fixtures; cron via runme action 1
+
+# Key outcomes
+outcomes:
+  - 'A daily rollup turns each host''s local logs (T-3465 queue, breaker and reconnect events, T-3383 hub-outage samples) plus the dead-letter count (T-2243 table, operator ruling B 2026-10-20) into one aggregate per (host, signal, day): counts and max downtime (RTT percentiles deferred with `rtt_sample`)'
+  - 'The aggregate is posted over TermLink through the durable offline queue (a failed push is retried or dead-lettered, never silently lost), to a collection topic with bounded retention (never forever-raw)'
+  - 'Raw local data stays local with a 24-48 h bound; only aggregates leave the host. Since T-3465 bounds the local logs by size (1 MiB + backup), the rollup reads only events of the last day from `~/.termlink/queue.log`, `reconnect.log` and `<runtime_dir>/circuit-breaker.jsonl`'
+  - 'A read verb or script shows the fleet view: per host and per day, the aggregates, plus which hosts did NOT report (a missing host is the signal, not a gap)'
+  - 'Running on at least two hosts (.107 and one ring20 host) is shown in the collection topic'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'daily telemetry rollup to telemetry:daily (bounded) + fleet view naming missing reports; 25 fixtures; cron via runme action 1'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/telemetry-rollup.crontab'
+  - '.fabric/components/scripts-telemetry-fleet-view.yaml'
+  - '.fabric/components/scripts-telemetry-rollup.yaml'
+  - '.fabric/components/tests-telemetry-rollup-fixtures.yaml'
+  - '.tasks/active/T-3466-r5b-daily-telemetry-rollup-over-termlink.md'
+  - 'runme.sh'
+  - 'scripts/telemetry-fleet-view.sh'
+  - 'scripts/telemetry-rollup.sh'
+  - 'tests/telemetry-rollup-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T11:33:00'
+    action: 'T-3466: rollup reads only the last day of the T-3465 logs (keeps the 24-48 h intent); log paths named'
+  - time: '2026-10-20T13:18:37'
+    action: 'T-3466: daily telemetry rollup to telemetry:daily (bounded) + fleet view naming missing reports; 25 fixtures; cron via runme action 1'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 57819 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 57819
+  commits: 7
+  files_changed: 19
+  lines_added: 1308
+  lines_removed: 43
+  footprint_refreshed_at: '2026-11-27T22:11:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3466-r5b-daily-telemetry-rollup-over-termlink.md
+generated_by: context-agent-hybrid

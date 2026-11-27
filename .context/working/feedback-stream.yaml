@@ -25821,3 +25821,21 @@ scan_id: R-bd76c422
 task_id: T-3878
 payload:
   task_file: .tasks/active/T-3878-telemetry-fleet-viewsh-dies-with-argumen.md
+---
+kind: scan_emitted
+timestamp: '2026-11-27T22:11:17Z'
+scan_id: R-ceb9fad9
+task_id: T-3466
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-27T22:11:17Z'
+scan_id: R-ceb9fad9
+task_id: T-3466
+payload:
+  task_file: .tasks/active/T-3466-r5b-daily-telemetry-rollup-over-termlink.md

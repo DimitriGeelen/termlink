@@ -72,12 +72,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3
-  commits: 2
-  files_changed: 9
-  lines_added: 535
-  lines_removed: 13
-  footprint_refreshed_at: '2026-11-27T22:08:22Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 1
+  files_changed: 6
+  lines_added: 415
+  lines_removed: 8
+  footprint_refreshed_at: '2026-11-27T22:08:23Z'
+  footprint_refreshed_by_commit: 18f2b6f5b
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3878-telemetry-fleet-viewsh-dies-with-argumen.md

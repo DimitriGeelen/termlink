@@ -7,12 +7,12 @@ description: >
   samples) daily and post the aggregate over TermLink to a bounded topic, so every
   host's view is collected, not only .107.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, scripts/telemetry-fleet-view.sh, scripts/telemetry-rollup.sh, tests/telemetry-rollup-fixtures.sh]
 related_tasks: [T-2250, T-3465, T-3383]
 arc_id: arc-substrate-fitness
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
@@ -42,8 +42,8 @@ arc_id: arc-substrate-fitness
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T18:30:29Z
-last_update: 2026-10-20T11:18:38Z
-date_finished:
+last_update: 2026-11-27T22:09:44Z
+date_finished: 2026-11-27T22:09:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -316,6 +316,11 @@ test -f .context/cron/telemetry-rollup.crontab
 
 ## Evolution
 
+### 2026-11-27 — the fleet view outgrew a kernel limit before the last AC was checked
+- **What changed:** By the time the "two hosts report" AC was checked, the collection topic held more than 128 KB of reports, and the fleet view passed them to Python in one environment variable, so it died with "Argument list too long" (rc 126). The rollup itself had been running on four hosts for weeks; only the view was blind.
+- **Plan impact:** None to the design; the view now reads a temp file (T-3878), with a >128 KB fixture and its mutant.
+- **Triggered:** T-3878 (fixed). Then the AC closed on the live view: four hosts daily 2026-11-20..26. Closing this task completes arc-substrate-fitness's last open item (operator ruling A, 2026-11-27).
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -413,3 +418,21 @@ test -f .context/cron/telemetry-rollup.crontab
 ### 2026-10-20T11:09:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-27T22:09:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ceb9fad9
+- **Timestamp:** 2026-11-27T22:11:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Raw local data stays local with a 24-48 h bound; only aggregates leave the host. Since T-3465 bounds the local logs by size (1 MiB + backup), the rollup reads only events of the last day from `~/.term
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/queue.log in: Raw local data stays local with a 24-48 h bound; only aggregates leave the host. Since T-3465 bounds the local logs by size (1 MiB + backup), the roll`
