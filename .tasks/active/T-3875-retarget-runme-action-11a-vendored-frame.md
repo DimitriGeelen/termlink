@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-27T12:32:00Z
-last_update: 2026-11-27T13:33:16Z
+last_update: 2026-11-27T13:34:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -68,7 +68,7 @@ date_finished: null
 
 ### Agent
 - [x] The preserved files that changed be.61 -> be.67 are identified; base and theirs fetched from the mirror at the tags, blob ids matching AEF's list; ours equals the current vendored file
-  - AEF confirmed all three ids (msg 6d82084a, 2026-11-27). AEF also: be.69 replaces a fail-open claude-fw resume rule that be.67/be.68 carry (T-5430) — follow-up retarget after this run; T-5379 not in any tag yet, next in AEF's line.
+  - AEF confirmed all three ids (msg 6d82084a, 2026-11-27). AEF also: be.69 replaces a fail-open claude-fw resume rule that be.67/be.68 carry (AEF T-5430) — follow-up retarget filed as T-3876; AEF T-5379 not in any tag yet, next in AEF's line.
   - 2026-11-27: mirror be.61 = a32434f98 (= our vendored commit), be.67 = ca1f5fb45. Changed: estimator.py (40a5227747c7 -> 1e1b7f7ad4b3), lib/bvp.sh (1ea211eec560 -> 492a2fdcd114), lib/sidecar_cli.py (79ea1de1a15c -> 19c3f370c634); the other nine identical. AEF asked to confirm the ids (not yet answered); the operator's run fetches be.67 from AEF's own repo and 11a installs a merge only when ours/theirs hash-match MANIFEST.tsv, so a mismatch refuses before any change.
 - [x] Each changed file is 3-way merged (base be.61, ours, theirs be.67); conflicts resolved and named; merges + `MANIFEST.tsv` in `.context/vendor-merges/T-3875`
   - bvp.sh and sidecar_cli.py clean, local-fix markers kept (10/10, 1/1). estimator.py: one conflict (our T-3189 leg vs upstream T-3513 fabric leg in the same slot), resolved to keep both, fabric first; `tests/bvp-derived-blast-radius-fixtures.sh` 34/0 on the merge, harness broken on theirs alone.
@@ -285,6 +285,14 @@ test -s .context/vendor-merges/T-3875/MANIFEST.tsv
 bash scripts/check-vendor-divergence.sh
 
 ## RCA
+
+**Symptom:** The audit warned "Hook threshold: 4 hook(s) failing over threshold (T-1626)" although no hook was broken (T-3670 triage).
+
+**Root cause:** Vendored `lib/hook-telemetry.sh` counted every non-zero hook exit as a failure, and gate hooks refuse by exit 2 on purpose, so gates doing their job read as failing.
+
+**Why structurally allowed:** The telemetry had one bucket for "non-zero"; nothing distinguished a designed refusal from a crash, and nothing tested a refusing gate against the threshold.
+
+**Prevention:** AEF T-5425 (vendored here in be.67) counts exit 2 as a refusal and only other non-zero exits as failures; the old counter was reset once so the history does not keep the false signal. This task is the delivery, not the fix itself.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
