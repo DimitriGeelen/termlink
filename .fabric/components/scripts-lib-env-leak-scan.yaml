@@ -4,18 +4,14 @@ type: script
 subsystem: operations
 location: scripts/lib/env-leak-scan.py
 tags: []
-
-purpose: "T-3551 (SEV-1 T-3549): find processes that carry another project's variables."
+purpose: 'T-3551 (SEV-1 T-3549): find processes that carry another project''s variables.'
 purpose_source: docstring
-
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: scripts/lib/tmux_servers.py
+  type: uses
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/check-env-leak-freshness.sh
+  type: called_by
 last_verified: 2026-10-22
 created_by: unknown
+last_enriched: '2026-11-27'

@@ -9,7 +9,9 @@ purpose_source: header-comment
 depends_on:
 - target: scripts/session-start-alerts.sh
   type: calls
+- target: scripts/focus.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

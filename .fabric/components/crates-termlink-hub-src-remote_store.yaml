@@ -11,7 +11,9 @@ tags:
 - heartbeat
 purpose: In-memory store for remote (TCP) session registrations — heartbeat-based TTL, background reaper for expired entries,
   thread-safe via RwLock.
-depends_on: []
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-hub/src/lib.rs
   relationship: declared_by
@@ -27,4 +29,4 @@ depended_by:
   type: called_by
 last_verified: 2026-03-26
 created_by: unknown
-last_enriched: '2026-04-21'
+last_enriched: '2026-11-27'

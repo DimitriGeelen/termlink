@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/t3700_consumers.rs
+name: t3700_consumers
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3700_consumers.rs
+tags: []
+purpose: 'T-3700 (arc-011 P-12, B-2, 06a AL-30) at L4 on a real hub: E-66 (a second consumer is flagged, refused'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

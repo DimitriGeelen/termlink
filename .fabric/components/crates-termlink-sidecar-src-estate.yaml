@@ -4,12 +4,15 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/estate.rs
 tags: []
-purpose: 'Estate guard that refuses to run unless HOME, the runtime dir and the store root all sit inside one marked throwaway tree. C-1 estate guard: refuse to run unless `HOME`, the runtime dir and the store…'
+purpose: 'Estate guard that refuses to run unless HOME, the runtime dir and the store root all sit inside one marked throwaway
+  tree. C-1 estate guard: refuse to run unless `HOME`, the runtime dir and the store…'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs
   type: called_by
 last_verified: 2026-10-17
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

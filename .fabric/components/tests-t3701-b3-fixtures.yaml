@@ -1,0 +1,21 @@
+id: tests/t3701-b3-fixtures.sh
+name: t3701-b3-fixtures
+type: script
+subsystem: guard-layer
+location: tests/t3701-b3-fixtures.sh
+tags: []
+
+purpose: "Fixture suite for arc-011 plan unit P-13 (T-3701, build item B-3; V-3 retention ceilings). Runs the hermetic tests that carry each listed E-n and prints one PASS line per E-n (or FAIL)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

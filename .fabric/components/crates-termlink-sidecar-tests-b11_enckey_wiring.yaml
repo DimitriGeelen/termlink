@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/b11_enckey_wiring.rs
+name: b11_enckey_wiring
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/b11_enckey_wiring.rs
+tags: []
+purpose: 'T-3696 (B-11, K-24; E-48, E-144, E-168 wiring): the encryption key register check runs inside a real'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

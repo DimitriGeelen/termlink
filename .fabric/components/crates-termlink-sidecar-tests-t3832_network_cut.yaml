@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3832_network_cut.rs
+name: t3832_network_cut
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3832_network_cut.rs
+tags: []
+purpose: 'T-3832 (P-24 slice b, design 3.8.3, E-60): a transport cut between a sender and a real, throwaway hub,'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

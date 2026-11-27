@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/t3772_binding.rs
+name: t3772_binding
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3772_binding.rs
+tags: []
+purpose: 'T-3772: session binding (S1, `command.notify`) runs on the meter''s tick path whatever'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,17 @@
+id: crates/termlink-cli/tests/main_lease_integration.rs
+name: main_lease_integration
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/main_lease_integration.rs
+tags: []
+purpose: 'T-3654 (OD-18 / R-67, R-68): `termlink main` against a real, throwaway hub'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

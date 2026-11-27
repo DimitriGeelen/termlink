@@ -4,18 +4,14 @@ type: script
 subsystem: operations
 location: scripts/lib/tmux_servers.py
 tags: []
-
-purpose: "T-3552: enumerate the tmux servers TermLink sessions can live on."
+purpose: 'T-3552: enumerate the tmux servers TermLink sessions can live on.'
 purpose_source: docstring
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/lib/env-leak-scan.py
+  type: uses_by
+- target: scripts/lib/session-zombies.py
+  type: uses_by
 last_verified: 2026-10-22
 created_by: unknown
+last_enriched: '2026-11-27'

@@ -16,6 +16,8 @@ depended_by:
   type: called_by
 - target: tests/session-start-alerts-fixtures.sh
   type: called_by
+- target: .claude/commands/resume.md
+  type: called_by
 last_verified: 2026-10-17
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/meter_tests.rs
+name: meter_tests
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/meter_tests.rs
+tags: []
+purpose: 'B-27 hermetic tests: the activity meter (AL-1 intake, AL-3 S1/S2/S3), the'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

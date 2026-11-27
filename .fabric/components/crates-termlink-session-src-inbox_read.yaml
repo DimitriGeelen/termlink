@@ -1,0 +1,15 @@
+id: crates/termlink-session/src/inbox_read.rs
+name: inbox_read
+type: script
+subsystem: session
+location: crates/termlink-session/src/inbox_read.rs
+tags: []
+purpose: 'T-3700 (arc-011 P-12, AL-30, operator ruling E 2026-11-19): the bytes an inbox reader signs'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

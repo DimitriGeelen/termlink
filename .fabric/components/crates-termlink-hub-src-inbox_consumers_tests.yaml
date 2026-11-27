@@ -1,0 +1,21 @@
+id: crates/termlink-hub/src/inbox_consumers_tests.rs
+name: inbox_consumers_tests
+type: script
+subsystem: hub
+location: crates/termlink-hub/src/inbox_consumers_tests.rs
+tags: []
+
+purpose: "T-3700 unit tests for the inbox consumer list (AL-30, rulings E and D)"
+purpose_source: file-header (T-3867)
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

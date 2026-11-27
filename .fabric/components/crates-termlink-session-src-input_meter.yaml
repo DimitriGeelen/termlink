@@ -1,0 +1,15 @@
+id: crates/termlink-session/src/input_meter.rs
+name: input_meter
+type: script
+subsystem: session
+location: crates/termlink-session/src/input_meter.rs
+tags: []
+purpose: Per-source PTY input counters (arc-011 B-27, AL-2; ARC4 6.14.1 S1, 6.14.2)
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,19 @@
+id: crates/termlink-sidecar/tests/t3704_impersonation.rs
+name: t3704_impersonation
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3704_impersonation.rs
+tags: []
+purpose: 'T-3704 (arc-011 P-16, B-6; design v2 C-12): the agent another session tries to impersonate'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

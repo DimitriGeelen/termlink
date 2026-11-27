@@ -9,8 +9,10 @@ purpose: 'T-2204 (T-2018 §6 arc-parallel-substrate): first in-tree consumer of 
 depends_on:
 - target: scripts/agent-send.sh
   type: calls
-depended_by: []
+depended_by:
+- target: .claude/commands/closeable.md
+  type: called_by
 last_verified: 2026-06-13
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

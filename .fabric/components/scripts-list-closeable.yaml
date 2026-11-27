@@ -6,8 +6,11 @@ location: scripts/list-closeable.sh
 tags: []
 purpose: scripts/list-closeable.sh — surface agent-eligible closeable tasks (T-2207).
 depends_on: []
-depended_by: []
+depended_by:
+- target: .claude/commands/closeable.md
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
 standalone: true
+last_enriched: '2026-11-27'

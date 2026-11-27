@@ -1,0 +1,17 @@
+id: crates/termlink-cli/src/commands/main_lease.rs
+name: main_lease
+type: script
+subsystem: cli
+location: crates/termlink-cli/src/commands/main_lease.rs
+tags: []
+purpose: 'T-3654 (OD-18 / R-67): `termlink main claim|renew|release|status|am-i|pin`'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

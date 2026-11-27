@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/src/meter.rs
+name: meter
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/meter.rs
+tags: []
+purpose: Per-session activity meter and conversation signal (arc-011 B-27; ARC4 6.14, 17.2..17.5; AL-1..AL-4)
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

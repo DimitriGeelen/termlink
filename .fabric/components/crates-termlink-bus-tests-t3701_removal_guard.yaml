@@ -1,0 +1,15 @@
+id: crates/termlink-bus/tests/t3701_removal_guard.rs
+name: t3701_removal_guard
+type: script
+subsystem: bus
+location: crates/termlink-bus/tests/t3701_removal_guard.rs
+tags: []
+purpose: 'T-3701 (arc-011 P-13, B-3 / V-3): the bus-side removal guard, driven by a fake guard'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-bus/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -4,18 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-env-leak-freshness.sh
 tags: []
-
-purpose: "T-3551 (SEV-1 T-3549, G-019) — environment-leak canary."
+purpose: T-3551 (SEV-1 T-3549, G-019) — environment-leak canary.
 purpose_source: header-comment
-
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: scripts/lib/env-leak-scan.py
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: tests/env-leak-canary-fixtures.sh
+  type: called_by
 last_verified: 2026-10-22
 created_by: unknown
+last_enriched: '2026-11-27'

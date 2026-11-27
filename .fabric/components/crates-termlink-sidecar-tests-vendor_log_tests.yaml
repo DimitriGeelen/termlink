@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/vendor_log_tests.rs
+name: vendor_log_tests
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/vendor_log_tests.rs
+tags: []
+purpose: 'P-26 (T-3710): the vendor-channel log hook (B-18 log half, K-20, AL-39)'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

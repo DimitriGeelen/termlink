@@ -4,18 +4,14 @@ type: script
 subsystem: operations
 location: scripts/reap-zombie-sessions.sh
 tags: []
-
-purpose: "reap-zombie-sessions.sh — T-3491: terminate idle zombie `termlink register --shell` sessions."
+purpose: 'reap-zombie-sessions.sh — T-3491: terminate idle zombie `termlink register --shell` sessions.'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: .context/cron/zombie-reap.crontab
+  type: called_by
+- target: runme.sh
+  type: called_by
 last_verified: 2026-10-21
 created_by: unknown
+last_enriched: '2026-11-27'

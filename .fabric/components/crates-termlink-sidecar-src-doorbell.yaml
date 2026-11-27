@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/src/doorbell.rs
+name: doorbell
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/doorbell.rs
+tags: []
+purpose: 'B-16 (T-3697, plan P-7): the doorbell D+ and the 300 s watchdog K-33'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

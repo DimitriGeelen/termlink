@@ -1,0 +1,15 @@
+id: crates/termlink-mcp/tests/t3780_method_parity.rs
+name: t3780_method_parity
+type: script
+subsystem: mcp
+location: crates/termlink-mcp/tests/t3780_method_parity.rs
+tags: []
+purpose: 'T-3780: every RPC method name the MCP tools send must be one some handler serves'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

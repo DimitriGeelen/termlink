@@ -1,0 +1,17 @@
+id: scripts/lib/remote-inbox-relay.py
+name: remote-inbox-relay
+type: script
+subsystem: operations
+location: scripts/lib/remote-inbox-relay.py
+tags: []
+purpose: T-3750 — relay peer mail on OUR inboxes on REMOTE hubs into the sidecar receiver.
+purpose_source: docstring
+depends_on:
+- target: scripts/lib/remote-inbox-mail.py
+  type: reads
+depended_by:
+- target: scripts/notify-sidecar-supervisor.sh
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

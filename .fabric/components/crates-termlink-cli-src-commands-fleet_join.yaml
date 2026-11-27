@@ -4,18 +4,12 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/fleet_join.rs
 tags: []
-
-purpose: "TODO: describe what this component does"
-purpose_source: none
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: 'T-3749 (c): `termlink fleet join` — one command for a new device to join a hub'
+purpose_source: file-header (T-3867)
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
 last_verified: 2026-11-12
 created_by: unknown
+last_enriched: '2026-11-27'

@@ -6,8 +6,11 @@ location: scripts/session-selftest.sh
 tags: []
 purpose: session-selftest.sh (T-2485) — affirmative prover for the "control terminal sessions" charter verb.
 depends_on: []
-depended_by: []
+depended_by:
+- target: .claude/commands/sessions.md
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
 standalone: true
+last_enriched: '2026-11-27'

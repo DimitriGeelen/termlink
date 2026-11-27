@@ -1,0 +1,17 @@
+id: crates/termlink-session/src/main_lease.rs
+name: main_lease
+type: script
+subsystem: session
+location: crates/termlink-session/src/main_lease.rs
+tags: []
+purpose: 'T-3654 (OD-18 / R-67, R-67.a1, R-68): the project''s "main" lease at the home hub'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

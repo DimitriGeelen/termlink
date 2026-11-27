@@ -16,5 +16,8 @@ interfaces:
   - git commit
   - work-on
 depends_on: []
-depended_by: []
+depended_by:
+- target: capture-reader
+  type: invoked-by_by
 created_by: T-3544
+last_enriched: '2026-11-27'

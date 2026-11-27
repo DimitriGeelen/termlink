@@ -5,7 +5,9 @@ subsystem: tests
 location: tests/verification-block-batch-proof.sh
 tags: []
 purpose: T-3282 — full-corpus equivalence PROOF for scripts/lib/verification-block-batch.py.
-depends_on: []
+depends_on:
+- target: scripts/lib/verification-block-batch.py
+  type: calls
 depended_by:
 - target: tests/verification-heading-shadow-fixtures.sh
   type: called_by
@@ -16,4 +18,4 @@ depended_by:
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: header-comment
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

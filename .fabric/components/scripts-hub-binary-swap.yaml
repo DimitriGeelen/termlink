@@ -5,11 +5,13 @@ subsystem: operations
 location: scripts/hub-binary-swap.sh
 tags: []
 purpose: 'T-1438: Operator-side helper to safely swap a staged termlink binary into place on a remote hub.'
-depends_on: []
+depends_on:
+- target: scripts/lib/hub-swap-remote.sh
+  type: calls
 depended_by:
 - target: tests/test_t1640_pgrep_self_match.sh
   type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

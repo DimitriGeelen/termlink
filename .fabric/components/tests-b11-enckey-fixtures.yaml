@@ -1,0 +1,21 @@
+id: tests/b11-enckey-fixtures.sh
+name: b11-enckey-fixtures
+type: script
+subsystem: guard-layer
+location: tests/b11-enckey-fixtures.sh
+tags: []
+
+purpose: "Fixture suite for B-11 (arc-011 plan unit P-6, T-3696): per-agent X25519 encryption keys in the register, the TLBLOB wrapper (format version 2) and the hub's artifact writer check."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

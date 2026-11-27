@@ -1,0 +1,15 @@
+id: crates/termlink-session/tests/t3703_signed_state.rs
+name: t3703_signed_state
+type: script
+subsystem: session
+location: crates/termlink-session/tests/t3703_signed_state.rs
+tags: []
+purpose: 'T-3703 (arc-011 P-15, B-5) slice A: AL-20 against the 06a 2.4.c.1 vectors, and E-42 (forged or malformed'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

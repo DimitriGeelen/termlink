@@ -1,0 +1,16 @@
+id: tests/version-cmp-fixtures.sh
+name: version-cmp-fixtures
+type: script
+subsystem: guard-layer
+location: tests/version-cmp-fixtures.sh
+tags: []
+purpose: 'T-3774: fixtures for scripts/lib/version-cmp.sh, plus a negative control — the dotted-numeric comparator the scripts
+  used before (strip non-digits per segment) gets these orderings wrong. Exit 0 = all held, 1 = an assertion failed.'
+purpose_source: header-comment
+depends_on:
+- target: scripts/lib/version-cmp.sh
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

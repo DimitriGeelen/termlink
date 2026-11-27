@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3769_meter_only.rs
+name: t3769_meter_only
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3769_meter_only.rs
+tags: []
+purpose: 'T-3769: the meter-only sidecar recipe for the AEF adapter/2 trial'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

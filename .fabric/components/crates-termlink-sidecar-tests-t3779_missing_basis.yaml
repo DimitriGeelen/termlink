@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3779_missing_basis.rs
+name: t3779_missing_basis
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3779_missing_basis.rs
+tags: []
+purpose: 'T-3779: a `prompt_submit` without a `basis` field (or with `basis: null`) carries basis'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

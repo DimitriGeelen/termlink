@@ -1,0 +1,23 @@
+id: scripts/lib/version-cmp.sh
+name: version-cmp
+type: script
+subsystem: operations
+location: scripts/lib/version-cmp.sh
+tags: []
+purpose: scripts/lib/version-cmp.sh — one version comparator for every script (T-3774). Source it.
+purpose_source: header-comment
+depends_on: []
+depended_by:
+- target: scripts/arc-live-probe.sh
+  type: called_by
+- target: scripts/check-fleet-binary-freshness.sh
+  type: called_by
+- target: scripts/substrate-preflight.sh
+  type: called_by
+- target: tests/substrate-preflight-binary-note-fixtures.sh
+  type: called_by
+- target: tests/version-cmp-fixtures.sh
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

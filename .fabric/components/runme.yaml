@@ -22,6 +22,18 @@ depends_on:
   type: calls
 - target: systemd-templates/termlink-sidecar@.service
   type: reads
+- target: scripts/reap-zombie-sessions.sh
+  type: calls
+- target: scripts/hub-link-provision.sh
+  type: calls
+- target: scripts/telemetry-rollup.sh
+  type: calls
+- target: install.sh
+  type: calls
+- target: scripts/check-vendor-divergence.sh
+  type: calls
+- target: scripts/fleet-token-remint.sh
+  type: calls
 depended_by:
 - target: tests/runme-fixtures.sh
   type: calls
@@ -29,5 +41,5 @@ depended_by:
   type: called_by
 last_verified: 2026-09-25
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

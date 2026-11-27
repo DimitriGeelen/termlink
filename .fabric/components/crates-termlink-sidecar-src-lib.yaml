@@ -4,7 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/lib.rs
 tags: []
-purpose: 'Library for the sidecar crate. arc-011 PH-1 sidecar library. B2 scope: `estate` (C-1 guard) and `testkit` (C-12 core).'
+purpose: 'Library for the sidecar crate. arc-011 PH-1 sidecar library. B2 scope: `estate` (C-1 guard) and `testkit` (C-12
+  core).'
 purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/estate.rs
@@ -44,6 +45,30 @@ depends_on:
 - target: crates/termlink-sidecar/src/book.rs
   type: calls
 - target: crates/termlink-sidecar/src/tools.rs
+  type: calls
+- target: crates/termlink-sidecar/src/hub_key_pin.rs
+  type: calls
+- target: crates/termlink-sidecar/src/revocation.rs
+  type: calls
+- target: crates/termlink-sidecar/src/consumers.rs
+  type: calls
+- target: crates/termlink-sidecar/src/fields.rs
+  type: calls
+- target: crates/termlink-sidecar/src/host.rs
+  type: calls
+- target: crates/termlink-sidecar/src/activity.rs
+  type: calls
+- target: crates/termlink-sidecar/src/liveness.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lease.rs
+  type: calls
+- target: crates/termlink-sidecar/src/meter.rs
+  type: calls
+- target: crates/termlink-sidecar/src/mail_waiting.rs
+  type: calls
+- target: crates/termlink-sidecar/src/enckey.rs
+  type: calls
+- target: crates/termlink-sidecar/src/doorbell.rs
   type: calls
 depended_by:
 - target: crates/termlink-sidecar/tests/acceptance.rs
@@ -86,6 +111,66 @@ depended_by:
   type: called_by
 - target: crates/termlink-sidecar/tests/supervision_tests.rs
   type: called_by
+- target: crates/termlink-sidecar/tests/b11_enckey_wiring.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/b16_doorbell.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/b16_live.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/b25_mail_waiting_wiring.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/e153_origin_check.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/liveness_hub.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/meter_session_rpc.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/meter_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/p2_parity.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/p5_withhold.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/resend_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3366_hub_key_pin.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3700_consumers.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3703_revocation_sidecar.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3704_impersonation.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3708_clock.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3708_live.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3708_revoff.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3708_status.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3764_fixture_basis.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3769_meter_only.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3770_native_binding.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3772_binding.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3779_missing_basis.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3832_network_cut.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3832_offline_lines.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3832_recipient_card.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3834_recipient_revoked.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3854_pointer_origin.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/vendor_log_tests.rs
+  type: called_by
 last_verified: 2026-10-17
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

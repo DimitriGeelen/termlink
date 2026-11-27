@@ -1,0 +1,21 @@
+id: tests/triage-apply-fixtures.sh
+name: triage-apply-fixtures
+type: script
+subsystem: guard-layer
+location: tests/triage-apply-fixtures.sh
+tags: []
+
+purpose: "T-3649 — hermetic fixtures for scripts/triage-apply.sh. Temp dirs and a fake fw only; never a real task file, never the real fw. Run: bash tests/triage-apply-fixtures.sh"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

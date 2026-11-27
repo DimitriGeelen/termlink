@@ -17,7 +17,9 @@ depended_by:
   type: read_by
 - target: tests/verification-heading-shadow-fixtures.sh
   type: called_by
+- target: tests/verification-block-batch-proof.sh
+  type: called_by
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: docstring
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

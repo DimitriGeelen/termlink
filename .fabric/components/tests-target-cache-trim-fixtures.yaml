@@ -1,0 +1,21 @@
+id: tests/target-cache-trim-fixtures.sh
+name: target-cache-trim-fixtures
+type: script
+subsystem: guard-layer
+location: tests/target-cache-trim-fixtures.sh
+tags: []
+
+purpose: "Hermetic fixtures for scripts/target-cache-trim.sh (T-3799). Scratch dirs only; a fake cargo records its argv; sizes come from a .fake-gib file per dir; \"busy\" is a sleep with a unique argument. Never touches the real target/."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

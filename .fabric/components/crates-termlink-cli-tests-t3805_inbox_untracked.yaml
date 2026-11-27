@@ -1,0 +1,21 @@
+id: crates/termlink-cli/tests/t3805_inbox_untracked.rs
+name: t3805_inbox_untracked
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/t3805_inbox_untracked.rs
+tags: []
+
+purpose: "T-3805: `agent inbox` for an identity with no local cursors must not look like"
+purpose_source: file-header (T-3867)
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

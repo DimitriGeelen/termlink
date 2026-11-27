@@ -13,7 +13,9 @@ depended_by:
   type: triggers
 - target: .context/cron/fleet-doorbell-mail-canary.crontab
   type: triggers_by
+- target: .claude/commands/broadcast-chat.md
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

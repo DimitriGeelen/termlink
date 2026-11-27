@@ -12,7 +12,9 @@ depended_by:
   type: calls
 - target: tests/relay-b3-hop-budget.sh
   type: called_by
+- target: .claude/commands/check-arc.md
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

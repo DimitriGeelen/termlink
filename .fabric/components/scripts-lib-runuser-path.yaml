@@ -1,0 +1,18 @@
+id: scripts/lib/runuser-path.sh
+name: runuser-path
+type: script
+subsystem: operations
+location: scripts/lib/runuser-path.sh
+tags: []
+purpose: 'T-3792: find runuser whatever PATH says. Cron''s PATH here is /root/.cargo/bin:/usr/local/bin:/usr/bin:/bin, and
+  runuser lives in /usr/sbin, so a bare `runuser` was "command not found" and the callers reported it as "no answer".'
+purpose_source: header-comment
+depends_on: []
+depended_by:
+- target: scripts/fleet-token-remint.sh
+  type: called_by
+- target: scripts/hub-link-provision.sh
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -4,7 +4,8 @@ type: script
 subsystem: bus
 location: crates/termlink-bus/src/lib.rs
 tags: []
-purpose: 'TermLink agent channel bus: append-only per-topic logs, per-recipient cursors and per-topic retention, embedded by the hub as a library. TermLink agent channel bus (T-1155). Append-only per-topic log…'
+purpose: 'TermLink agent channel bus: append-only per-topic logs, per-recipient cursors and per-topic retention, embedded
+  by the hub as a library. TermLink agent channel bus (T-1155). Append-only per-topic log…'
 depends_on:
 - target: crates/termlink-bus/src/envelope.rs
   type: calls
@@ -24,6 +25,12 @@ depends_on:
   type: calls
 - target: crates/termlink-bus/src/limits.rs
   type: calls
+- target: crates/termlink-bus/src/reclaim.rs
+  type: calls
+- target: crates/termlink-bus/src/removal_guard.rs
+  type: calls
+- target: crates/termlink-bus/src/worker_contract.rs
+  type: calls
 depended_by:
 - target: crates/termlink-hub/src/channel.rs
   type: called_by
@@ -33,7 +40,19 @@ depended_by:
   type: called_by
 - target: crates/termlink-hub/src/topic_policy.rs
   type: called_by
+- target: crates/termlink-bus/tests/t3461_durable_off_workers.rs
+  type: called_by
+- target: crates/termlink-bus/tests/t3473_reads_do_not_wait_on_commit.rs
+  type: called_by
+- target: crates/termlink-bus/tests/t3701_removal_guard.rs
+  type: called_by
+- target: crates/termlink-hub/src/dispatch_contract.rs
+  type: called_by
+- target: crates/termlink-hub/src/mail_guard.rs
+  type: called_by
+- target: crates/termlink-hub/tests/wc_conformance/hub.rs
+  type: called_by
 last_verified: 2026-04-20
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

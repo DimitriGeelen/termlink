@@ -1,0 +1,17 @@
+id: crates/termlink-hub/src/key_card.rs
+name: key_card
+type: script
+subsystem: hub
+location: crates/termlink-hub/src/key_card.rs
+tags: []
+purpose: 'T-3704 (arc-011 P-16, B-6, 06a AL-33): agent key cards at the hub and the post-time check'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

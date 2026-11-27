@@ -1,0 +1,21 @@
+id: tests/version-derive-tests.sh
+name: version-derive-tests
+type: script
+subsystem: tests
+location: tests/version-derive-tests.sh
+tags: []
+
+purpose: "T-3774: run the unit tests of crates/version-derive.rs (build.rs code is not reached by `cargo test`), then a negative control: the pre-T-3774 mapping (`major.minor.N`) put back into a scratch copy must FAIL them."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

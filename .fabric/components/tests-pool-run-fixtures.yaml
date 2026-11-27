@@ -1,0 +1,21 @@
+id: tests/pool-run-fixtures.sh
+name: pool-run-fixtures
+type: script
+subsystem: guard-layer
+location: tests/pool-run-fixtures.sh
+tags: []
+
+purpose: "Fixtures for scripts/pool-run.sh (T-3859). Fake pinned files and a fake submit script; never contacts a hub."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

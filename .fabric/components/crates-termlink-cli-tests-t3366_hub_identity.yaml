@@ -1,0 +1,15 @@
+id: crates/termlink-cli/tests/t3366_hub_identity.rs
+name: t3366_hub_identity
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/t3366_hub_identity.rs
+tags: []
+purpose: 'T-3366 (arc-011 P-10, B-1): E-36 / E-37 hub half / E-166 hub half at L4 — a real hub binary'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

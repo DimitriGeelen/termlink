@@ -1,0 +1,15 @@
+id: crates/termlink-hub/src/hub_identity.rs
+name: hub_identity
+type: script
+subsystem: hub
+location: crates/termlink-hub/src/hub_identity.rs
+tags: []
+purpose: 'T-3366 (arc-011 P-10, B-1; AL-17 + AL-18 hub half): the hub''s canonical id and signing key'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

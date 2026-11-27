@@ -4,18 +4,13 @@ type: script
 subsystem: doctor
 location: crates/termlink-doctor/src/hubs_config.rs
 tags: []
-
-purpose: "~/.termlink/hubs.toml model and its read-only loader, shared so the doctor and other consumers read hubs.toml through one parser."
-purpose_source: header-comment  # T-3214: copied by hand from the //! header; fabric describe.py has no .rs reader (filed upstream)
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: ~/.termlink/hubs.toml model and its read-only loader, shared so the doctor and other consumers read hubs.toml through
+  one parser.
+purpose_source: header-comment
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-doctor/src/lib.rs
+  type: called_by
 last_verified: 2026-10-20
 created_by: unknown
+last_enriched: '2026-11-27'

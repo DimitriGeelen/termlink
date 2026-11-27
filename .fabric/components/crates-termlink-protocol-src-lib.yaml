@@ -30,6 +30,8 @@ depends_on:
   type: calls
 - target: crates/termlink-protocol/src/retention_defaults.rs
   type: calls
+- target: crates/termlink-protocol/src/tlblob.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -131,4 +133,30 @@ depended_by:
   type: called_by
 - target: crates/termlink-sidecar/tests/receive_hub.rs
   type: called_by
-last_enriched: '2026-10-18'
+- target: crates/termlink-cli/src/commands/agent_work.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/hub_link.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3703_revocation.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3704_key_card.rs
+  type: called_by
+- target: crates/termlink-hub/src/dispatch_contract.rs
+  type: called_by
+- target: crates/termlink-hub/src/inbox_consumers.rs
+  type: called_by
+- target: crates/termlink-hub/src/key_card.rs
+  type: called_by
+- target: crates/termlink-hub/src/mail_guard.rs
+  type: called_by
+- target: crates/termlink-session/src/founding_log.rs
+  type: called_by
+- target: crates/termlink-session/src/main_lease.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/enckey.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/liveness.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3704_impersonation.rs
+  type: called_by
+last_enriched: '2026-11-27'

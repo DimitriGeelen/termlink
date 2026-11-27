@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/t3854_pointer_origin.rs
+name: t3854_pointer_origin
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3854_pointer_origin.rs
+tags: []
+purpose: 'T-3854 (T-3694 finding, 2026-11-23 21:41Z): a generated prompt that arrives while the'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

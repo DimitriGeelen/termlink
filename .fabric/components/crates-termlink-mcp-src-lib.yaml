@@ -24,6 +24,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-mcp/tests/parity.rs
   type: called_by
+- target: crates/termlink-mcp/tests/t3757_mcp_from.rs
+  type: called_by
 last_verified: 2026-03-26
 created_by: unknown
-last_enriched: '2026-08-14'
+last_enriched: '2026-11-27'

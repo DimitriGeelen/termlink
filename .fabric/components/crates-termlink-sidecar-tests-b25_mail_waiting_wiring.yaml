@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/b25_mail_waiting_wiring.rs
+name: b25_mail_waiting_wiring
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/b25_mail_waiting_wiring.rs
+tags: []
+purpose: 'T-3694 (B-25, K-34 / E-28 wiring): the waiting-mail signal runs inside a real sidecar'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -4,18 +4,17 @@ type: script
 subsystem: operations
 location: scripts/hub-link-provision.sh
 tags: []
-
-purpose: "T-3781: provision (and renew) a non-root user's HUB LINK on .107, so the user's own sessions and dispatched workers register on the root hub over TCP (operator ruling A on T-3759, 2026-11-13)."
+purpose: 'T-3781: provision (and renew) a non-root user''s HUB LINK on .107, so the user''s own sessions and dispatched workers
+  register on the root hub over TCP (operator ruling A on T-3759, 2026-11-13).'
 purpose_source: header-comment
-
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: scripts/lib/runuser-path.sh
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: runme.sh
+  type: called_by
+- target: tests/runme-fixtures.sh
+  type: called_by
 last_verified: 2026-11-13
 created_by: unknown
+last_enriched: '2026-11-27'

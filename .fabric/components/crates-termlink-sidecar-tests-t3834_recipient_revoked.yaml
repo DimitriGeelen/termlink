@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3834_recipient_revoked.rs
+name: t3834_recipient_revoked
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3834_recipient_revoked.rs
+tags: []
+purpose: 'T-3834 (RK-1) at L4, on a real hub: fx-a and fx-b are carded, the operator revokes fx-a''s key, and fx-b'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

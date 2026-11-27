@@ -1,0 +1,15 @@
+id: crates/termlink-bus/src/removal_guard.rs
+name: removal_guard
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/removal_guard.rs
+tags: []
+purpose: 'Removal guard for mail topics: no sweep, trim, retention change or ceiling removes an open message silently'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-bus/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

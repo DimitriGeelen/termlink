@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/src/enckey.rs
+name: enckey
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/enckey.rs
+tags: []
+purpose: Per-agent X25519 encryption keys, the register check at start, and the TLBLOB wrapper (B-11, K-24)
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

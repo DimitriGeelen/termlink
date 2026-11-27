@@ -1,0 +1,15 @@
+id: tests/substrate-preflight-ntp-fixtures.sh
+name: substrate-preflight-ntp-fixtures
+type: script
+subsystem: guard-layer
+location: tests/substrate-preflight-ntp-fixtures.sh
+tags: []
+purpose: 'guard-layer: source'
+purpose_source: header-comment
+depends_on:
+- target: scripts/substrate-preflight.sh
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

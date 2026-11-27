@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/liveness_hub.rs
+name: liveness_hub
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/liveness_hub.rs
+tags: []
+purpose: 'T-3646: the pinned main''s liveness note against a throwaway hub. Hermetic: testkit estate only'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

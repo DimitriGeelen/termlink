@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/p2_parity.rs
+name: p2_parity
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/p2_parity.rs
+tags: []
+purpose: 'T-3761: the P-2 parity fixture (`tests/fixtures/b25-parity/p2-report-ordering.json`)'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,21 @@
+id: crates/termlink-sidecar/src/enckey_tests.rs
+name: enckey_tests
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/enckey_tests.rs
+tags: []
+
+purpose: "T-3696 (B-11) tests: E-47 (ciphertext only, writer header), E-48 (register mismatch refused; A's blob does not"
+purpose_source: file-header (T-3867)
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

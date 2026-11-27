@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/src/hub_key_pin.rs
+name: hub_key_pin
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/hub_key_pin.rs
+tags: []
+purpose: 'T-3366 (arc-011 P-10, B-1; AL-18 sidecar half, E-37): pin the hub''s signing key'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

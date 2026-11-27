@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3708_revoff.rs
+name: t3708_revoff
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3708_revoff.rs
+tags: []
+purpose: 'T-3708 (FCW-120): with the revocation pull switched off, the tracker''s pass still stamps the `revocation`'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

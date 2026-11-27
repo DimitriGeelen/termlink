@@ -20,7 +20,10 @@ depends_on:
   type: calls
 - target: systemd-templates/termlink-sidecar@.service
   type: reads
+- target: scripts/hub-link-provision.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-11-27'

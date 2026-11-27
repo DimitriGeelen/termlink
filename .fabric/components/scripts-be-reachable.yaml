@@ -17,7 +17,9 @@ depended_by:
   type: called_by
 - target: scripts/tl-claude.sh
   type: called_by
+- target: .claude/commands/be-reachable.md
+  type: called_by
 last_verified: 2026-05-28
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

@@ -8,7 +8,10 @@ purpose: Fixtures for scripts/gate-inception-voi.sh (T-3174).
 depends_on:
 - target: scripts/voi-prompt.sh
   type: calls
-depended_by: []
+depended_by:
+- target: tests/voi-ledger-hermetic-fixtures.sh
+  type: called_by
 last_verified: 2026-09-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-11-27'

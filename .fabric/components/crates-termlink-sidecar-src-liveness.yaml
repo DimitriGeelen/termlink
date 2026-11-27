@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/src/liveness.rs
+name: liveness
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/liveness.rs
+tags: []
+purpose: Liveness of the pinned main (T-3646; T-3619 slice 2, operator ruling B 2026-11-01)
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

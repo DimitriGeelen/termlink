@@ -1,0 +1,21 @@
+id: tests/t3757-from-fixtures.sh
+name: t3757-from-fixtures
+type: script
+subsystem: guard-layer
+location: tests/t3757-from-fixtures.sh
+tags: []
+
+purpose: "Fixture suite for T-3757 step 1 (arc-011, follow-on to P-14 / B-4, 06a AL-32): every founding-verb caller declares its identity as `params.from`. Prints one PASS line per check (or FAIL)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

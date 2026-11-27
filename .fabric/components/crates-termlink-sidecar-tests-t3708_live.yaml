@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3708_live.rs
+name: t3708_live
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3708_live.rs
+tags: []
+purpose: 'T-3708 (P-24 slice a) on a real hub (testkit estate): E-55 (fields stamped by their producers; p95 ≤ 5 s over'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

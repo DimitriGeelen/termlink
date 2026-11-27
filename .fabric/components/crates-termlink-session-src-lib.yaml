@@ -97,6 +97,26 @@ depends_on:
   type: calls
 - target: crates/termlink-session/src/invocation_audit.rs
   type: calls
+- target: crates/termlink-session/src/child_env.rs
+  type: calls
+- target: crates/termlink-session/src/main_lease.rs
+  type: calls
+- target: crates/termlink-session/src/test_seam.rs
+  type: calls
+- target: crates/termlink-session/src/founding_log.rs
+  type: calls
+- target: crates/termlink-session/src/event_log.rs
+  type: calls
+- target: crates/termlink-session/src/inbox_read.rs
+  type: calls
+- target: crates/termlink-session/src/input_meter.rs
+  type: calls
+- target: crates/termlink-session/src/procinfo.rs
+  type: calls
+- target: crates/termlink-session/src/signed_state.rs
+  type: calls
+- target: crates/termlink-session/src/tmux_server.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -198,4 +218,62 @@ depended_by:
   type: called_by
 - target: crates/termlink-sidecar/tests/soak.rs
   type: called_by
-last_enriched: '2026-10-18'
+- target: crates/termlink-cli/src/commands/agent_work.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/hub_link.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/hub_register.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/main_lease.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/tmux.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/tmux_spawn.rs
+  type: called_by
+- target: crates/termlink-cli/tests/main_lease_integration.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3703_revocation.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3704_key_card.rs
+  type: called_by
+- target: crates/termlink-doctor/src/lib.rs
+  type: called_by
+- target: crates/termlink-hub/src/dispatch_contract.rs
+  type: called_by
+- target: crates/termlink-hub/src/inbox_consumers.rs
+  type: called_by
+- target: crates/termlink-hub/src/remote_store.rs
+  type: called_by
+- target: crates/termlink-hub/src/revocation.rs
+  type: called_by
+- target: crates/termlink-session/tests/t3703_signed_state.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/doorbell.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/estate.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/lease.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/mail_waiting.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/revocation.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/b16_live.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/e153_origin_check.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/meter_session_rpc.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/p5_withhold.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3700_consumers.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3704_impersonation.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3770_native_binding.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3772_binding.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/t3854_pointer_origin.rs
+  type: called_by
+last_enriched: '2026-11-27'

@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: scripts/check-guard-severity-markers.sh
 tags: []
 purpose: check-guard-severity-markers.sh (T-3258, T-3260) — every demoting guard-layer
-depends_on: []
+depends_on:
+- target: scripts/guard-expected-red.sh
+  type: calls
 depended_by:
 - target: tests/guard-layer-severity-fixtures.sh
   type: calls
@@ -14,4 +16,4 @@ depended_by:
 last_verified: 2026-09-29
 created_by: unknown
 purpose_source: header-comment
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

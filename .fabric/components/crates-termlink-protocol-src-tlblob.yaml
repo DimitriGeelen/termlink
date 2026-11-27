@@ -1,0 +1,15 @@
+id: crates/termlink-protocol/src/tlblob.rs
+name: tlblob
+type: script
+subsystem: protocol
+location: crates/termlink-protocol/src/tlblob.rs
+tags: []
+purpose: 'The arc-011 blob wrapper header (TLBLOB, B-11, ARC4 6.4.3/6.4.5, 06a AL-26/AL-28): the bytes every object a'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-protocol/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,17 @@
+id: crates/termlink-session/src/founding_log.rs
+name: founding_log
+type: script
+subsystem: session
+location: crates/termlink-session/src/founding_log.rs
+tags: []
+purpose: Founding-verb use log and owner-only sessions (T-3702, arc-011 P-14 / B-4, 06a AL-32, 04 6.6.4)
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

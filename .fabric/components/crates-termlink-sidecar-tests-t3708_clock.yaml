@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3708_clock.rs
+name: t3708_clock
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3708_clock.rs
+tags: []
+purpose: 'T-3708 (E-59, r1 MAJOR 9 / BLOCKER): the deadline ages the sidecar uses do not move with a wall jump, through the'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

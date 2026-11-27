@@ -10,6 +10,8 @@ depends_on:
   type: calls
 - target: scripts/commit-pending.sh
   type: calls
+- target: scripts/guard-expected-red.sh
+  type: calls
 depended_by:
 - target: tests/release-publication-canary-fixtures.sh
   type: called_by
@@ -28,4 +30,4 @@ depended_by:
 last_verified: 2026-09-29
 created_by: unknown
 purpose_source: header-comment
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

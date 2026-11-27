@@ -1,0 +1,21 @@
+id: .context/cron/target-cache-trim.crontab
+name: target-cache-trim
+type: script
+subsystem: guard-layer-cron
+location: .context/cron/target-cache-trim.crontab
+tags: []
+
+purpose: "T-3799 — weekly trim of /opt/termlink/target/debug (operator yes, 2026-11-15) Source of truth: /opt/termlink/.context/cron/target-cache-trim.crontab (git-tracked) Installed to: /etc/cron.d/termlink-target-cache-trim (USER field syntax — do…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

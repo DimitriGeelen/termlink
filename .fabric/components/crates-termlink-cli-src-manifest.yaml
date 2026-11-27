@@ -10,7 +10,9 @@ tags:
 purpose: Dispatch manifest — tracks worktree branches created by `termlink dispatch --isolate`. Persists lifecycle state (pending
   → merged | conflict | deferred | expired) to .termlink/dispatch-manifest.json so subsequent `termlink dispatch merge`, `cleanup`,
   and status commands can reconcile long-lived worker branches.
-depends_on: []
+depends_on:
+- target: crates/termlink-doctor/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-cli/src/commands/dispatch.rs
   type: calls
@@ -22,4 +24,4 @@ depended_by:
   type: called_by
 last_verified: 2026-04-19
 created_by: unknown
-last_enriched: '2026-04-21'
+last_enriched: '2026-11-27'

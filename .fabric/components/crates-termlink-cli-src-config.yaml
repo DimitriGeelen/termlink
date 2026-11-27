@@ -10,7 +10,9 @@ tags:
 - toml
 purpose: Hub profile system — HubProfile, HubsConfig, HubEntry structs; resolve_hub_profile() for CLI-to-profile resolution;
   ~/.termlink/hubs.toml persistence
-depends_on: []
+depends_on:
+- target: crates/termlink-doctor/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-cli/src/main.rs
   type: uses
@@ -24,4 +26,4 @@ depended_by:
   type: called_by
 last_verified: 2026-03-21
 created_by: T-223
-last_enriched: '2026-04-21'
+last_enriched: '2026-11-27'

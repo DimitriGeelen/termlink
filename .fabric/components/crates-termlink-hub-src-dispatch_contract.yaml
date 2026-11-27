@@ -4,18 +4,19 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/src/dispatch_contract.rs
 tags: []
-
-purpose: "Shared worker contract, hub backend, slice S1 (T-3501): `dispatch.allocate`, `dispatch.transition`, `dispatch.get`. The store and the fencing live in `termlink_bus::worker_contract`; this module is the JSON-RPC edge."
+purpose: 'Shared worker contract, hub backend, slice S1 (T-3501): `dispatch.allocate`, `dispatch.transition`, `dispatch.get`.
+  The store and the fencing live in `termlink_bus::worker_contract`; this module is the JSON-RPC edge.'
 purpose_source: header-comment
-
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: crates/termlink-bus/src/lib.rs
+  type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-10-21
 created_by: unknown
+last_enriched: '2026-11-27'

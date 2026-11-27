@@ -1,0 +1,19 @@
+id: crates/termlink-cli/tests/t3704_key_card.rs
+name: t3704_key_card
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/t3704_key_card.rs
+tags: []
+purpose: 'T-3704 (arc-011 P-16, B-6): E-69 post half and E-169''s card case at L4 — a real hub binary in a'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

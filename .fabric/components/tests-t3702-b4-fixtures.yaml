@@ -1,0 +1,21 @@
+id: tests/t3702-b4-fixtures.sh
+name: t3702-b4-fixtures
+type: script
+subsystem: guard-layer
+location: tests/t3702-b4-fixtures.sh
+tags: []
+
+purpose: "Fixture suite for arc-011 plan unit P-14 (T-3702, build item B-4: founding-verb use log at session and hub; owner-only sessions; 06a AL-32, 04 6.6.4)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

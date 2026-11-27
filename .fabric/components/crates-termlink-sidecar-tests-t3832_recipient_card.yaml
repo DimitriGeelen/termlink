@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3832_recipient_card.rs
+name: t3832_recipient_card
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3832_recipient_card.rs
+tags: []
+purpose: 'T-3832 (design 3.6.3, 3.8.2): the sender''s status shows the recipient''s reachability card, and past the'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

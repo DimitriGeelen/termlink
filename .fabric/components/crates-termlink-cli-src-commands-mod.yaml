@@ -81,6 +81,18 @@ depends_on:
   type: calls
 - target: crates/termlink-cli/src/commands/tmux_spawn.rs
   type: calls
+- target: crates/termlink-cli/src/commands/hub_register.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/hub_link.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/fleet_join.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/main_lease.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/agent_work.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/tmux.rs
+  type: calls
 depended_by:
 - target: crates/termlink-cli/src/main.rs
   type: uses
@@ -90,4 +102,4 @@ depended_by:
   type: called_by
 last_verified: 2026-03-21
 created_by: T-223
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

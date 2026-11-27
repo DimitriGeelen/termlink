@@ -1,0 +1,21 @@
+id: tests/p5-withhold-fixtures.sh
+name: p5-withhold-fixtures
+type: script
+subsystem: guard-layer
+location: tests/p5-withhold-fixtures.sh
+tags: []
+
+purpose: "Fixture suite for P-5 (arc-011 plan unit, T-3695): a non-main session is withheld ROLE mail only (ARC4 7.1.a, CR-4.11; 06 AL-12 5.12.c)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

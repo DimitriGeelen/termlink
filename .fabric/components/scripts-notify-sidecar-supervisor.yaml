@@ -8,6 +8,8 @@ purpose: 'T-3050 — notify-sidecar supervisor: autostart + self-heal for the ar
 depends_on:
 - target: scripts/notify-sidecar.sh
   type: calls
+- target: scripts/lib/remote-inbox-relay.py
+  type: calls
 depended_by:
 - target: runme.sh
   type: called_by
@@ -21,5 +23,5 @@ depended_by:
   type: called_by
 last_verified: 2026-09-25
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

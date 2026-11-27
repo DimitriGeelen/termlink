@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/meter_session_rpc.rs
+name: meter_session_rpc
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/meter_session_rpc.rs
+tags: []
+purpose: 'B-27 E-15 (L4 half): the sidecar''s S1 read against a real TermLink session'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

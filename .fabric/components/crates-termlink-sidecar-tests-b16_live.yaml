@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/b16_live.rs
+name: b16_live
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/b16_live.rs
+tags: []
+purpose: 'B-16 (T-3697): the doorbell on the real store and a real TermLink PTY session'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

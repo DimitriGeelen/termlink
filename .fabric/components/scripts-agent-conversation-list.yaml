@@ -6,8 +6,11 @@ location: scripts/agent-conversation-list.sh
 tags: []
 purpose: T-1827 — enumerate conversations on a topic.
 depends_on: []
-depended_by: []
+depended_by:
+- target: .claude/commands/conversations.md
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
 standalone: true
+last_enriched: '2026-11-27'

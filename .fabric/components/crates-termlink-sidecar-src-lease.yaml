@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/src/lease.rs
+name: lease
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/lease.rs
+tags: []
+purpose: The project's main lease as this sidecar sees it (T-3654, OD-18 / R-67, R-67.a1 (4))
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

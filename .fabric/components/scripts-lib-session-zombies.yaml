@@ -8,6 +8,8 @@ purpose: T-3296 (T-3291 S4) — shared detector for the session lifecycle leak.
 depends_on:
 - target: scripts/check-session-leak-freshness.sh
   type: reads
+- target: scripts/lib/tmux_servers.py
+  type: uses
 depended_by:
 - target: runme.sh
   type: called_by
@@ -18,4 +20,4 @@ depended_by:
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: docstring
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'

@@ -1,0 +1,21 @@
+id: tests/t3708-evidence.sh
+name: t3708-evidence
+type: script
+subsystem: tests
+location: tests/t3708-evidence.sh
+tags: []
+
+purpose: "T-3708 (arc-011 P-24 slice a, B-14): the unit's fixture suite."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

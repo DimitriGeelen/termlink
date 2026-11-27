@@ -1,0 +1,21 @@
+id: scripts/test-agent-listeners-mailbox.sh
+name: test-agent-listeners-mailbox
+type: script
+subsystem: operations
+location: scripts/test-agent-listeners-mailbox.sh
+tags: []
+
+purpose: "T-3751 — hermetic fixtures for mailbox receivers in agent-listeners.sh and the agent-send.sh --to route for a mailbox-only peer."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

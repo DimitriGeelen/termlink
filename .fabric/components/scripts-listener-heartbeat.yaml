@@ -6,8 +6,11 @@ location: scripts/listener-heartbeat.sh
 tags: []
 purpose: T-1832 — listener-heartbeat emitter (T-1830 sub-build a).
 depends_on: []
-depended_by: []
+depended_by:
+- target: .claude/commands/be-reachable.md
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
 standalone: true
+last_enriched: '2026-11-27'

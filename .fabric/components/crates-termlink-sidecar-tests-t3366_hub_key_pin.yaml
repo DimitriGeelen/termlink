@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3366_hub_key_pin.rs
+name: t3366_hub_key_pin
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3366_hub_key_pin.rs
+tags: []
+purpose: 'T-3366 (arc-011 P-10, B-1): E-37 sidecar half and E-166 (FCW-84) against a throwaway hub'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,15 @@
+id: crates/termlink-session/src/test_seam.rs
+name: test_seam
+type: script
+subsystem: session
+location: crates/termlink-session/src/test_seam.rs
+tags: []
+purpose: 'T-3686 (06 AL-16, FCW-60; 05 E-163.1): the test-seam gate for the main lease'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

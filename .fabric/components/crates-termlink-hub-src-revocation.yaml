@@ -1,0 +1,17 @@
+id: crates/termlink-hub/src/revocation.rs
+name: revocation
+type: script
+subsystem: hub
+location: crates/termlink-hub/src/revocation.rs
+tags: []
+purpose: 'T-3703 (arc-011 P-15, B-5; AL-21): the hub''s signed revocation list'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

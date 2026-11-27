@@ -4,18 +4,14 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/tests/wc_conformance/hub.rs
 tags: []
-
-purpose: "Hub backend adapter for AEF's shared worker-contract vectors (T-3517, wc/0.3)."
+purpose: Hub backend adapter for AEF's shared worker-contract vectors (T-3517, wc/0.3).
 purpose_source: header-comment
-
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-bus/src/lib.rs
+  type: calls
+- target: crates/termlink-hub/src/lib.rs
+  type: calls
+depended_by: []
 last_verified: 2026-10-21
 created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3832_offline_lines.rs
+name: t3832_offline_lines
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3832_offline_lines.rs
+tags: []
+purpose: 'T-3832 (P-24 slice b, design 3.8.1, E-60) on a real, then stopped, then restarted hub: a sender whose own'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

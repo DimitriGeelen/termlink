@@ -29,7 +29,13 @@ depended_by:
   type: calls
 - target: tests/agent-send-grace-window.sh
   type: called_by
+- target: .claude/commands/agent-handoff.md
+  type: called_by
+- target: .claude/commands/check-arc.md
+  type: called_by
+- target: .claude/commands/reply.md
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

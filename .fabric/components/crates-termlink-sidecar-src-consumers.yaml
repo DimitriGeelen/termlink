@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/src/consumers.rs
+name: consumers
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/consumers.rs
+tags: []
+purpose: 'T-3700 (arc-011 P-12, B-2, 06a AL-30): the sidecar''s per-tick check of who consumes its inbox'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,17 @@
+id: crates/termlink-cli/src/commands/hub_register.rs
+name: hub_register
+type: script
+subsystem: cli
+location: crates/termlink-cli/src/commands/hub_register.rs
+tags: []
+purpose: 'T-3760: `termlink register --hub ADDR --hub-token-file FILE` — a session run by a'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

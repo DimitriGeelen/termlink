@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3764_fixture_basis.rs
+name: t3764_fixture_basis
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3764_fixture_basis.rs
+tags: []
+purpose: 'T-3764: every `origin`/`basis` pair an adapter is told to send by the shared parity'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

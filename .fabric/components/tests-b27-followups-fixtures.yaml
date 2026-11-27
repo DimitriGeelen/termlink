@@ -1,0 +1,21 @@
+id: tests/b27-followups-fixtures.sh
+name: b27-followups-fixtures
+type: script
+subsystem: guard-layer
+location: tests/b27-followups-fixtures.sh
+tags: []
+
+purpose: "Fixture suite for the B-27 follow-ups (arc-011 plan units P-1 T-3692, P-2 T-3693). Runs the meter's hermetic tests that carry each listed E-n and prints one PASS line per E-n (or FAIL)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/src/mail_waiting.rs
+name: mail_waiting
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/mail_waiting.rs
+tags: []
+purpose: 'K-34 / V-21 (T-3694, B-25; 06 AL-13, ARC4 6.13.5): "role mail waiting, main not reading"'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

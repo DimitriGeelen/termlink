@@ -69,6 +69,18 @@ depends_on:
   type: calls
 - target: crates/termlink-session/src/lib.rs
   type: calls
+- target: crates/termlink-hub/src/dispatch_contract.rs
+  type: calls
+- target: crates/termlink-hub/src/hub_identity.rs
+  type: calls
+- target: crates/termlink-hub/src/inbox_consumers.rs
+  type: calls
+- target: crates/termlink-hub/src/key_card.rs
+  type: calls
+- target: crates/termlink-hub/src/revocation.rs
+  type: calls
+- target: crates/termlink-hub/src/mail_guard.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -82,4 +94,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-cli/src/commands/infrastructure.rs
   type: called_by
-last_enriched: '2026-10-18'
+- target: crates/termlink-doctor/src/lib.rs
+  type: called_by
+- target: crates/termlink-hub/tests/wc_conformance/hub.rs
+  type: called_by
+last_enriched: '2026-11-27'

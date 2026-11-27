@@ -31,6 +31,30 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/tests/integration.rs
   type: called_by
+- target: crates/termlink-cli/tests/main_lease_integration.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3366_hub_identity.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3703_revocation.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3704_key_card.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3749_loud_send.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3757_declared_from.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3781_hub_link.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3782_hub_forward.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3788_link_fallback.rs
+  type: called_by
+- target: crates/termlink-cli/tests/t3810_ensure_topic_no_create.rs
+  type: called_by
+- target: crates/termlink-mcp/tests/t3757_mcp_from.rs
+  type: called_by
+- target: crates/termlink-mcp/tests/t3780_method_parity.rs
+  type: called_by
 last_verified: 2026-03-11
 created_by: T-072
-last_enriched: '2026-08-14'
+last_enriched: '2026-11-27'

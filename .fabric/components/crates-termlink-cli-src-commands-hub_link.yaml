@@ -4,18 +4,16 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/hub_link.rs
 tags: []
-
-purpose: "TODO: describe what this component does"
-purpose_source: none
-
+purpose: 'T-3781: the "hub link" of a non-root user — a registration-claim token (T-3760)'
+purpose_source: file-header (T-3867)
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
 last_verified: 2026-11-13
 created_by: unknown
+last_enriched: '2026-11-27'

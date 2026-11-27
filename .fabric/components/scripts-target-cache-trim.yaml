@@ -1,0 +1,21 @@
+id: scripts/target-cache-trim.sh
+name: target-cache-trim
+type: script
+subsystem: operations
+location: scripts/target-cache-trim.sh
+tags: []
+
+purpose: "target-cache-trim.sh — weekly trim of this repo's cargo debug cache (T-3799)"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

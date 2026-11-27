@@ -1,0 +1,15 @@
+id: crates/termlink-cli/tests/t3788_link_fallback.rs
+name: t3788_link_fallback
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/t3788_link_fallback.rs
+tags: []
+purpose: 'T-3788 (T-3786 GO A): a non-root user with a hub link and no local hub socket uses'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

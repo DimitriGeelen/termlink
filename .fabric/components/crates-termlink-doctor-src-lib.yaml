@@ -4,18 +4,25 @@ type: script
 subsystem: doctor
 location: crates/termlink-doctor/src/lib.rs
 tags: []
-
-purpose: "The one environment health-check list (T-3214): run_doctor collects the checks for both the CLI termlink doctor and the MCP termlink_doctor; callers own presentation only."
-purpose_source: header-comment  # T-3214: copied by hand from the //! header; fabric describe.py has no .rs reader (filed upstream)
-
+purpose: 'The one environment health-check list (T-3214): run_doctor collects the checks for both the CLI termlink doctor
+  and the MCP termlink_doctor; callers own presentation only.'
+purpose_source: header-comment
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: crates/termlink-doctor/src/hubs_config.rs
+  type: calls
+- target: crates/termlink-doctor/src/manifest.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-hub/src/lib.rs
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-cli/src/commands/infrastructure.rs
+  type: called_by
+- target: crates/termlink-cli/src/config.rs
+  type: called_by
+- target: crates/termlink-cli/src/manifest.rs
+  type: called_by
 last_verified: 2026-10-20
 created_by: unknown
+last_enriched: '2026-11-27'

@@ -1,0 +1,21 @@
+id: scripts/pool-run.sh
+name: pool-run
+type: script
+subsystem: operations
+location: scripts/pool-run.sh
+tags: []
+
+purpose: "pool-run.sh — run one TermLink job on the ring20 build pool, with ring20's code pinned (T-3858, T-3859)"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

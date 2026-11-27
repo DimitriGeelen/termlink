@@ -1,0 +1,15 @@
+id: crates/termlink-session/src/procinfo.rs
+name: procinfo
+type: script
+subsystem: session
+location: crates/termlink-session/src/procinfo.rs
+tags: []
+purpose: 'T-3770: process facts the session binding needs (parent pid, executable, argv, cwd)'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

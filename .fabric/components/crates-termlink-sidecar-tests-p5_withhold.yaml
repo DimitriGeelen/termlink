@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/p5_withhold.rs
+name: p5_withhold
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/p5_withhold.rs
+tags: []
+purpose: 'P-5 (T-3695, arc-011; ARC4 7.1.a, CR-4.11; 06 AL-12 5.12.c): a session that is not main'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

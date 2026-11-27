@@ -1,13 +1,16 @@
 ---
 id: T-3867
-name: "Register the ~102 source files that have no fabric card, with real purposes (not scan skeletons)"
+name: "Register the ~102 source files that have no fabric card, with real purposes
+  (not scan skeletons)"
 description: >
-  Audit WARN 'Fabric drift: 102 source file(s) have no fabric card' (T-3670 triage 2026-11-25). fw fabric scan would add TODO-purpose skeletons and re-fire the under-populated check; purposes must come from file headers as in T-3440.
+  Audit WARN 'Fabric drift: 102 source file(s) have no fabric card' (T-3670 triage
+  2026-11-25). fw fabric scan would add TODO-purpose skeletons and re-fire the under-populated
+  check; purposes must come from file headers as in T-3440.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-25T10:14:37Z
-last_update: 2026-11-25T10:14:37Z
-date_finished: null
+last_update: 2026-11-27T20:59:24Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +53,41 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-27T20:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3867: Register the ~102 source files that have no fabric card, with real purposes (not scan skeletons)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** The audit warns "Fabric drift: 102 source file(s) have no fabric card" (T-3670 triage, 2026-11-25); it is the last unexamined warning keeping `check-audit-warning-acknowledgement.sh` red. `fw fabric drift` lists 112 on 2026-11-27.
+
+**Problem / hypothesis:** These are real files (crate sources, tests, scripts, crontabs) added since the last registration. `fw fabric scan` would add skeleton cards with TODO purposes, which re-fires the under-populated check whose ledger entry requires TODO purposes to stay at 0.
+
+**Goal:** Every unregistered source file gets a card with a real purpose and its subsystem, so impact analysis covers it.
+
+**Expected outcome:** `fw fabric drift` reports 0 unregistered; no card added with a TODO purpose; purposes taken from each file's own header (module doc, script comment), as T-3440 did.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Each file `fw fabric drift` lists as unregistered has a card; `fw fabric drift` reports 0 unregistered
+  - 2026-11-27: 102 registered (`fw fabric register`), drift "unregistered: 0, orphaned: 0, stale: 0".
+- [x] No new card carries a TODO or empty purpose; each purpose comes from the file's own header text (or a one-line description when the file has none, named in the task)
+  - `fw fabric register` leaves "TODO" for Rust files (it does not read `//!` docs), so a scratch helper (fabric_fill.py) set each purpose from the file's own first header line (`//!` for .rs, docstring for .py, first comment after the shebang for .sh/.crontab, first line for .md), `purpose_source: file-header (T-3867)`. 102/102 had a header; none needed a hand-written line. Five OLDER committed cards with TODO purposes (hub_link.rs, t3781_hub_link.rs, fleet_join.rs, tmux.rs, tmux_server.rs) were filled the same way.
+- [x] The audit's under-populated check does not report new TODO-purpose or unknown-subsystem cards
+  - TODO purposes 0, `subsystem: unknown` 0. `fw fabric enrich` then added edges: under-populated 396 -> 273 (was 294 before this task).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -267,6 +291,8 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+.agentic-framework/bin/fw fabric drift > .context/working/.t3867-drift.out 2>&1; grep -q "unregistered: 0" .context/working/.t3867-drift.out
+test "$(grep -l 'purpose: "TODO' .fabric/components/*.yaml | wc -l)" -eq 0
 
 ## RCA
 
@@ -364,3 +390,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3867-register-the-102-source-files-that-have-.md
 - **Context:** Initial task creation
+
+### 2026-11-27T20:55:41Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

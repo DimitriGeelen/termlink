@@ -1,0 +1,19 @@
+id: crates/termlink-hub/src/inbox_consumers.rs
+name: inbox_consumers
+type: script
+subsystem: hub
+location: crates/termlink-hub/src/inbox_consumers.rs
+tags: []
+purpose: 'T-3700 (arc-011 P-12, B-2, 06a AL-30): who consumes each inbox, `proven` or `claimed`, and the bind'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by:
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

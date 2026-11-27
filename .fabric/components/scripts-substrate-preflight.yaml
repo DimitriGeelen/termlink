@@ -5,7 +5,9 @@ subsystem: operations
 location: scripts/substrate-preflight.sh
 tags: []
 purpose: T-2154 — substrate pre-flight health check.
-depends_on: []
+depends_on:
+- target: scripts/lib/version-cmp.sh
+  type: calls
 depended_by:
 - target: scripts/check-preflight-doc-set-drift.sh
   type: called_by
@@ -23,7 +25,13 @@ depended_by:
   type: called_by
 - target: tests/substrate-preflight-runtime-dir-fixtures.sh
   type: called_by
+- target: tests/substrate-preflight-hub-socket-fixtures.sh
+  type: called_by
+- target: tests/substrate-preflight-ntp-fixtures.sh
+  type: called_by
+- target: .claude/commands/preflight.md
+  type: called_by
 last_verified: 2026-06-11
 created_by: unknown
-last_enriched: '2026-10-18'
+last_enriched: '2026-11-27'
 purpose_source: header-comment

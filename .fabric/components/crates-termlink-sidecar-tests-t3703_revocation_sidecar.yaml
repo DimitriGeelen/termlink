@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/t3703_revocation_sidecar.rs
+name: t3703_revocation_sidecar
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/t3703_revocation_sidecar.rs
+tags: []
+purpose: 'T-3703 (arc-011 P-15, B-5) slice C at L4: E-39 on a real hub. After `hub.revoke` of fx-a''s key, fx-b''s'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

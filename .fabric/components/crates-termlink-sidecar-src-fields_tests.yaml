@@ -1,0 +1,21 @@
+id: crates/termlink-sidecar/src/fields_tests.rs
+name: fields_tests
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/fields_tests.rs
+tags: []
+
+purpose: "T-3708 unit tests for `fields` on a simulated clock (E-19, E-55 freshness; E-56 CLEAR; E-57 V-8; E-59 ages)"
+purpose_source: file-header (T-3867)
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

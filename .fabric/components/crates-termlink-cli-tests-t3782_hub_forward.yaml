@@ -1,0 +1,15 @@
+id: crates/termlink-cli/tests/t3782_hub_forward.rs
+name: t3782_hub_forward
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/t3782_hub_forward.rs
+tags: []
+purpose: 'T-3782: the hub forwards calls above observe scope to a TCP worker that handed it a'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

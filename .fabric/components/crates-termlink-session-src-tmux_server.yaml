@@ -4,18 +4,12 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/tmux_server.rs
 tags: []
-
-purpose: "TODO: describe what this component does"
-purpose_source: none
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: Which tmux server a TermLink session lives on (T-3552, SEV-1 T-3549 ruling A)
+purpose_source: file-header (T-3867)
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
 last_verified: 2026-10-22
 created_by: unknown
+last_enriched: '2026-11-27'

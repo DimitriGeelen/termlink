@@ -1,0 +1,15 @@
+id: crates/termlink-cli/tests/t3757_declared_from.rs
+name: t3757_declared_from
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/t3757_declared_from.rs
+tags: []
+purpose: 'T-3757 step 1: every CLI founding-verb caller declares `from`, end to end'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

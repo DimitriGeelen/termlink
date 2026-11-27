@@ -1,0 +1,21 @@
+id: tests/b16-doorbell-fixtures.sh
+name: b16-doorbell-fixtures
+type: script
+subsystem: guard-layer
+location: tests/b16-doorbell-fixtures.sh
+tags: []
+
+purpose: "Fixture suite for B-16 (arc-011 plan unit P-7, T-3697): the doorbell D+ and the 300 s watchdog K-33, the SI-1 line, strict delivery, back-off, the macOS interim `ps` veto and the session binding for S1 and `command.notify`."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

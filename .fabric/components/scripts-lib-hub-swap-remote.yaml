@@ -4,18 +4,14 @@ type: script
 subsystem: operations
 location: scripts/lib/hub-swap-remote.sh
 tags: []
-
-purpose: "T-3499 — remote-side scripts for scripts/hub-binary-swap.sh."
+purpose: T-3499 — remote-side scripts for scripts/hub-binary-swap.sh.
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/hub-binary-swap.sh
+  type: called_by
+- target: tests/hub-binary-swap-fixtures.sh
+  type: called_by
 last_verified: 2026-10-21
 created_by: unknown
+last_enriched: '2026-11-27'

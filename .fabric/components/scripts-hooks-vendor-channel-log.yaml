@@ -1,0 +1,21 @@
+id: scripts/hooks/vendor-channel-log.sh
+name: vendor-channel-log
+type: script
+subsystem: operations
+location: scripts/hooks/vendor-channel-log.sh
+tags: []
+
+purpose: "PreToolUse hook for SendMessage|Agent|Task (T-3710, arc-011 P-26, B-18 log half, K-20, AL-39)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-27
+created_by: unknown

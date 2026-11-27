@@ -1,0 +1,16 @@
+id: tests/substrate-preflight-binary-note-fixtures.sh
+name: substrate-preflight-binary-note-fixtures
+type: script
+subsystem: guard-layer
+location: tests/substrate-preflight-binary-note-fixtures.sh
+tags: []
+purpose: 'Fixtures for substrate-preflight.sh binary_commit_note (T-3865): Checks 4/5 name the commit a binary was built from
+  and the crates/ commits since, never the VERSION number.'
+purpose_source: header-comment
+depends_on:
+- target: scripts/lib/version-cmp.sh
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

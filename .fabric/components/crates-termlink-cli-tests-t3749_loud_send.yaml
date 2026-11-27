@@ -1,0 +1,15 @@
+id: crates/termlink-cli/tests/t3749_loud_send.rs
+name: t3749_loud_send
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/t3749_loud_send.rs
+tags: []
+purpose: 'T-3749: a send that did not reach a hub must fail loudly at the sender'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

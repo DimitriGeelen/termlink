@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/src/host.rs
+name: host
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/host.rs
+tags: []
+purpose: 'T-3708 (P-24 slice a; 06a AL-29; design 3.4-3.5): what the host really provides'
+purpose_source: file-header (T-3867)
+depends_on: []
+depended_by:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: called_by
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

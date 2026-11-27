@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/e153_origin_check.rs
+name: e153_origin_check
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/e153_origin_check.rs
+tags: []
+purpose: 'E-153 (T-3694, B-25 with B-27; CR-5.4, CR-6.4, FCW-195): a `human` claim with no client'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

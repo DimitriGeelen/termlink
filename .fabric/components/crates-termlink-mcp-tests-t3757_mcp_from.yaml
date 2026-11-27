@@ -1,0 +1,17 @@
+id: crates/termlink-mcp/tests/t3757_mcp_from.rs
+name: t3757_mcp_from
+type: script
+subsystem: mcp
+location: crates/termlink-mcp/tests/t3757_mcp_from.rs
+tags: []
+purpose: 'T-3757 step 1: the MCP founding-verb tools declare `from`'
+purpose_source: file-header (T-3867)
+depends_on:
+- target: crates/termlink-mcp/src/lib.rs
+  type: calls
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-11-27
+created_by: unknown
+last_enriched: '2026-11-27'

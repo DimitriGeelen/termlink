@@ -4,18 +4,12 @@ type: script
 subsystem: operations
 location: scripts/focus.sh
 tags: []
-
-purpose: "T-3655 — the operator-set focus anchor (adopted from 1409-sprind T-1954 fokus.yaml / tools/fokus.py)."
+purpose: T-3655 — the operator-set focus anchor (adopted from 1409-sprind T-1954 fokus.yaml / tools/fokus.py).
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: tests/session-start-alerts-fixtures.sh
+  type: called_by
 last_verified: 2026-11-02
 created_by: unknown
+last_enriched: '2026-11-27'
