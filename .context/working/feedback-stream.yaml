@@ -25713,3 +25713,21 @@ scan_id: R-2db0b2cf
 task_id: T-3682
 payload:
   task_file: .tasks/active/T-3682-warn-escalation-check-go-propagationsh-r.md
+---
+kind: scan_emitted
+timestamp: '2026-11-27T13:34:38Z'
+scan_id: R-95d314cf
+task_id: T-3875
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-27T13:34:38Z'
+scan_id: R-95d314cf
+task_id: T-3875
+payload:
+  task_file: .tasks/active/T-3875-retarget-runme-action-11a-vendored-frame.md

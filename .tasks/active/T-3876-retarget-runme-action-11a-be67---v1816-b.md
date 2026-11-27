@@ -1,10 +1,10 @@
 ---
-id: T-3875
-name: "Retarget runme action 11a: vendored framework be.61 -> v1.8.16-be.67 (AEF T-5425 hook-refusal fix)"
+id: T-3876
+name: "Retarget runme action 11a: be.67 -> v1.8.16-be.69 (AEF T-5430 closes a fail-open claude-fw resume rule)"
 description: >
-  AEF msg c6d4f548 (2026-11-27): T-5425 ships in v1.8.16-be.67. Retarget action 11a following the T-3851/T-3824 procedure: divergence check, 3-way merge of preserved files, manifest, fixture; operator runs runme; then clear .hook-failure-counter once and drop the local Hook threshold acknowledgement.
+  Follow-up to T-3875. AEF (msg 6d82084a, 2026-11-27): be.69 replaces a fail-open claude-fw resume rule that be.67/be.68 carry (AEF T-5430); prefer be.69. Same 11a procedure: compare preserved files be.67 -> be.69 on the mirror, 3-way merge any changed, confirm ids with AEF, retarget, fixtures, operator runme.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -37,8 +37,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-27T12:32:00Z
-last_update: 2026-11-27T13:34:36Z
+created: 2026-11-27T13:34:25Z
+last_update: 2026-11-27T13:34:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,30 +52,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3875: Retarget runme action 11a: vendored framework be.61 -> v1.8.16-be.67 (AEF T-5425 hook-refusal fix)
+# T-3876: Retarget runme action 11a: be.67 -> v1.8.16-be.69 (AEF T-5430 closes a fail-open claude-fw resume rule)
 
 ## Context
 
-**Background / trigger:** AEF (msg c6d4f548, 2026-11-27) shipped T-5425 in v1.8.16-be.67: a hook that refuses by exit 2 is counted as a refusal, not a failure. That is the fix for the Hook-threshold audit WARN we acknowledged locally in T-3670 (our report, P-082). The project vendors be.61 (T-3851); runme action 11a is the re-vendor step.
-
-**Problem / hypothesis:** Re-vendoring drops our local fixes in the 12 preserved files (`.fwvendor-preserve.yaml`) unless each one that changed upstream is 3-way merged first (T-3778..T-3851 procedure). This session may not read AEF's repo, so base (be.61) and theirs (be.67) come from the public GitHub mirror at the tags, checked against blob ids from AEF.
-
-**Goal:** One operator runme run moves the vendored framework to be.67 with every local fix kept.
-
-**Expected outcome:** Action 11a targets be.67 with its own merge set in `.context/vendor-merges/T-3875`; after the run, `lib/hook-telemetry.sh` carries T-5425, `.hook-failure-counter` is cleared once, the local Hook-threshold acknowledgement is removed, and the audit no longer warns.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] The preserved files that changed be.61 -> be.67 are identified; base and theirs fetched from the mirror at the tags, blob ids matching AEF's list; ours equals the current vendored file
-  - AEF confirmed all three ids (msg 6d82084a, 2026-11-27). AEF also: be.69 replaces a fail-open claude-fw resume rule that be.67/be.68 carry (AEF T-5430) — follow-up retarget filed as T-3876; AEF T-5379 not in any tag yet, next in AEF's line.
-  - 2026-11-27: mirror be.61 = a32434f98 (= our vendored commit), be.67 = ca1f5fb45. Changed: estimator.py (40a5227747c7 -> 1e1b7f7ad4b3), lib/bvp.sh (1ea211eec560 -> 492a2fdcd114), lib/sidecar_cli.py (79ea1de1a15c -> 19c3f370c634); the other nine identical. AEF asked to confirm the ids (not yet answered); the operator's run fetches be.67 from AEF's own repo and 11a installs a merge only when ours/theirs hash-match MANIFEST.tsv, so a mismatch refuses before any change.
-- [x] Each changed file is 3-way merged (base be.61, ours, theirs be.67); conflicts resolved and named; merges + `MANIFEST.tsv` in `.context/vendor-merges/T-3875`
-  - bvp.sh and sidecar_cli.py clean, local-fix markers kept (10/10, 1/1). estimator.py: one conflict (our T-3189 leg vs upstream T-3513 fabric leg in the same slot), resolved to keep both, fabric first; `tests/bvp-derived-blast-radius-fixtures.sh` 34/0 on the merge, harness broken on theirs alone.
-- [x] runme 11a seams point at be.67 / T-3875 with a marker that proves T-5425 landed; `tests/runme-fixtures.sh` passes; `bash scripts/check-vendor-divergence.sh` exits 0
-  - AEFU_TAG v1.8.16-be.67, AEFU_MARK_FILE lib/hook-telemetry.sh, AEFU_MARK T-5425, AEFU_TASK T-3875, AEFU_MERGES .context/vendor-merges/T-3875. runme-fixtures 476/0; divergence check rc 0. be.67 still carries T-5351 in adapter2.py (action 40 unaffected); T-5379 is NOT in be.67 (still an open AEF task).
-- [x] After the operator's run: 11a OK, VERSION at or past be.67, no new fw doctor FAIL; `.hook-failure-counter` cleared once and the T-3670 Hook-threshold ledger entry removed
-  - runme-20261127T131450Z-3070139 (rc=1, failures not 11a's upgrade): 11a "OK upgraded to 1.8.15+3054.gca1f5fb45; CLAUDE.md project part and 12 preserved files byte-identical; 3 merged files installed", committed 3f5738b92 and pushed, Watchtower answering. Its one FAILED line was a NEW be.67 doctor check ("vector index lags the corpus", 188 files); `fw index reindex` rc 0, then `fw doctor` shows no FAIL. `lib/hook-telemetry.sh` carries T-5425 (4 refs). `.hook-failure-counter` cleared once (backup in the session scratchpad); `hook-threshold.py` now reports nothing; ledger entry removed. Other FAILED lines in that run: greenfield unreachable x3, action 28 (testdev's account at its weekly limit, misread as a broken token — separate task).
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -279,20 +267,8 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-grep -q "T-5425" .agentic-framework/lib/hook-telemetry.sh
-grep -q "gca1f5fb45" .agentic-framework/VERSION
-test -s .context/vendor-merges/T-3875/MANIFEST.tsv
-bash scripts/check-vendor-divergence.sh
 
 ## RCA
-
-**Symptom:** The audit warned "Hook threshold: 4 hook(s) failing over threshold (T-1626)" although no hook was broken (T-3670 triage).
-
-**Root cause:** Vendored `lib/hook-telemetry.sh` counted every non-zero hook exit as a failure, and gate hooks refuse by exit 2 on purpose, so gates doing their job read as failing.
-
-**Why structurally allowed:** The telemetry had one bucket for "non-zero"; nothing distinguished a designed refusal from a crash, and nothing tested a refusing gate against the threshold.
-
-**Prevention:** AEF T-5425 (vendored here in be.67) counts exit 2 as a refusal and only other non-zero exits as failures; the old counter was reset once so the history does not keep the false signal. This task is the delivery, not the fix itself.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -384,7 +360,7 @@ bash scripts/check-vendor-divergence.sh
 
 ## Updates
 
-### 2026-11-27T12:32:00Z — task-created [task-create-agent]
+### 2026-11-27T13:34:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3875-retarget-runme-action-11a-vendored-frame.md
+- **Output:** /opt/termlink/.tasks/active/T-3876-retarget-runme-action-11a-be67---v1816-b.md
 - **Context:** Initial task creation

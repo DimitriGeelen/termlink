@@ -1,0 +1,232 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3875: Retarget runme action 11a: vendored framework be.61 -> v1.8.16-be.67 (AEF T-5425 hook-refusal fix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-27T13:34:46Z
+# ============================================================================
+
+task_id: T-3875
+task_name: "Retarget runme action 11a: vendored framework be.61 -> v1.8.16-be.67 (AEF T-5425 hook-refusal fix)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-27T12:32:00Z
+completed: 2026-11-27T13:34:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-27T13:59:54+01:00
+last_commit: 2026-11-27T14:34:36+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 11a retargeted to AEF v1.8.16-be.67 (T-5425 hook refusals not failures); 3 preserved files merged (estimator.py conflict kept both fallbacks, fixture 34/0); runme fixtures 476/0; divergence clean. fw upgrade -> v1.8.16-be.67 (ca1f5fb45, 394 commits; T-5425; runme 11a). be.67 live (3f5738b92); doctor clean after reindex; hook-failure counter reset once and the local Hook-threshold acknowledgement dropped (AEF T-5425 vendored). close (vendored framework at be.67)
+
+# Key outcomes
+outcomes:
+  - 'The preserved files that changed be.61 -> be.67 are identified; base and theirs fetched from the mirror at the tags, blob ids matching AEF''s list; ours equals the current vendored file'
+  - 'Each changed file is 3-way merged (base be.61, ours, theirs be.67); conflicts resolved and named; merges + `MANIFEST.tsv` in `.context/vendor-merges/T-3875`'
+  - 'runme 11a seams point at be.67 / T-3875 with a marker that proves T-5425 landed; `tests/runme-fixtures.sh` passes; `bash scripts/check-vendor-divergence.sh` exits 0'
+  - 'After the operator''s run: 11a OK, VERSION at or past be.67, no new fw doctor FAIL; `.hook-failure-counter` cleared once and the T-3670 Hook-threshold ledger entry removed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme 11a retargeted to AEF v1.8.16-be.67 (T-5425 hook refusals not failures); 3 preserved files merged (estimator.py conflict kept both fallbacks, fixture 34/0); runme fixtures 476/0; divergence clean'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/v3.bpmn'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/check-active-completed-dup.py'
+  - '.agentic-framework/agents/context/check-arc-id.py'
+  - '.agentic-framework/agents/context/check-hook-wiring.sh'
+  - '.agentic-framework/agents/context/check-human-ac-tick.py'
+  - '.agentic-framework/agents/context/check-inception-decisions.py'
+  - '.agentic-framework/agents/context/check-inception-recommendation.py'
+  - '.agentic-framework/agents/context/check-inception-schema.py'
+  - '.agentic-framework/agents/context/check-mcp-egress.sh'
+  - '.agentic-framework/agents/context/check-onboarding-gate.py'
+  - '.agentic-framework/agents/context/check-review-links.py'
+  - '.agentic-framework/agents/context/consolidate.py'
+  - '.agentic-framework/agents/context/inject-next-directive.py'
+  - '.agentic-framework/agents/context/sidecar-inbox.sh'
+  - '.agentic-framework/agents/designer/designer.sh'
+  - '.agentic-framework/agents/task-create/create-batch.sh'
+  - '.agentic-framework/agents/task-create/create-task.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/bvp-estimator/estimator.py'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/contributing/pr-workflow-map.png'
+  - '.agentic-framework/docs/designs/aef-github-pr-intake.yaml'
+  - '.agentic-framework/docs/generated/components/agents-context-check-hook-wiring.md'
+  - '.agentic-framework/docs/generated/components/agents-context-check-mcp-egress.md'
+  - '.agentic-framework/docs/generated/components/agents-context-consolidate.md'
+  - '.agentic-framework/docs/generated/components/agents-context-inject-next-directive.md'
+  - '.agentic-framework/docs/generated/components/lib-__init__.md'
+  - '.agentic-framework/docs/generated/components/lib-authored_scope.md'
+  - '.agentic-framework/docs/generated/components/lib-hook-telemetry.md'
+  - '.agentic-framework/docs/generated/components/lib-hook_wiring.md'
+  - '.agentic-framework/docs/generated/components/lib-locks-gitignore.md'
+  - '.agentic-framework/docs/generated/components/lib-mcp_egress.md'
+  - '.agentic-framework/docs/generated/components/lib-publish_ban.md'
+  - '.agentic-framework/docs/generated/components/lib-run_module.md'
+  - '.agentic-framework/docs/generated/components/lib-test-bundle.md'
+  - '.agentic-framework/docs/generated/components/lib-workflow-map-link.md'
+  - '.agentic-framework/docs/generated/components/lib-workflow_map_link.md'
+  - '.agentic-framework/docs/generated/components/policy-mcp-egress.md'
+  - '.agentic-framework/docs/generated/components/scripts-node1-node1-nightly.md'
+  - '.agentic-framework/docs/generated/components/scripts-node1-node1_nightly.md'
+  - '.agentic-framework/docs/generated/components/scripts-node1-pool-client.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t3513_fabric_blast_radius.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5361_budget_stale_cache.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5373_locks_gitignore.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5394_mcp_egress.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5396_pr_process_comment_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5398_designer_status_refusal_map.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5403_hook_wiring.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5404_inception_sweep_operator_owned.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5405_publish_ban.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t3156_vendored_modes.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5329_withdrawal_counts.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5357_bare_image_evidence.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5358_view_by_content.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5360_cited_dedupe.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5364_outside_contributor_tier.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5367_outside_url_not_page.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5369_review_rung_min.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5370_mistral_seat.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5372_equal_version_downgrade.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5373_consumer_lib_shadow.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5374_authored_scope.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5375_bare_seat_image.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5376_index_all_documents.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5377_latency_single_read.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5381_corpus_phases.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5391_pr_task_links_map.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5392_node1_nightly.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5404_half_done_recovery_text.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5418_own_nickname_orphan.md'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/12-role-chain.py.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/17-test-role-chain-operator-accept.py.txt'
+  - '.agentic-framework/docs/reports/T-5331-credential-must.md'
+  - '.agentic-framework/docs/reports/T-5378-arc-linking.tsv'
+  - '.agentic-framework/docs/reports/T-5392-external-review/SUMMARY.md'
+  - '.agentic-framework/docs/reports/T-5392-external-review/codex.md'
+  - '.agentic-framework/docs/reports/T-5392-external-review/independence.json'
+  - '.agentic-framework/docs/reports/T-5392-external-review/opencode.md'
+  - '.agentic-framework/docs/reports/T-5393-contributor-pr-journey.md'
+  - '.agentic-framework/docs/reports/T-5406-orchestration-module.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/validator-refusal-mapping.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/validator-refusal-mapping.yaml'
+  - '.agentic-framework/lib/__init__.py'
+  - '.agentic-framework/lib/arc.sh'
+  - '.agentic-framework/lib/authored_scope.py'
+  - '.agentic-framework/lib/bvp.sh'
+  - '.agentic-framework/lib/config-file.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/conversation-holder.sh'
+  - '.agentic-framework/lib/evidence_need.py'
+  - '.agentic-framework/lib/hook-telemetry.sh'
+  - '.agentic-framework/lib/hook_wiring.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/init.sh'
+  - '.agentic-framework/lib/issues.py'
+  - '.agentic-framework/lib/locks-gitignore.sh'
+  - '.agentic-framework/lib/mcp_egress.py'
+  - '.agentic-framework/lib/publish_ban.py'
+  - '.agentic-framework/lib/review_policy.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/probe_vision.py'
+  - '.agentic-framework/lib/run_module.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/sidecar/latency.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/test-bundle.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/vector_index_health.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/lib/version-relation.sh'
+  - '.agentic-framework/lib/vote_checker.py'
+  - '.agentic-framework/lib/workflow-map-link.sh'
+  - '.agentic-framework/lib/workflow_map_link.py'
+  - '.agentic-framework/lib/working-gitignore.sh'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/policy/mcp-egress.yaml'
+  - '.agentic-framework/policy/review-backends.yaml'
+  - '.agentic-framework/tools/corpus_spec.py'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.49.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.49.0.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/inception.py'
+  - '.agentic-framework/web/search_utils.py'
+  - '.agentic-framework/web/templates/config.html'
+  - '.claude/settings.json'
+  - '.context/.gitignore'
+  - '.context/checks/audit-warning-allowlist'
+  - '.context/vendor-merges/T-3875/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3875/agents/termlink/bvp-estimator/estimator.py.merged'
+  - '.context/vendor-merges/T-3875/lib/bvp.sh.merged'
+  - '.context/vendor-merges/T-3875/lib/sidecar_cli.py.merged'
+  - '.context/working/.hook-failure-counter'
+  - '.framework.yaml'
+  - '.tasks/.id-highwater'
+  - '.tasks/.id-ledger.jsonl'
+  - '.tasks/active/T-3875-retarget-runme-action-11a-vendored-frame.md'
+  - 'runme.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-27T13:59:54'
+    action: 'T-3875: runme 11a retargeted to AEF v1.8.16-be.67 (T-5425 hook refusals not failures); 3 preserved files merged (estimator.py conflict kept both fallbacks, fixture 34/0); runme fixtures 476/0; divergence clean'
+  - time: '2026-11-27T14:16:42'
+    action: 'T-3875: fw upgrade -> v1.8.16-be.67 (ca1f5fb45, 394 commits; T-5425; runme 11a)'
+  - time: '2026-11-27T14:33:14'
+    action: 'T-3875: be.67 live (3f5738b92); doctor clean after reindex; hook-failure counter reset once and the local Hook-threshold acknowledgement dropped (AEF T-5425 vendored)'
+  - time: '2026-11-27T14:33:16'
+    action: 'T-3875: close (vendored framework at be.67)'
+  - time: '2026-11-27T14:34:36'
+    action: 'T-3875: be.67 live (3f5738b92); doctor clean after reindex; hook-failure counter reset once and the local Hook-threshold acknowledgement dropped (AEF T-5425 vendored)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 62 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 62
+  commits: 6
+  files_changed: 149
+  lines_added: 17688
+  lines_removed: 445
+  footprint_refreshed_at: '2026-11-27T13:34:49Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3875-retarget-runme-action-11a-vendored-frame.md
+generated_by: context-agent-hybrid
