@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-27T13:34:25Z
-last_update: '2026-11-27T13:55:28Z'
+last_update: 2026-11-27T15:00:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,9 +83,11 @@ bvp_scores_proposed:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Preserved files compared be.67 -> be.69 on the mirror; the changed one(s) 3-way merged with local-fix markers kept; merge set + MANIFEST.tsv in `.context/vendor-merges/T-3876`; blob ids confirmed by AEF
-- [ ] runme 11a seams point at be.69 / T-3876 with marker `lib/conversation-holder.sh` / T-5430; fixtures pass; divergence check 0
-- [ ] After the operator's run: 11a OK, VERSION at be.69, no new fw doctor FAIL
+- [x] Preserved files compared be.67 -> be.69 on the mirror; the changed one(s) 3-way merged with local-fix markers kept; merge set + MANIFEST.tsv in `.context/vendor-merges/T-3876`; blob ids confirmed by AEF
+  - **Scope change 2026-11-27:** AEF (msg 8ca6d694) shipped T-5379 in be.70, so the target became be.70 (10a7ac986), carrying T-5379 AND T-5430. Only lib/sidecar_cli.py differs from be.67, and its blob is cbdcf9511373 at both be.69 and be.70 (AEF confirmed), so the one clean merge serves be.70 (theirs sha256 d3dcf072… unchanged; T-3533 marker kept).
+- [x] runme 11a seams point at be.70 / T-3876 with marker `lib/sidecar/adapter2.py` / REREAD_TOTAL_S (T-5379); fixtures pass; divergence check 0
+  - Fixtures 478/0; divergence rc 0; bash -n clean. be.70 keeps T-5351 in adapter2.py (action 40) and T-5430 in lib/conversation-holder.sh.
+- [ ] After the operator's run: 11a OK, VERSION at be.70, no new fw doctor FAIL
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
