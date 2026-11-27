@@ -1,0 +1,282 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3867: Register the ~102 source files that have no fabric card, with real purposes (not scan skeletons)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-27T21:00:08Z
+# ============================================================================
+
+task_id: T-3867
+task_name: "Register the ~102 source files that have no fabric card, with real purposes (not scan skeletons)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-25T10:14:37Z
+completed: 2026-11-27T20:59:29Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-11-27T21:59:24+01:00
+last_commit: 2026-11-27T21:59:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  102 unregistered source files carded with purposes from their own headers (+5 old TODO cards filled); fabric enrich; drift unregistered 0, TODO purposes 0, under-populated 294 -> 273
+
+# Key outcomes
+outcomes:
+  - 'Each file `fw fabric drift` lists as unregistered has a card; `fw fabric drift` reports 0 unregistered'
+  - 'No new card carries a TODO or empty purpose; each purpose comes from the file''s own header text (or a one-line description when the file has none, named in the task)'
+  - 'The audit''s under-populated check does not report new TODO-purpose or unknown-subsystem cards'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/claude-commands-capture.yaml'
+  - '.fabric/components/context-cron-pool-run.yaml'
+  - '.fabric/components/context-cron-target-cache-trim.yaml'
+  - '.fabric/components/context-cron-zombie-reap.yaml'
+  - '.fabric/components/crates-termlink-bus-src-lib.yaml'
+  - '.fabric/components/crates-termlink-bus-src-reclaim.yaml'
+  - '.fabric/components/crates-termlink-bus-src-removal_guard.yaml'
+  - '.fabric/components/crates-termlink-bus-src-worker_contract.yaml'
+  - '.fabric/components/crates-termlink-bus-tests-t3461_durable_off_workers.yaml'
+  - '.fabric/components/crates-termlink-bus-tests-t3473_reads_do_not_wait_on_commit.yaml'
+  - '.fabric/components/crates-termlink-bus-tests-t3701_removal_guard.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-agent_work.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-fleet_join.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-hub_link.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-hub_register.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-infrastructure.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-main_lease.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-mod.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-tmux.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-tmux_spawn.yaml'
+  - '.fabric/components/crates-termlink-cli-src-config.yaml'
+  - '.fabric/components/crates-termlink-cli-src-main.yaml'
+  - '.fabric/components/crates-termlink-cli-src-manifest.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-main_lease_integration.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3366_hub_identity.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3703_revocation.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3704_key_card.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3749_loud_send.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3757_declared_from.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3781_hub_link.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3782_hub_forward.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3788_link_fallback.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3803_broadcast_hint.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3805_inbox_untracked.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3810_ensure_topic_no_create.yaml'
+  - '.fabric/components/crates-termlink-doctor-src-hubs_config.yaml'
+  - '.fabric/components/crates-termlink-doctor-src-lib.yaml'
+  - '.fabric/components/crates-termlink-doctor-src-manifest.yaml'
+  - '.fabric/components/crates-termlink-hub-src-dispatch_contract.yaml'
+  - '.fabric/components/crates-termlink-hub-src-hub_identity.yaml'
+  - '.fabric/components/crates-termlink-hub-src-inbox_consumers.yaml'
+  - '.fabric/components/crates-termlink-hub-src-inbox_consumers_tests.yaml'
+  - '.fabric/components/crates-termlink-hub-src-key_card.yaml'
+  - '.fabric/components/crates-termlink-hub-src-lib.yaml'
+  - '.fabric/components/crates-termlink-hub-src-mail_guard.yaml'
+  - '.fabric/components/crates-termlink-hub-src-remote_store.yaml'
+  - '.fabric/components/crates-termlink-hub-src-revocation.yaml'
+  - '.fabric/components/crates-termlink-hub-tests-wc_conformance-hub.yaml'
+  - '.fabric/components/crates-termlink-mcp-src-lib.yaml'
+  - '.fabric/components/crates-termlink-mcp-tests-t3757_mcp_from.yaml'
+  - '.fabric/components/crates-termlink-mcp-tests-t3780_method_parity.yaml'
+  - '.fabric/components/crates-termlink-protocol-src-lib.yaml'
+  - '.fabric/components/crates-termlink-protocol-src-tlblob.yaml'
+  - '.fabric/components/crates-termlink-session-src-child_env.yaml'
+  - '.fabric/components/crates-termlink-session-src-event_log.yaml'
+  - '.fabric/components/crates-termlink-session-src-founding_log.yaml'
+  - '.fabric/components/crates-termlink-session-src-inbox_read.yaml'
+  - '.fabric/components/crates-termlink-session-src-input_meter.yaml'
+  - '.fabric/components/crates-termlink-session-src-lib.yaml'
+  - '.fabric/components/crates-termlink-session-src-main_lease.yaml'
+  - '.fabric/components/crates-termlink-session-src-procinfo.yaml'
+  - '.fabric/components/crates-termlink-session-src-signed_state.yaml'
+  - '.fabric/components/crates-termlink-session-src-test_seam.yaml'
+  - '.fabric/components/crates-termlink-session-src-tmux_server.yaml'
+  - '.fabric/components/crates-termlink-session-tests-t3703_signed_state.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-activity.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-consumers.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-doorbell.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-enckey.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-enckey_tests.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-estate.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-fields.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-fields_tests.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-host.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-hub_key_pin.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-lease.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-lib.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-liveness.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-mail_waiting.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-meter.yaml'
+  - '.fabric/components/crates-termlink-sidecar-src-revocation.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-b11_enckey_wiring.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-b16_doorbell.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-b16_live.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-b25_mail_waiting_wiring.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-e153_origin_check.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-liveness_hub.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-meter_session_rpc.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-meter_tests.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-p2_parity.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-p5_withhold.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-resend_tests.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3366_hub_key_pin.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3700_consumers.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3703_revocation_sidecar.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3704_impersonation.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3708_clock.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3708_live.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3708_revoff.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3708_status.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3764_fixture_basis.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3769_meter_only.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3770_native_binding.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3772_binding.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3779_missing_basis.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3832_network_cut.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3832_offline_lines.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3832_recipient_card.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3834_recipient_revoked.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-t3854_pointer_origin.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-vendor_log_tests.yaml'
+  - '.fabric/components/crates-termlink-test-utils-src-lib.yaml'
+  - '.fabric/components/install.yaml'
+  - '.fabric/components/runme.yaml'
+  - '.fabric/components/scripts-agent-chat-arc-recent.yaml'
+  - '.fabric/components/scripts-agent-conversation-list.yaml'
+  - '.fabric/components/scripts-agent-listeners-fleet.yaml'
+  - '.fabric/components/scripts-agent-listeners.yaml'
+  - '.fabric/components/scripts-agent-reply.yaml'
+  - '.fabric/components/scripts-agent-respond.yaml'
+  - '.fabric/components/scripts-agent-send.yaml'
+  - '.fabric/components/scripts-arc-live-probe.yaml'
+  - '.fabric/components/scripts-be-reachable.yaml'
+  - '.fabric/components/scripts-canary-status.yaml'
+  - '.fabric/components/scripts-chat-arc-broadcast.yaml'
+  - '.fabric/components/scripts-chat-arc-multicast.yaml'
+  - '.fabric/components/scripts-check-command-cards.yaml'
+  - '.fabric/components/scripts-check-cron-install-drift.yaml'
+  - '.fabric/components/scripts-check-env-leak-freshness.yaml'
+  - '.fabric/components/scripts-check-fleet-binary-freshness.yaml'
+  - '.fabric/components/scripts-check-fleet-doorbell-mail-health.yaml'
+  - '.fabric/components/scripts-check-guard-severity-markers.yaml'
+  - '.fabric/components/scripts-check-outbox.yaml'
+  - '.fabric/components/scripts-check-release-publication-freshness.yaml'
+  - '.fabric/components/scripts-check-unacted-mail.yaml'
+  - '.fabric/components/scripts-check-vendor-divergence.yaml'
+  - '.fabric/components/scripts-commit-pending.yaml'
+  - '.fabric/components/scripts-fabric-command-cards.yaml'
+  - '.fabric/components/scripts-fleet-token-remint.yaml'
+  - '.fabric/components/scripts-focus.yaml'
+  - '.fabric/components/scripts-guard-expected-red.yaml'
+  - '.fabric/components/scripts-hooks-vendor-channel-log.yaml'
+  - '.fabric/components/scripts-hub-binary-swap.yaml'
+  - '.fabric/components/scripts-hub-link-provision.yaml'
+  - '.fabric/components/scripts-lib-env-leak-scan.yaml'
+  - '.fabric/components/scripts-lib-fleet-deploy-runner.yaml'
+  - '.fabric/components/scripts-lib-hub-swap-remote.yaml'
+  - '.fabric/components/scripts-lib-hub-termlink-env.yaml'
+  - '.fabric/components/scripts-lib-remote-inbox-mail.yaml'
+  - '.fabric/components/scripts-lib-remote-inbox-relay.yaml'
+  - '.fabric/components/scripts-lib-runuser-path.yaml'
+  - '.fabric/components/scripts-lib-session-zombies.yaml'
+  - '.fabric/components/scripts-lib-tmux_servers.yaml'
+  - '.fabric/components/scripts-lib-verification-block-batch.yaml'
+  - '.fabric/components/scripts-lib-version-cmp.yaml'
+  - '.fabric/components/scripts-list-closeable.yaml'
+  - '.fabric/components/scripts-listener-heartbeat.yaml'
+  - '.fabric/components/scripts-notify-sidecar-supervisor.yaml'
+  - '.fabric/components/scripts-orchestrator-backlog-drain.yaml'
+  - '.fabric/components/scripts-peer-presence-lookup.yaml'
+  - '.fabric/components/scripts-pool-run.yaml'
+  - '.fabric/components/scripts-reap-zombie-sessions.yaml'
+  - '.fabric/components/scripts-recent-dm.yaml'
+  - '.fabric/components/scripts-relay-hop-check.yaml'
+  - '.fabric/components/scripts-run-wc-vectors.yaml'
+  - '.fabric/components/scripts-session-selftest.yaml'
+  - '.fabric/components/scripts-session-start-alerts.yaml'
+  - '.fabric/components/scripts-substrate-preflight.yaml'
+  - '.fabric/components/scripts-target-cache-trim.yaml'
+  - '.fabric/components/scripts-telemetry-rollup.yaml'
+  - '.fabric/components/scripts-test-agent-listeners-mailbox.yaml'
+  - '.fabric/components/scripts-test-agent-send.yaml'
+  - '.fabric/components/scripts-wake-confirm.yaml'
+  - '.fabric/components/scripts-warn-escalation-file.yaml'
+  - '.fabric/components/tests-b11-enckey-fixtures.yaml'
+  - '.fabric/components/tests-b16-doorbell-fixtures.yaml'
+  - '.fabric/components/tests-b18-vendor-log-fixtures.yaml'
+  - '.fabric/components/tests-b25-lease-fixtures.yaml'
+  - '.fabric/components/tests-b27-followups-fixtures.yaml'
+  - '.fabric/components/tests-env-leak-canary-fixtures.yaml'
+  - '.fabric/components/tests-fixtures-t3791-tl-noqueue.yaml'
+  - '.fabric/components/tests-hub-binary-swap-fixtures.yaml'
+  - '.fabric/components/tests-hub-termlink-env-fixtures.yaml'
+  - '.fabric/components/tests-inception-voi-gate-fixtures.yaml'
+  - '.fabric/components/tests-p5-withhold-fixtures.yaml'
+  - '.fabric/components/tests-pool-run-fixtures.yaml'
+  - '.fabric/components/tests-remote-inbox-relay-fixtures.yaml'
+  - '.fabric/components/tests-run-wc-vectors-cache-fixtures.yaml'
+  - '.fabric/components/tests-runme-fixtures.yaml'
+  - '.fabric/components/tests-session-start-alerts-fixtures.yaml'
+  - '.fabric/components/tests-substrate-preflight-binary-note-fixtures.yaml'
+  - '.fabric/components/tests-substrate-preflight-hub-socket-fixtures.yaml'
+  - '.fabric/components/tests-substrate-preflight-ntp-fixtures.yaml'
+  - '.fabric/components/tests-t3701-b3-fixtures.yaml'
+  - '.fabric/components/tests-t3702-b4-fixtures.yaml'
+  - '.fabric/components/tests-t3708-evidence.yaml'
+  - '.fabric/components/tests-t3757-from-fixtures.yaml'
+  - '.fabric/components/tests-target-cache-trim-fixtures.yaml'
+  - '.fabric/components/tests-triage-apply-fixtures.yaml'
+  - '.fabric/components/tests-unacted-mail-fixtures.yaml'
+  - '.fabric/components/tests-verification-block-batch-proof.yaml'
+  - '.fabric/components/tests-version-cmp-fixtures.yaml'
+  - '.fabric/components/tests-version-derive-tests.yaml'
+  - '.fabric/components/tests-voi-ledger-hermetic-fixtures.yaml'
+  - '.tasks/active/T-3867-register-the-102-source-files-that-have-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-27T21:59:24'
+    action: 'T-3867: 102 unregistered source files carded with purposes from their own headers (+5 old TODO cards filled); fabric enrich; drift unregistered 0, TODO purposes 0, under-populated 294 -> 273'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3524 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3524
+  commits: 2
+  files_changed: 208
+  lines_added: 2971
+  lines_removed: 571
+  footprint_refreshed_at: '2026-11-27T21:00:12Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3867-register-the-102-source-files-that-have-.md
+generated_by: context-agent-hybrid

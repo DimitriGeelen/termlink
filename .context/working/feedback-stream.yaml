@@ -25749,3 +25749,21 @@ scan_id: R-b0137970
 task_id: T-3877
 payload:
   task_file: .tasks/active/T-3877-runme-action-28-reads-testdevs-usage-lim.md
+---
+kind: scan_emitted
+timestamp: '2026-11-27T20:59:48Z'
+scan_id: R-efb685af
+task_id: T-3867
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-27T20:59:48Z'
+scan_id: R-efb685af
+task_id: T-3867
+payload:
+  task_file: .tasks/active/T-3867-register-the-102-source-files-that-have-.md
