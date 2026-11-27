@@ -99,3 +99,7 @@
 {"event":"created","id":3874,"ts":"2026-11-26T18:28:37Z"}
 {"event":"reserve","first":3875,"last":3875,"n":1,"purpose":"create-task","ts":"2026-11-27T12:32:00Z","pid":3597549,"view":"/opt/termlink/.tasks"}
 {"event":"created","id":3875,"ts":"2026-11-27T12:32:00Z"}
+{"event":"reserve","first":3876,"last":3876,"n":1,"purpose":"create-task","ts":"2026-11-27T13:34:25Z","pid":230228,"view":"/opt/termlink/.tasks"}
+{"event":"created","id":3876,"ts":"2026-11-27T13:34:25Z"}
+{"event":"reserve","first":3877,"last":3877,"n":1,"purpose":"create-task","ts":"2026-11-27T13:53:53Z","pid":1408028,"view":"/opt/termlink/.tasks"}
+{"event":"created","id":3877,"ts":"2026-11-27T13:53:53Z"}

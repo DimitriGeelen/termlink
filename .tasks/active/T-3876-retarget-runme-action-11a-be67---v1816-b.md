@@ -1,10 +1,14 @@
 ---
 id: T-3876
-name: "Retarget runme action 11a: be.67 -> v1.8.16-be.69 (AEF T-5430 closes a fail-open claude-fw resume rule)"
+name: "Retarget runme action 11a: be.67 -> v1.8.16-be.69 (AEF T-5430 closes a fail-open
+  claude-fw resume rule)"
 description: >
-  Follow-up to T-3875. AEF (msg 6d82084a, 2026-11-27): be.69 replaces a fail-open claude-fw resume rule that be.67/be.68 carry (AEF T-5430); prefer be.69. Same 11a procedure: compare preserved files be.67 -> be.69 on the mirror, 3-way merge any changed, confirm ids with AEF, retarget, fixtures, operator runme.
+  Follow-up to T-3875. AEF (msg 6d82084a, 2026-11-27): be.69 replaces a fail-open
+  claude-fw resume rule that be.67/be.68 carry (AEF T-5430); prefer be.69. Same 11a
+  procedure: compare preserved files be.67 -> be.69 on the mirror, 3-way merge any
+  changed, confirm ids with AEF, retarget, fixtures, operator runme.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-27T13:34:25Z
-last_update: 2026-11-27T13:34:25Z
-date_finished: null
+last_update: '2026-11-27T13:55:28Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +54,38 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-27T13:55:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3876: Retarget runme action 11a: be.67 -> v1.8.16-be.69 (AEF T-5430 closes a fail-open claude-fw resume rule)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Follow-up to T-3875 (vendored be.67, 2026-11-27). AEF (msg 6d82084a) advises be.69: it replaces a fail-open `claude-fw` resume rule that be.67/be.68 carry (AEF T-5430).
+
+**Problem / hypothesis:** A fail-open rule lets a session resume where it should refuse; we vendor it until 11a moves to be.69. Only one preserved file changed be.67 -> be.69 on the mirror (`lib/sidecar_cli.py`), so this is a small retarget.
+
+**Goal:** One operator runme run moves the vendored framework to be.69 with our local fixes kept.
+
+**Expected outcome:** 11a targets v1.8.16-be.69 (549ed1bc3) with merge set `.context/vendor-merges/T-3876`; after the run VERSION is at be.69 and `lib/conversation-holder.sh` carries AEF T-5430.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Preserved files compared be.67 -> be.69 on the mirror; the changed one(s) 3-way merged with local-fix markers kept; merge set + MANIFEST.tsv in `.context/vendor-merges/T-3876`; blob ids confirmed by AEF
+- [ ] runme 11a seams point at be.69 / T-3876 with marker `lib/conversation-holder.sh` / T-5430; fixtures pass; divergence check 0
+- [ ] After the operator's run: 11a OK, VERSION at be.69, no new fw doctor FAIL
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +386,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3876-retarget-runme-action-11a-be67---v1816-b.md
 - **Context:** Initial task creation
+
+### 2026-11-27T13:55:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

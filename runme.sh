@@ -4302,6 +4302,20 @@ testdev_token_answers() {  # 0 when a prompt run as testdev with the stored toke
     [ "$out" = "OK" ]
 }
 
+# T-3877 (run of 2026-11-27): a usage-limit reply ("You've hit your weekly limit · resets ...") comes from
+# an ACCEPTED token; reading it as a broken token sent the operator through `claude setup-token` for
+# nothing, and would have again on every run until the reset. Such a reply is HELD, never a new login.
+testdev_limited() {
+    case "${TESTDEV_LAST_ANSWER:-}" in
+        *"hit your"*"limit"*|*"usage limit"*|*"Usage limit"*|*"rate limit"*|*"Rate limit"*) return 0 ;;
+    esac
+    return 1
+}
+
+testdev_answer_shown() {  # the last answer, any token-shaped string hidden, one line
+    printf '%s' "${TESTDEV_LAST_ANSWER:-nothing}" | sed -E 's/sk-ant-[A-Za-z0-9_-]+/sk-ant-<hidden>/g' | cut -c1-160
+}
+
 testdev_claude_token() {
     local tmp_added=0
     if ! grep -qxF "$TESTDEV_TMP_MARK" "$TESTDEV_PROFILE" 2>/dev/null; then
@@ -4323,6 +4337,9 @@ testdev_claude_token() {
             say "  skip    testdev's stored token answers (one prompt as testdev returned OK)"; SKIPPED=$((SKIPPED+1))
         fi
         return
+    fi
+    if testdev_limited; then
+        say "  HELD    testdev's stored token is accepted but its account is at a usage limit (it said: $(testdev_answer_shown)); nothing asked, nothing changed; it answers again after the reset"; HELD=$((HELD+1)); return
     fi
     if [ "$DRY_RUN" = "1" ]; then
         say "  [DRY]   would run 'claude setup-token' as testdev at your terminal, ask you to paste the token (hidden), store it in $TESTDEV_TOKEN_FILE (testdev, 600), export it from $TESTDEV_PROFILE, and check one prompt answers OK"; DONE=$((DONE+1)); return
@@ -4403,6 +4420,8 @@ PY
     if testdev_token_answers; then
         say "  OK      testdev has its own long-lived token ($TESTDEV_TOKEN_FILE, mode 600, loaded by $TESTDEV_PROFILE); one prompt as testdev answered OK"
         DONE=$((DONE+1))
+    elif testdev_limited; then
+        say "  HELD    token stored ($TESTDEV_TOKEN_FILE, mode 600, loaded by $TESTDEV_PROFILE) and accepted, but testdev's account is at a usage limit (it said: $(testdev_answer_shown)); nothing more to do, the prompt check passes after the reset"; HELD=$((HELD+1))
     else
         say "  FAILED  token stored, but a prompt as testdev did not answer OK (it said: $(printf '%s' "${TESTDEV_LAST_ANSWER:-nothing}" | sed -E 's/sk-ant-[A-Za-z0-9_-]+/sk-ant-<hidden>/g' | cut -c1-160)); re-run to paste a fresh token"; FAILED=$((FAILED+1))
     fi

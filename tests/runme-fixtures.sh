@@ -555,7 +555,9 @@ cat > "$TD/run" <<'EOS'
 case "$1" in
   *setup-token*) echo "fake setup-token: open https://claude.ai/oauth/fixture and log in"; echo "fake setup-token printed a token" ;;
   *"claude -p"*) if ! grep -q "testdev's own Claude temp dir" "${FAKE_TD_PROFILE:?}" 2>/dev/null; then echo "EACCES: permission denied, mkdir '/var/tmp/claude/claude-1001'"
-                 elif [ "$(cat "${FAKE_TD_TOKEN_FILE:?}" 2>/dev/null)" = "${FAKE_TD_GOOD:?}" ]; then echo OK; else echo "Failed to authenticate: OAuth session expired"; fi ;;
+                 elif [ "$(cat "${FAKE_TD_TOKEN_FILE:?}" 2>/dev/null)" = "${FAKE_TD_GOOD:?}" ]; then
+                   if [ -n "${FAKE_TD_LIMIT:-}" ]; then echo "You've hit your weekly limit · resets Nov 30, 12pm (Europe/Berlin)"; else echo OK; fi
+                 else echo "Failed to authenticate: OAuth session expired"; fi ;;
   *) echo "fake su: unexpected command: $1" >&2; exit 9 ;;
 esac
 EOS
@@ -3078,6 +3080,19 @@ if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      testdev's Claude temp dir is n
    && ! echo "$x" | grep_all 'HELD\|Paste the token'; then
     ok "28: a good stored token behind the root-owned temp dir => temp dir line added, OK, no new paste asked"
 else bad "28 tmp dir" "rc=$rc: $x"; fi
+# T-3877 (run of 2026-11-27): an accepted token on an account at its weekly limit is HELD, never a new login.
+printf '%s\n' "$TD_GOOD" > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/tty-out"; printf 'should-not-be-read\n' > "$TD/tty-in"
+out=$(FAKE_TD_LIMIT=1 run); rc=$?; x=$(s28 "$out")
+if echo "$x" | grep_all "HELD    testdev's stored token is accepted but its account is at a usage limit (it said: You've hit your weekly limit" \
+   && [ "$(cat "$TDF")" = "$TD_GOOD" ] && ! grep_all 'fake setup-token' "$TD/tty-out" && ! echo "$x" | grep_all 'FAILED'; then
+    ok "28: a stored token at its usage limit => HELD with the reset text, no setup-token, nothing changed"
+else bad "28 limit (stored)" "rc=$rc: $x"; fi
+expire_td; printf '%s\n' "$TD_GOOD" > "$TD/tty-in"; out=$(FAKE_TD_LIMIT=1 run); rc=$?; x=$(s28 "$out")
+if echo "$x" | grep_all "HELD    token stored .* and accepted, but testdev's account is at a usage limit" \
+   && [ "$(cat "$TDF")" = "$TD_GOOD" ] && ! echo "$x" | grep_all 'FAILED  token stored'; then
+    ok "28: a fresh token on an account at its usage limit => stored and HELD, not FAILED"
+else bad "28 limit (after store)" "rc=$rc: $x"; fi
+printf '%s\n' "$TD_GOOD" > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/tty-in" "$TD/tty-out"
 printf '%s\n' "$TD_TMPLINE" > "$TD/home/.profile"
 printf 'sk-ant-oat01-EXPIRED\n' > "$TDF"; printf '%s\n' "sk-ant-oat01-STILLBAD" > "$TD/tty-in"; out=$(run); x=$(s28 "$out")
 if echo "$x" | grep_all 'FAILED  token stored, but a prompt as testdev did not answer OK (it said: Failed to authenticate' && ! echo "$x" | grep_all 'STILLBAD'; then
