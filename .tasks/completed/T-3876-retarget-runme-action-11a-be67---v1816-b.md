@@ -8,12 +8,12 @@ description: >
   procedure: compare preserved files be.67 -> be.69 on the mirror, 3-way merge any
   changed, confirm ids with AEF, retarget, fixtures, operator runme.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-27T13:34:25Z
-last_update: 2026-11-27T15:00:07Z
-date_finished:
+last_update: 2026-11-27T21:22:31Z
+date_finished: 2026-11-27T21:22:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -87,7 +87,8 @@ bvp_scores_proposed:
   - **Scope change 2026-11-27:** AEF (msg 8ca6d694) shipped T-5379 in be.70, so the target became be.70 (10a7ac986), carrying T-5379 AND T-5430. Only lib/sidecar_cli.py differs from be.67, and its blob is cbdcf9511373 at both be.69 and be.70 (AEF confirmed), so the one clean merge serves be.70 (theirs sha256 d3dcf072… unchanged; T-3533 marker kept).
 - [x] runme 11a seams point at be.70 / T-3876 with marker `lib/sidecar/adapter2.py` / REREAD_TOTAL_S (T-5379); fixtures pass; divergence check 0
   - Fixtures 478/0; divergence rc 0; bash -n clean. be.70 keeps T-5351 in adapter2.py (action 40) and T-5430 in lib/conversation-holder.sh.
-- [ ] After the operator's run: 11a OK, VERSION at be.70, no new fw doctor FAIL
+- [x] After the operator's run: 11a OK, VERSION at be.70, no new fw doctor FAIL
+  - runme-20261127T211732Z-4147748 (rc=1; failures are greenfield only): 11a "OK upgraded to 1.8.15+3065.g10a7ac986; CLAUDE.md project part and 12 preserved files byte-identical; 1 merged files installed", committed ac58e4a38 and pushed, Watchtower answering, "fw doctor: no new FAIL". `adapter2.py` carries REREAD_TOTAL_S (T-5379); `.context/sidecar/receiver/origin-lookup.log` written (first entry 21:21:46Z). Action 28 now HELD on testdev's usage limit (T-3877 working as intended).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -291,8 +292,20 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "REREAD_TOTAL_S" .agentic-framework/lib/sidecar/adapter2.py
+grep -q "g10a7ac986" .agentic-framework/VERSION
+test -s .context/vendor-merges/T-3876/MANIFEST.tsv
+bash scripts/check-vendor-divergence.sh
 
 ## RCA
+
+**Symptom:** be.67 and be.68, vendored here by T-3875 on 2026-11-27, carry a fail-open `claude-fw` resume rule (AEF report, msg 6d82084a); our origin-reporting go (T-3694 step 5) also waited on AEF T-5379.
+
+**Root cause:** Upstream defects, fixed upstream (AEF T-5430, T-5379). This task delivers them; it fixes nothing itself.
+
+**Why structurally allowed:** A vendored framework is a snapshot; fixes arrive only when 11a is retargeted, and nothing here notices an upstream fix on its own — we learn of it from AEF's mail.
+
+**Prevention:** Asking AEF to name the be-tag for each fix we wait on (done for T-5379, T-5425); 11a's marker check proves the named fix landed (REREAD_TOTAL_S for T-5379).
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -391,3 +404,16 @@ bvp_scores_proposed:
 
 ### 2026-11-27T13:55:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-27T21:22:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d47df2b4
+- **Timestamp:** 2026-11-27T21:22:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
