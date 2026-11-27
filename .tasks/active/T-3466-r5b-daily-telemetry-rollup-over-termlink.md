@@ -88,7 +88,8 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Only .107 observes anyth
 - [x] The aggregate is posted over TermLink through the durable offline queue (a failed push is retried or dead-lettered, never silently lost), to a collection topic with bounded retention (never forever-raw)
 - [x] Raw local data stays local with a 24-48 h bound; only aggregates leave the host. Since T-3465 bounds the local logs by size (1 MiB + backup), the rollup reads only events of the last day from `~/.termlink/queue.log`, `reconnect.log` and `<runtime_dir>/circuit-breaker.jsonl`
 - [x] A read verb or script shows the fleet view: per host and per day, the aggregates, plus which hosts did NOT report (a missing host is the signal, not a gap)
-- [ ] Running on at least two hosts (.107 and one ring20 host) is shown in the collection topic
+- [x] Running on at least two hosts (.107 and one ring20 host) is shown in the collection topic
+  - 2026-11-27: `bash scripts/telemetry-fleet-view.sh` (after T-3878 fixed its 128 KB environment limit) shows four hosts reporting every day 2026-11-20..26: dimitrimintdev (.107), ring20-management, ring20-dashboard, greenfield. Installed on the ring20 hosts by runme action 23 (skip "already runs the current rollup daily").
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

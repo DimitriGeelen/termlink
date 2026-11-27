@@ -475,6 +475,17 @@ TELEMETRY_SENDERS="$TMP/no-such-inventory" TELEMETRY_VIEW_NDJSON="$TMP/v19.ndjso
 chk "V23 an unreadable sender inventory is tooling (rc 2), never an unverified ok" '[ $rc -eq 2 ] && grep -q "sender inventory" "$TMP/v23.err"'
 chk "V24 the committed inventory parses and names .107's rollup key" 'grep -q "^d1993c2c3ec44c94 dimitrimintdev$" "$ROOT/scripts/telemetry-senders.txt"'
 
+# T-3878: the view must work past Linux's 128 KB limit on one argument/environment string. The
+# records used to travel in one environment variable, and the live topic outgrew it (rc 126,
+# "Argument list too long"). ~450 KB of reports here; the mutant puts them back in the environment.
+{ for i in $(seq 1 1500); do mk h1 2026-10-19 "2026-10-20T00:$(printf '%02d' $((i % 60))):00Z" 1; done; } > "$TMP/big.ndjson"
+sign "$TMP/big.ndjson"
+TELEMETRY_VIEW_NDJSON="$TMP/big.ndjson" bash "$V" --days 1 --expect h1 > "$TMP/big.txt" 2>&1; rc=$?
+chk "V25 more than 128 KB of reports: the view runs (rc 0, h1 listed), not 'Argument list too long'" '[ "$(stat -c %s "$TMP/big.ndjson")" -gt 131072 ] && [ $rc -eq 0 ] && grep -q "^h1 " "$TMP/big.txt" && ! grep -q "Argument list too long" "$TMP/big.txt"'
+sed 's#^RAW_FILE="\$RAWF" python3 -#RAW_FILE="$RAWF" RAWDATA="$(cat "$RAWF")" python3 -#' "$V" > "$TMP/view-mutant.sh"
+TELEMETRY_VIEW_NDJSON="$TMP/big.ndjson" bash "$TMP/view-mutant.sh" --days 1 --expect h1 > "$TMP/bigm.txt" 2>&1; rc=$?
+chk "V26 mutant (records back in the environment) fails on the same input, so V25 can see the bug" 'grep -q "RAWDATA=" "$TMP/view-mutant.sh" && [ $rc -ne 0 ] && grep -q "Argument list too long" "$TMP/bigm.txt"'
+
 echo
 echo "PASS: $PASS  FAIL: $FAIL"
 [ "$FAIL" -eq 0 ]

@@ -66,15 +66,21 @@ elif [ "$EXPECT" = reported ]; then
     EXPECT=""
 fi
 
+# T-3878: the collected records go to Python through a private temp file. They used to travel in
+# ONE environment variable (RAW="$RAW" python3 -), and Linux caps a single argument or environment
+# string at 128 KB (MAX_ARG_STRLEN): once the collection topic grew past that, every run died with
+# "python3: Argument list too long" (rc 126) and the fleet view could not be read at all.
+RAWF="$(umask 077; mktemp "${TMPDIR:-/tmp}/.telemetry-view-raw.XXXXXX")" || { echo "telemetry-fleet-view: cannot create a temp file" >&2; exit 2; }
+ERR=""
+trap 'rm -f "$RAWF" ${ERR:+"$ERR"}' EXIT
 if [ -n "${TELEMETRY_VIEW_NDJSON:-}" ]; then
-    RAW="$(cat "$TELEMETRY_VIEW_NDJSON")"
+    cat "$TELEMETRY_VIEW_NDJSON" > "$RAWF" || { echo "telemetry-fleet-view: cannot read $TELEMETRY_VIEW_NDJSON" >&2; exit 2; }
 else
     HUB_ARGS=()
     [ -n "$HUB" ] && HUB_ARGS=(--hub "$HUB")
     PAGE_LIMIT="${TELEMETRY_VIEW_PAGE:-5000}"
     ERR="$(mktemp "${TMPDIR:-/tmp}/.telemetry-view.XXXXXX")"
-    trap 'rm -f "$ERR"' EXIT
-    RAW="" cursor=0 pages=0
+    cursor=0 pages=0
     while :; do
         if ! PAGE="$(timeout 30 "$TL" channel subscribe "$TOPIC" --json --cursor "$cursor" --limit "$PAGE_LIMIT" "${HUB_ARGS[@]}" 2>"$ERR")"; then
             if [ "$pages" = 0 ] && grep -qi "unknown topic\|not found\|no such topic" "$ERR"; then
@@ -83,7 +89,7 @@ else
             echo "telemetry-fleet-view: cannot read $TOPIC at cursor $cursor: $(head -c 300 "$ERR")" >&2
             exit 2
         fi
-        RAW="$RAW"$'\n'"$PAGE"
+        printf '%s\n' "$PAGE" >> "$RAWF"
         pages=$((pages + 1))
         # The trailer says whether the page was cut by the limit and where the next one starts.
         next="$(printf '%s\n' "$PAGE" | python3 -c '
@@ -109,7 +115,7 @@ print("" if nxt is None else nxt)' "$PAGE_LIMIT")"
     done
 fi
 
-RAW="$RAW" python3 - "$DAYS" "$EXPECT" "$JSON" "$SENDERS" <<'PY'
+RAW_FILE="$RAWF" python3 - "$DAYS" "$EXPECT" "$JSON" "$SENDERS" <<'PY'
 import base64, json, os, re, sys, datetime as dt
 
 days = max(1, min(90, int(sys.argv[1])))
@@ -135,7 +141,9 @@ def rank(b):
     return (completeness(b), b.get("generated_at", ""))
 
 reports, unreadable, flags = {}, 0, []
-for line in os.environ.get("RAW", "").splitlines():
+with open(os.environ["RAW_FILE"], encoding="utf-8", errors="replace") as _fh:
+    _raw = _fh.read()
+for line in _raw.splitlines():
     line = line.strip()
     if not line.startswith("{"):
         continue
