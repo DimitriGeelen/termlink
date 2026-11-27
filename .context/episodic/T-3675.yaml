@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3675: WARN escalation: check-task-id-collisions.sh red 14d (since 2026-10-23T05:41:01Z) — fix or reclassify
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-27T21:04:36Z
+# ============================================================================
+
+task_id: T-3675
+task_name: "WARN escalation: check-task-id-collisions.sh red 14d (since 2026-10-23T05:41:01Z) — fix or reclassify"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-06T06:41:42Z
+completed: 2026-11-27T21:04:10Z
+duration_days: 21
+updates_count: 3
+first_commit: 2026-11-07T19:29:40+01:00
+last_commit: 2026-11-07T19:29:40+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — WARN escalation filed (stale: check-task-id-collisions.sh) by warn-escalation-file.sh
+
+# Key outcomes
+outcomes:
+  - '`check-task-id-collisions.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3675-warn-escalation-check-task-id-collisions.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-07T19:29:40'
+    action: 'T-3675: commit unattended write — WARN escalation filed (stale: check-task-id-collisions.sh) by warn-escalation-file.sh'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 31102 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [warn-escalation, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 31102
+  commits: 2
+  files_changed: 4
+  lines_added: 560
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-27T21:04:38Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3675-warn-escalation-check-task-id-collisions.md
+generated_by: context-agent-hybrid

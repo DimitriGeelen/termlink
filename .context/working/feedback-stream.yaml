@@ -25767,3 +25767,21 @@ scan_id: R-efb685af
 task_id: T-3867
 payload:
   task_file: .tasks/active/T-3867-register-the-102-source-files-that-have-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-27T21:04:27Z'
+scan_id: R-92f5773d
+task_id: T-3675
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-27T21:04:27Z'
+scan_id: R-92f5773d
+task_id: T-3675
+payload:
+  task_file: .tasks/active/T-3675-warn-escalation-check-task-id-collisions.md

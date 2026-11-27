@@ -1,13 +1,16 @@
 ---
 id: T-3675
-name: "WARN escalation: check-task-id-collisions.sh red 14d (since 2026-10-23T05:41:01Z) — fix or reclassify"
+name: "WARN escalation: check-task-id-collisions.sh red 14d (since 2026-10-23T05:41:01Z)
+  — fix or reclassify"
 description: >
-  WARN-tier guard member check-task-id-collisions.sh has been red for more than 14 days (first seen red 2026-10-23T05:41:01Z). Operator binding condition (T-3258 rulings): a stale WARN becomes an action.
+  WARN-tier guard member check-task-id-collisions.sh has been red for more than 14
+  days (first seen red 2026-10-23T05:41:01Z). Operator binding condition (T-3258 rulings):
+  a stale WARN becomes an action.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [warn-escalation, guard-layer]
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-06T06:41:42Z
-last_update: 2026-11-06T06:41:42Z
-date_finished: null
+last_update: 2026-11-27T21:04:10Z
+date_finished: 2026-11-27T21:04:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-27T21:04:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3675: WARN escalation: check-task-id-collisions.sh red 14d (since 2026-10-23T05:41:01Z) — fix or reclassify
@@ -58,6 +73,14 @@ date_finished: null
 
 <!-- warn-escalation: member=check-task-id-collisions.sh -->
 Filed automatically by scripts/warn-escalation-file.sh (T-3267) from the host release canary.
+
+**Background / trigger:** Release canary escalated `check-task-id-collisions.sh`, red since 2026-10-23.
+
+**Problem / hypothesis:** Measured 2026-11-25 (T-3866): the check never found a collision; its embedded Python crashed on non-UTF-8 `git diff` output and the uncaught exception exited 1, read as "firing".
+
+**Goal:** The member is green on a real verdict.
+
+**Expected outcome:** Fixed in T-3866 (tolerant decoding; any crash exits 2). Re-run 2026-11-27: rc 0, "no colliding IDs, no duplicate files (7 branch(es) scanned against main)".
 
 - **Member:** `check-task-id-collisions.sh` (tier WARN — never gates CI or a release)
 - **First seen red:** 2026-10-23T05:41:01Z (14d ago; escalation threshold 14d)
@@ -116,7 +139,7 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `check-task-id-collisions.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+- [x] `check-task-id-collisions.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -320,6 +343,7 @@ while the member is still red restarts a 14-day window from the close date, then
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash scripts/check-task-id-collisions.sh > .context/working/.t3675-tic.out 2>&1
 
 ## RCA
 
@@ -417,3 +441,19 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3675-warn-escalation-check-task-id-collisions.md
 - **Context:** Initial task creation
+
+### 2026-11-27T21:04:03Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-27T21:04:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-92f5773d
+- **Timestamp:** 2026-11-27T21:04:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
