@@ -25803,3 +25803,21 @@ scan_id: R-d47df2b4
 task_id: T-3876
 payload:
   task_file: .tasks/active/T-3876-retarget-runme-action-11a-be67---v1816-b.md
+---
+kind: scan_emitted
+timestamp: '2026-11-27T22:06:43Z'
+scan_id: R-bd76c422
+task_id: T-3878
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-27T22:06:43Z'
+scan_id: R-bd76c422
+task_id: T-3878
+payload:
+  task_file: .tasks/active/T-3878-telemetry-fleet-viewsh-dies-with-argumen.md

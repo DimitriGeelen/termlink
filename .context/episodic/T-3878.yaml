@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3878: telemetry-fleet-view.sh dies with 'Argument list too long' (collected data passed to python3 as an argument)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-27T22:06:53Z
+# ============================================================================
+
+task_id: T-3878
+task_name: "telemetry-fleet-view.sh dies with 'Argument list too long' (collected data passed to python3 as an argument)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-27T22:01:36Z
+completed: 2026-11-27T22:05:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-27T23:05:14+01:00
+last_commit: 2026-11-27T23:05:14+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  telemetry-fleet-view passes records through a temp file, not one environment string (Linux 128 KB cap, rc 126 on the live topic); fixtures 95/0 incl. a >128 KB case and its mutant. T-3466: last AC proven (4 hosts report daily)
+
+# Key outcomes
+outcomes:
+  - 'The collected records reach Python through a temp file, never an argument or environment string; the file is private and removed on exit'
+  - 'The view runs on the live collection (exit 0 or a real verdict, not 126) and shows which hosts reported'
+  - 'A fixture with more than 128 KB of records passes; the old form (records in the environment) fails it'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'telemetry-fleet-view passes records through a temp file, not one environment string (Linux 128 KB cap, rc 126 on the live topic); fixtures 95/0 incl. a >128 KB case and its mutant. T-3466: last AC proven (4 hosts report daily)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/.id-highwater'
+  - '.tasks/.id-ledger.jsonl'
+  - '.tasks/active/T-3466-r5b-daily-telemetry-rollup-over-termlink.md'
+  - '.tasks/active/T-3878-telemetry-fleet-viewsh-dies-with-argumen.md'
+  - 'scripts/telemetry-fleet-view.sh'
+  - 'tests/telemetry-rollup-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-27T23:05:14'
+    action: 'T-3878: telemetry-fleet-view passes records through a temp file, not one environment string (Linux 128 KB cap, rc 126 on the live topic); fixtures 95/0 incl. a >128 KB case and its mutant. T-3466: last AC proven (4 hosts report daily)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 9
+  lines_added: 535
+  lines_removed: 13
+  footprint_refreshed_at: '2026-11-27T22:08:22Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3878-telemetry-fleet-viewsh-dies-with-argumen.md
+generated_by: context-agent-hybrid

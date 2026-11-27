@@ -4,12 +4,12 @@ name: "telemetry-fleet-view.sh dies with 'Argument list too long' (collected dat
 description: >
   Operator ruling A on arc-substrate-fitness (2026-11-27): fix the fleet view, then prove T-3466's last AC (two hosts report) and close it. scripts/telemetry-fleet-view.sh line 112: /usr/bin/python3: Argument list too long (rc 126).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/telemetry-fleet-view.sh, tests/telemetry-rollup-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-27T22:01:36Z
-last_update: 2026-11-27T22:05:13Z
-date_finished: null
+last_update: 2026-11-27T22:05:15Z
+date_finished: 2026-11-27T22:05:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -383,3 +383,16 @@ bash -n scripts/telemetry-fleet-view.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3878-telemetry-fleet-viewsh-dies-with-argumen.md
 - **Context:** Initial task creation
+
+### 2026-11-27T22:05:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bd76c422
+- **Timestamp:** 2026-11-27T22:06:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
