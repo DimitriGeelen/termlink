@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-28T08:33:00Z
-last_update: 2026-11-28T08:59:48Z
+last_update: 2026-11-28T09:14:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -71,6 +71,7 @@ date_finished: null
 - [x] Secret missing -> hidden paste from the terminal (HELD without one), token shape checked (`github_pat_…`), stored by `gh secret set` reading stdin, verified in `gh secret list`; present -> skip
 - [x] Hermetic fixture cases with a fake gh (create, skip, private refused, no tty held, bad paste refused, token never in output or logs); runme fixtures pass
   - 2026-11-28: seven action-41 cases pass; suite 485/0 (default-run already-done count +2). The fake gh is exported for the whole suite, so no fixture reaches GitHub. Live read-only check: the tap repo does not exist yet and no Actions secret is set, so the operator's run will create the repo and ask for the token.
+  - Operator run runme-20261128T090945Z-2124452: action 41 "OK created the public repo DimitriGeelen/homebrew-termlink (verified PUBLIC)" and "OK HOMEBREW_TAP_TOKEN stored on DimitriGeelen/termlink and listed". Independent read: `gh repo view` → homebrew-termlink PUBLIC; `gh secret list` → HOMEBREW_TAP_TOKEN set 2026-11-28T09:13:23Z. The paste passed the github_pat_ shape check. Whether the token's access is right is proven only by the next release's tap job (Human AC below).
 
 ### Human
 - [ ] [REVIEW] Create the fine-grained token when runme action 41 asks, and confirm the next release updates the tap
@@ -283,6 +284,9 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "^homebrew_tap()" runme.sh
+grep -q "41: the token appears in no gh argument" tests/runme-fixtures.sh
+bash -n runme.sh
 
 ## RCA
 
