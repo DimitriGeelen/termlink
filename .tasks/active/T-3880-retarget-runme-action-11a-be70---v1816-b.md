@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-28T09:18:53Z
-last_update: 2026-11-28T09:43:41Z
+last_update: 2026-11-28T10:39:44Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -71,6 +71,8 @@ date_finished: null
   - 2026-11-28: be.73 = 7046cc2fd on the mirror; all 12 preserved files blob-identical to be.70, so nothing to merge and nothing for AEF to confirm. `.context/vendor-merges/T-3880` restates the T-3876 merge of lib/sidecar_cli.py (ours == merged 6401009f…, theirs be.73 d3dcf072…) because 11a installs only when the vendored file equals the manifest's "ours" (T-3812 precedent).
 - [x] runme 11a seams point at be.73 / T-3880 with a marker that proves T-5437 landed; fixtures pass; divergence check 0
   - AEFU_TAG v1.8.16-be.73, AEFU_MARK newest_kind in lib/sidecar/adapter2.py (T-5437's new log field), AEFU_MERGES T-3880, AEFU_TASK T-3880. Fixtures 485/0; divergence rc 0; bash -n clean. be.73 keeps T-5351 (action 40).
+  - **be.73 run (runme-20261128T095213Z):** upgrade on disk and verified, but 11a's commit was refused by the foreign-delete guard (T-4528): upstream removed designer project aef-github-pr-intake, last committed by T-3875. Committed by hand naming T-3875 (6794111e6, subject unchanged so 11a's idempotency sees it). First be.73 sample still `mark=none`: hook_id 7159b06a == the record's promptId, but the record was not on disk during the hook (newest seen was the previous notification) — written after the hook. Reported; AEF withdrew its T-5437 diagnosis.
+  - **Scope change 2026-11-28: retargeted be.73 -> be.74 (d00fd79ab)**, carrying AEF T-5439: origin from the `<task-notification>` envelope in the hook payload, newest-record fallback removed, pasted-envelope case pinned by a test. No preserved file changed and nothing deleted be.73 -> be.74; the T-3880 merge set still matches (sidecar_cli.py unchanged). Marker now TASK_NOTIFICATION_ENVELOPE. Fixtures 485/0; divergence rc 0.
 - [ ] After the operator's run: 11a OK, VERSION at be.73, no new fw doctor FAIL
 - [ ] A task-notification turn after the upgrade logs `mark=generated` in `.context/sidecar/receiver/origin-lookup.log`
 

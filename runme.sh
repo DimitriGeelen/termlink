@@ -2255,8 +2255,13 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
-# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.73 (T-3880; was be.70, T-3876)
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.74 (T-3880; was be.70, T-3876)
 #
+# T-3880 retargeted be.73 -> be.74 (d00fd79ab) on 2026-11-28: be.73's T-5437 still missed, because a
+# task-notification record is written AFTER the hook (our sample: hook_id == record id, record not yet on disk).
+# be.74 carries AEF T-5439: origin from the "<task-notification>" envelope in the hook payload, no transcript
+# needed. No preserved file changed and nothing deleted be.73 -> be.74; the T-3880 merge set still holds.
+# Marker: lib/sidecar/adapter2.py defines TASK_NOTIFICATION_ENVELOPE (T-5439).
 # T-3880 retarget be.70 -> be.73 (10a7ac986 -> 7046cc2fd): AEF T-5437. On task-notification turns the hook's
 # prompt_id matches no transcript prompt record, so be.70 still classified them human/inferred (our T-3694, first
 # field sample 2026-11-27); be.73 considers prompt records only and lets the newest one (written within 5 s) decide.
@@ -2340,9 +2345,9 @@ seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3880"
 # (T-3694 ruling A step 3). Five preserved files changed be.59 -> be.61 (check-active-task.sh, handover.sh, bvp.sh,
 # sidecar/inject.py, sidecar_cli.py); all 3-way merged clean (base be.59) into .context/vendor-merges/T-3851, base and
 # theirs from the public mirror at the tags with blob ids checked against AEF's (msg 0bee0f32).
-seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.73"
+seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.74"
 seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/adapter2.py"
-seam AEFU_MARK RUNME_AEFU_MARK "newest_kind"
+seam AEFU_MARK RUNME_AEFU_MARK "TASK_NOTIFICATION_ENVELOPE"
 seam AEFU_TASK RUNME_AEFU_TASK "T-3880"
 AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
 
