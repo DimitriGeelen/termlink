@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-27T21:25:04Z
+last_update: 2026-11-28T12:04:27Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -470,6 +470,14 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
 -->
 
 ## Decisions
+
+### 2026-11-28 — Step 5: switch 010-termlink to origin reporting (operator ruling: "A")
+- **Chose:** A — go now. runme action 39 switches claude-code to origin reporting for 010-termlink once its lockout guard reads the main holder ready (S1 bound, a checked human prompt within 24 h), reads it back, and switches back off by itself (REVERTED, counted FAILED) if no human-counted prompt arrives within 6 h.
+- **Operator's words:** "A" (2026-11-28), after a plain-language brief and a follow-up "Can you give me a little bit more context, background and what the options are?" answered with the main lease, the 23 November re-take, origin checking, the guard and the 6-hour revert.
+- **Why:** be.74 (AEF T-5439) made task-notifications report automated/harness-mark (TermLink meter, 2026-11-28 10:50Z), the step-4 entry condition; the guard makes a wrong call a few hours of waiting mail, while staying in built mode keeps the known re-take bug.
+- **Rejected:** B (wait 2-3 days for more samples: the guard already gives that safety), C (stay in built mode).
+- **Scope:** 010-termlink only. Other projects come back to the operator separately.
+- **Readiness at ruling time:** holder = this session (claude-termlink, 10c2f139-…); the ruling prompt itself recorded origin human, s1 known.
 
 ### 2026-11-23 — work this task although the estimator scores it low-value (operator ruling: "B")
 - **Chose:** B: under the autonomous mandate, the focus anchor outranks the estimator score for the arc-011 one-main

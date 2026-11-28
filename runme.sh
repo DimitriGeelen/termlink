@@ -1711,7 +1711,9 @@ p24_live_check
 #   RUNME_ORG_SOCK_DIR, RUNME_ORG_STATE, RUNME_ORG_FRESH_S, RUNME_ORG_GRACE_S, RUNME_ORG_NOW_MS.
 # ---------------------------------------------------------------------------
 seam ORG_TL RUNME_ORG_TL "$(command -v termlink 2>/dev/null || echo termlink)"
-ORG_GO="${RUNME_ORG_GO-}"
+# T-3694 step 5: operator ruling A, 2026-11-28, recorded in the task's Decisions. Fixtures set RUNME_ORG_GO="" (or
+# their own value), so this default only applies to real runs.
+ORG_GO="${RUNME_ORG_GO-2026-11-28|T-3694 Decisions (operator ruling A)}"
 seam ORG_PROJECT RUNME_ORG_PROJECT "010-termlink"
 seam ORG_HARNESS RUNME_ORG_HARNESS "claude-code"
 seam ORG_SOCK_DIR RUNME_ORG_SOCK_DIR "/var/lib/termlink/sidecar"
