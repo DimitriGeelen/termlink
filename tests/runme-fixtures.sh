@@ -578,6 +578,26 @@ export RUNME_TESTDEV_RUN="$TD/run" RUNME_TESTDEV_TOKEN_FILE="$TD/home/.config/cl
 printf '%s\n' "$TD_GOOD" > "$TD/home/.config/claude/oauth-token"; chmod 600 "$TD/home/.config/claude/oauth-token"
 TD_TMPLINE="# T-3685: testdev's own Claude temp dir (/etc/environment's /var/tmp/claude is root's)"
 printf '%s\nexport CLAUDE_CODE_TMPDIR="$HOME/.cache/claude-tmp"\n' "$TD_TMPLINE" > "$TD/home/.profile"
+# T-3879 action 41: a fake gh over scratch files, so no fixture ever reaches GitHub. $FAKE_TAP/vis holds
+# the tap repo's visibility (absent = no repo), $FAKE_TAP/secrets the listed secret names, secret set
+# stores stdin in $FAKE_TAP/secret-value and logs argv (which must never carry the token).
+# Default = repo PUBLIC and the secret listed, so ordinary runs skip 41.
+TAPF="$TMP/tap"; mkdir -p "$TAPF"
+cat > "$TAPF/gh" <<'EOS'
+#!/usr/bin/env bash
+D="${FAKE_TAP:?}"; printf '%s\n' "$*" >> "$D/argv"
+case "$1 $2" in
+  "repo view")   [ -s "$D/vis" ] && cat "$D/vis" || exit 1 ;;
+  "repo create") [ -n "${FAKE_TAP_CREATE_FAILS:-}" ] && exit 1; echo "${FAKE_TAP_CREATE_VIS:-PUBLIC}" > "$D/vis" ;;
+  "secret list") cat "$D/secrets" 2>/dev/null; true ;;
+  "secret set")  cat > "$D/secret-value"; [ -n "${FAKE_TAP_SET_FAILS:-}" ] && exit 1; echo "$3	Updated 2026-11-28" >> "$D/secrets" ;;
+  *) echo "fake gh: unexpected: $*" >&2; exit 9 ;;
+esac
+EOS
+chmod +x "$TAPF/gh"
+tap_state() { rm -f "$TAPF/vis" "$TAPF/secrets" "$TAPF/secret-value" "$TAPF/argv" "$TAPF/tty-out"; [ -n "$1" ] && echo "$1" > "$TAPF/vis"; [ "${2:-}" = secret ] && printf 'HOMEBREW_TAP_TOKEN\tUpdated 2026-11-01\n' > "$TAPF/secrets"; return 0; }
+export FAKE_TAP="$TAPF" RUNME_TAP_GH="$TAPF/gh" RUNME_TAP_TTY_IN="$TAPF/tty-in" RUNME_TAP_TTY_OUT="$TAPF/tty-out"
+tap_state PUBLIC secret
 # T-3664 action 27: fake systemctl/ss/docker over a scratch daemon.json. Default = already closed
 # (fd:// only, nothing on :2375), so ordinary runs skip; the action-27 cases seed the open state.
 DK="$TMP/docker"; mkdir -p "$DK"
@@ -1204,7 +1224,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 61 ))   # +1 W1 prompt origin waits for 11a (T-3852 action 40); +1 origin reporting off, no go (T-3850 action 39); +1 no W1 units for P-24 (T-3708 action 38); +1 no W1 units for P-12 (T-3700 action 37); +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 63 ))   # +2 Homebrew tap repo + secret already in place (T-3879 action 41); +1 W1 prompt origin waits for 11a (T-3852 action 40); +1 origin reporting off, no go (T-3850 action 39); +1 no W1 units for P-24 (T-3708 action 38); +1 no W1 units for P-12 (T-3700 action 37); +2 no W1 units for P-31 (T-3713 actions 35, 36); +1 no stray key-card store (T-3822 action 34); +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3115,6 +3135,44 @@ if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      testdev has its own long-lived
 else bad "28 two-line paste" "rc=$rc: $x"; fi
 printf '%s\n' "$TD_GOOD" > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/tty-in" "$TD/tty-out"
 printf '%s\nexport CLAUDE_CODE_TMPDIR="$HOME/.cache/claude-tmp"\n' "$TD_TMPLINE" > "$TD/home/.profile"
+
+# ---------------------------------------------------------------------------
+# T-3879 action 41 — Homebrew tap repo + HOMEBREW_TAP_TOKEN (operator ruling A, 2026-11-28).
+# ---------------------------------------------------------------------------
+echo "T-3879: 41 Homebrew tap"
+s41() { echo "$1" | sed -n '/41\. Homebrew tap/,/29\. Podman/p'; }
+TAP_TOK="github_pat_FIXTUREtapTOKEN0123456789abcdef"
+tap_state PUBLIC secret; out=$(run); x=$(s41 "$out")
+if echo "$x" | grep_all "skip    DimitriGeelen/homebrew-termlink exists and is public" && echo "$x" | grep_all "skip    HOMEBREW_TAP_TOKEN is already set"; then
+    ok "41: repo public and secret listed => both skipped"
+else bad "41 skip" "$x"; fi
+tap_state ""; out=$(run --dry-run); x=$(s41 "$out")
+if echo "$x" | grep_all "\[DRY\]   would create the public repo" && [ ! -e "$TAPF/vis" ] && ! grep_all "repo create" "$TAPF/argv"; then
+    ok "41: --dry-run with no repo describes it and creates nothing"
+else bad "41 dry-run" "$x"; fi
+tap_state ""; printf '  %s  \n' "$TAP_TOK" > "$TAPF/tty-in"; out=$(run); rc=$?; x=$(s41 "$out")
+if echo "$x" | grep_all "OK      created the public repo DimitriGeelen/homebrew-termlink (verified PUBLIC)" \
+   && echo "$x" | grep_all "OK      HOMEBREW_TAP_TOKEN stored on DimitriGeelen/termlink and listed" \
+   && [ "$(cat "$TAPF/secret-value")" = "$TAP_TOK" ] && grep_all "personal-access-tokens/new" "$TAPF/tty-out"; then
+    ok "41: no repo, no secret, good paste => repo created public, token stored via stdin (trimmed), listed"
+else bad "41 create+store" "rc=$rc: $x"; fi
+if ! grep_all -F "$TAP_TOK" "$TAPF/argv" && ! echo "$out" | grep_all -F "$TAP_TOK" \
+   && ! grep -rlF "$TAP_TOK" "$RUNME_LOG_DIR" >/dev/null 2>&1 && ls "$RUNME_LOG_DIR"/runme-*.log >/dev/null 2>&1; then
+    ok "41: the token appears in no gh argument, no output and no run log"
+else bad "41 token leak" "the token reached gh's argv, stdout or $RUNME_LOG_DIR"; fi
+tap_state PRIVATE; out=$(run); rc=$?; x=$(s41 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  DimitriGeelen/homebrew-termlink exists but is PRIVATE" && ! grep_all "repo create\|secret set" "$TAPF/argv"; then
+    ok "41: a private repo of that name => FAILED, nothing created or stored"
+else bad "41 private" "rc=$rc: $x"; fi
+tap_state PUBLIC; out=$(RUNME_TAP_TTY_IN="$TAPF/no-such-tty" run); x=$(s41 "$out")
+if echo "$x" | grep_all "HELD    no terminal to ask you on" && [ ! -e "$TAPF/secret-value" ]; then
+    ok "41: no terminal => HELD, nothing stored"
+else bad "41 no tty" "$x"; fi
+tap_state PUBLIC; printf 'ghp_classicTOKENnotfinegrained\n' > "$TAPF/tty-in"; out=$(run); rc=$?; x=$(s41 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  that does not look like a fine-grained token" && [ ! -e "$TAPF/secret-value" ]; then
+    ok "41: a paste that is not a fine-grained token => FAILED, nothing stored"
+else bad "41 bad paste" "rc=$rc: $x"; fi
+tap_state PUBLIC secret; rm -f "$TAPF/tty-in"
 
 # ---- T-3647: action 4b restarts W1 sidecars running older code -------------------
 echo "T-3647: 4b W1 sidecars onto the installed binary"

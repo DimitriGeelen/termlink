@@ -4437,6 +4437,84 @@ head2 "28. A long-lived Claude token for the test user testdev — ASKS YOU at t
 testdev_claude_token
 
 # ---------------------------------------------------------------------------
+# 41. Homebrew tap: the public repo DimitriGeelen/homebrew-termlink and the Actions secret
+# HOMEBREW_TAP_TOKEN on DimitriGeelen/termlink (T-3879; T-3754 option A, operator ruling
+# 2026-11-28). The release job built in T-3754 writes the formula into that repo, so until both
+# exist `brew install termlink` stays at 0.9.1. gh (logged in as DimitriGeelen, scopes repo +
+# workflow) creates the repo and stores the secret; the token itself can only be made in the
+# browser (GitHub has no API for fine-grained tokens), so this ASKS YOU for it at the terminal,
+# input hidden. The token is read from the terminal, passed to `gh secret set` on stdin, and
+# never written to a file, an argument, stdout or the run log.
+#   repo missing            -> create it --public, verify PUBLIC (OK)
+#   repo present and PUBLIC -> skip;  present but not public -> FAILED, nothing changed
+#   secret listed           -> skip
+#   secret missing          -> ask (HELD without a terminal), check github_pat_ shape, store, verify listed
+# Seams (fixtures only): RUNME_TAP_GH, RUNME_TAP_TTY_IN, RUNME_TAP_TTY_OUT.
+# ---------------------------------------------------------------------------
+seam TAP_GH RUNME_TAP_GH "gh"
+seam TAP_TTY_IN RUNME_TAP_TTY_IN "/dev/tty"
+seam TAP_TTY_OUT RUNME_TAP_TTY_OUT "/dev/tty"
+TAP_REPO="DimitriGeelen/homebrew-termlink"
+TAP_SRC_REPO="DimitriGeelen/termlink"
+TAP_SECRET="HOMEBREW_TAP_TOKEN"
+
+homebrew_tap() {
+    local vis
+    vis="$($TAP_GH repo view "$TAP_REPO" --json visibility --jq .visibility 2>/dev/null || true)"
+    if [ -z "$vis" ]; then
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would create the public repo $TAP_REPO (empty), then ask you for the tap token"; DONE=$((DONE+1)); return
+        fi
+        if ! $TAP_GH repo create "$TAP_REPO" --public --description "Homebrew tap for TermLink (formula written by the termlink release job)" >/dev/null 2>&1; then
+            say "  FAILED  could not create $TAP_REPO with gh (gh auth status?)"; FAILED=$((FAILED+1)); return
+        fi
+        vis="$($TAP_GH repo view "$TAP_REPO" --json visibility --jq .visibility 2>/dev/null || true)"
+        if [ "$vis" != "PUBLIC" ]; then
+            say "  FAILED  created $TAP_REPO but it reads '${vis:-nothing}', not PUBLIC"; FAILED=$((FAILED+1)); return
+        fi
+        say "  OK      created the public repo $TAP_REPO (verified PUBLIC)"; DONE=$((DONE+1))
+    elif [ "$vis" != "PUBLIC" ]; then
+        say "  FAILED  $TAP_REPO exists but is $vis; brew needs it public. Nothing changed (make it public on github.com, or tell the agent)"; FAILED=$((FAILED+1)); return
+    else
+        say "  skip    $TAP_REPO exists and is public"; SKIPPED=$((SKIPPED+1))
+    fi
+    if $TAP_GH secret list -R "$TAP_SRC_REPO" 2>/dev/null | awk '{print $1}' | grep -qx "$TAP_SECRET"; then
+        say "  skip    $TAP_SECRET is already set on $TAP_SRC_REPO"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would ask you for a fine-grained token (only $TAP_REPO, Contents: Read and write) and store it as $TAP_SECRET on $TAP_SRC_REPO"; DONE=$((DONE+1)); return
+    fi
+    if ! { : <"$TAP_TTY_IN"; } 2>/dev/null || ! { : >>"$TAP_TTY_OUT"; } 2>/dev/null; then
+        say "  HELD    no terminal to ask you on ($TAP_TTY_IN); run /opt/termlink/runme.sh from a terminal"; HELD=$((HELD+1)); return
+    fi
+    say "  ...     ASKING YOU at the terminal (not logged) for the tap token"
+    local fd token="" more=""
+    printf '\n  Homebrew tap token (T-3879). In the browser, open\n    https://github.com/settings/personal-access-tokens/new\n  Repository access: Only select repositories -> %s\n  Permissions: Repository -> Contents: Read and write.  Generate, copy the github_pat_... value.\n  Paste it here (input hidden), then Enter: ' "$TAP_REPO" >>"$TAP_TTY_OUT"
+    exec {fd}<"$TAP_TTY_IN"
+    IFS= read -rs -u "$fd" token || true
+    while IFS= read -rs -u "$fd" -t 1 more; do token+="$more"; done
+    exec {fd}<&-
+    printf '\n' >>"$TAP_TTY_OUT"
+    token="$(printf '%s' "$token" | tr -d '[:space:]')"
+    case "$token" in
+        github_pat_*) : ;;
+        "") say "  FAILED  no token pasted; nothing stored"; FAILED=$((FAILED+1)); return ;;
+        *) token=""; say "  FAILED  that does not look like a fine-grained token (expected github_pat_...); nothing stored"; FAILED=$((FAILED+1)); return ;;
+    esac
+    if ! printf '%s' "$token" | $TAP_GH secret set "$TAP_SECRET" -R "$TAP_SRC_REPO" >/dev/null 2>&1; then
+        token=""; say "  FAILED  gh secret set $TAP_SECRET on $TAP_SRC_REPO failed; nothing stored"; FAILED=$((FAILED+1)); return
+    fi
+    token=""
+    if $TAP_GH secret list -R "$TAP_SRC_REPO" 2>/dev/null | awk '{print $1}' | grep -qx "$TAP_SECRET"; then
+        say "  OK      $TAP_SECRET stored on $TAP_SRC_REPO and listed; the next release's Homebrew tap job uses it"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $TAP_SECRET was set but is not listed on $TAP_SRC_REPO"; FAILED=$((FAILED+1))
+    fi
+}
+head2 "41. Homebrew tap repo + HOMEBREW_TAP_TOKEN secret — ASKS YOU at the terminal for the token (T-3879; operator ruling A)"
+homebrew_tap
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
