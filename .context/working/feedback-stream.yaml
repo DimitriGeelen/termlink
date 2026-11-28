@@ -25839,3 +25839,39 @@ scan_id: R-ceb9fad9
 task_id: T-3466
 payload:
   task_file: .tasks/active/T-3466-r5b-daily-telemetry-rollup-over-termlink.md
+---
+kind: scan_emitted
+timestamp: '2026-11-28T09:20:50Z'
+scan_id: R-b0d051a7
+task_id: T-3879
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-28T09:20:50Z'
+scan_id: R-b0d051a7
+task_id: T-3879
+payload:
+  task_file: .tasks/active/T-3879-runme-action-homebrew-tap-repo--homebrew.md
+---
+kind: scan_emitted
+timestamp: '2026-11-28T10:48:47Z'
+scan_id: R-6c2e9790
+task_id: T-3880
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-28T10:48:47Z'
+scan_id: R-6c2e9790
+task_id: T-3880
+payload:
+  task_file: .tasks/active/T-3880-retarget-runme-action-11a-be70---v1816-b.md

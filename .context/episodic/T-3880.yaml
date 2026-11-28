@@ -1,0 +1,143 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3880: Retarget runme action 11a: be.70 -> v1.8.16-be.73 (AEF T-5437: task-notification origin matched by the newest prompt record)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-28T10:48:57Z
+# ============================================================================
+
+task_id: T-3880
+task_name: "Retarget runme action 11a: be.70 -> v1.8.16-be.73 (AEF T-5437: task-notification origin matched by the newest prompt record)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-28T09:18:53Z
+completed: 2026-11-28T10:48:45Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-28T10:43:41+01:00
+last_commit: 2026-11-28T11:48:44+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 11a retargeted to AEF v1.8.16-be.73 (T-5437: task-notification origin decided by the newest prompt record); no preserved file changed, T-3876 merge restated; fixtures 485/0. T-3879 agent part done, Human AC open. fw upgrade -> v1.8.16-be.73 (7046cc2fd, 30 commits; newest_kind; runme 11a). runme 11a retargeted to AEF v1.8.16-be.74 (T-5439: task-notification origin from the hook payload's envelope; be.73's lookup could not work, the record is written after the hook); fixtures 485/0. fw upgrade -> v1.8.16-be.74 (d00fd79ab, 14 commits; TASK_NOTIFICATION_ENVELOPE; runme 11a). be.74 live; a task-notification is now reported automated/harness-mark (TermLink meter, last_prompt). T-3694: step-4 entry condition met
+
+# Key outcomes
+outcomes:
+  - 'Preserved files compared be.70 -> be.73 on the mirror; any that changed 3-way merged with local-fix markers kept; merge set + MANIFEST.tsv in `.context/vendor-merges/T-3880`; ids confirmed by AEF when any changed'
+  - 'runme 11a seams point at be.73 / T-3880 with a marker that proves T-5437 landed; fixtures pass; divergence check 0'
+  - 'After the operator''s run: 11a OK, VERSION at be.73, no new fw doctor FAIL'
+  - 'A task-notification turn after the upgrade logs `mark=generated` in `.context/sidecar/receiver/origin-lookup.log`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme 11a retargeted to AEF v1.8.16-be.74 (T-5439: task-notification origin from the hook payload''s envelope; be.73''s lookup could not work, the record is written after the hook); fixtures 485/0'
+    source: git-mined
+  - description: 'runme 11a retargeted to AEF v1.8.16-be.73 (T-5437: task-notification origin decided by the newest prompt record); no preserved file changed, T-3876 merge restated; fixtures 485/0. T-3879 agent part done, Human AC open'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.context/designer/projects/aef-audit-cron/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-audit-cron/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-dispatch-loop/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-dispatch-loop/v4.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-existing-project-onboarding/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-github-pr-intake/v3.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-greenfield-onboarding/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-greenfield-onboarding/v3.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-inception-flow/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-inception-flow/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-inception-lifecycle/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-inception-lifecycle/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-session-lifecycle/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-session-lifecycle/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-task-lifecycle/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-task-lifecycle/v5.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-tier0-escalation/meta.json'
+  - '.agentic-framework/.context/designer/projects/aef-tier0-escalation/v2.bpmn'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/fabric/lib/expand_patterns.py'
+  - '.agentic-framework/agents/git/lib/hooks.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/lib-completion_velocity.md'
+  - '.agentic-framework/docs/generated/components/lib-designer_scope.md'
+  - '.agentic-framework/docs/generated/components/lib-orchestrator_warnings.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5150_nickname_refused.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/validator-refusal-mapping.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/validator-refusal-mapping.yaml'
+  - '.agentic-framework/lib/completion_velocity.py'
+  - '.agentic-framework/lib/cron-registry.sh'
+  - '.agentic-framework/lib/designer_scope.py'
+  - '.agentic-framework/lib/fw-path-check.sh'
+  - '.agentic-framework/lib/human_ac_ticks.py'
+  - '.agentic-framework/lib/orchestrator_warnings.py'
+  - '.agentic-framework/lib/sidecar/adapter2.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.52.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.52.0.py'
+  - '.context/vendor-merges/T-3880/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3880/lib/sidecar_cli.py.merged'
+  - '.framework.yaml'
+  - '.tasks/.id-highwater'
+  - '.tasks/.id-ledger.jsonl'
+  - '.tasks/active/T-3694-p-4-b-25-lease-tightening-and-waiting-ma.md'
+  - '.tasks/active/T-3879-runme-action-homebrew-tap-repo--homebrew.md'
+  - '.tasks/active/T-3880-retarget-runme-action-11a-be70---v1816-b.md'
+  - 'runme.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-28T10:43:41'
+    action: 'T-3880: runme 11a retargeted to AEF v1.8.16-be.73 (T-5437: task-notification origin decided by the newest prompt record); no preserved file changed, T-3876 merge restated; fixtures 485/0. T-3879 agent part done, Human AC open'
+  - time: '2026-11-28T10:56:51'
+    action: 'T-3880: fw upgrade -> v1.8.16-be.73 (7046cc2fd, 30 commits; newest_kind; runme 11a)'
+  - time: '2026-11-28T11:39:44'
+    action: 'T-3880: runme 11a retargeted to AEF v1.8.16-be.74 (T-5439: task-notification origin from the hook payload''s envelope; be.73''s lookup could not work, the record is written after the hook); fixtures 485/0'
+  - time: '2026-11-28T11:45:15'
+    action: 'T-3880: fw upgrade -> v1.8.16-be.74 (d00fd79ab, 14 commits; TASK_NOTIFICATION_ENVELOPE; runme 11a)'
+  - time: '2026-11-28T11:48:44'
+    action: 'T-3880: be.74 live; a task-notification is now reported automated/harness-mark (TermLink meter, last_prompt). T-3694: step-4 entry condition met'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 89 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 89
+  commits: 6
+  files_changed: 57
+  lines_added: 5733
+  lines_removed: 1602
+  footprint_refreshed_at: '2026-11-28T10:49:00Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3880-retarget-runme-action-11a-be70---v1816-b.md
+generated_by: context-agent-hybrid
