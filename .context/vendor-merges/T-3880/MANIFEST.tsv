@@ -1,0 +1,3 @@
+# T-3880: be.70 -> be.73 (10a7ac986 -> 7046cc2fd). NO preserved file changed upstream between the two tags (all 12 blob-identical on the public mirror). This set restates the one merged file so action 11a's manifest check passes: ours = the vendored T-3876 merge, theirs = be.73 (== be.70, blob cbdcf9511373), merged = ours unchanged (T-3812 precedent).
+# path<TAB>ours<TAB>theirs(be.73)<TAB>merged
+lib/sidecar_cli.py	6401009f70b41c7793ea1bf31addf6dc1d6d5a2443c745458931a5331511e5aa	d3dcf072eab31fc97f471638dde980497a51a6f07f75534ca1f644e558b980f7	6401009f70b41c7793ea1bf31addf6dc1d6d5a2443c745458931a5331511e5aa

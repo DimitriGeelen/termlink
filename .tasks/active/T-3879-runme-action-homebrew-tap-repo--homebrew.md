@@ -4,12 +4,12 @@ name: "runme action: Homebrew tap repo + HOMEBREW_TAP_TOKEN secret via gh, token
 description: >
   Operator ruling A on the Homebrew tap (2026-11-28, 'ok' after the split-route explanation): runme creates the public DimitriGeelen/homebrew-termlink repo with gh, the operator creates the fine-grained token in the browser, runme reads it hidden and stores it with gh secret set; verified, never logged.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-28T08:33:00Z
-last_update: 2026-11-28T09:14:37Z
-date_finished: null
+last_update: 2026-11-28T09:20:49Z
+date_finished: 2026-11-28T09:20:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -357,6 +357,15 @@ bash -n runme.sh
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO
+
+**Rationale:** The agent part is done and proven on the operator's run: the public tap repo exists and HOMEBREW_TAP_TOKEN is set (checked with gh). What is left is the Human AC, which only a release can show: the `Homebrew tap` job goes green and brew installs the tagged version. Close it once that release is seen; if the job fails on access, re-run runme action 41 with a new token.
+
+**Evidence:**
+- runme-20261128T090945Z-2124452 action 41: repo created and verified PUBLIC; secret stored and listed.
+- `gh repo view DimitriGeelen/homebrew-termlink` → PUBLIC; `gh secret list -R DimitriGeelen/termlink` → HOMEBREW_TAP_TOKEN 2026-11-28T09:13:23Z.
+- `tests/runme-fixtures.sh` 485/0 incl. seven action-41 cases (token never in argv, output or logs).
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -384,3 +393,16 @@ bash -n runme.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3879-runme-action-homebrew-tap-repo--homebrew.md
 - **Context:** Initial task creation
+
+### 2026-11-28T09:20:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b0d051a7
+- **Timestamp:** 2026-11-28T09:20:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
