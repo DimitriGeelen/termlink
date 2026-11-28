@@ -350,6 +350,12 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
 
 ## Evolution
 
+### 2026-11-28 10:50Z — step-4 entry condition MET: a task-notification is reported automated/harness-mark
+- **What changed:** be.73 (AEF T-5437) still missed: our sample showed the hook's prompt_id equal to the record's promptId while the record was not yet on disk, i.e. Claude Code writes a task-notification record after the hook. AEF withdrew its diagnosis and shipped T-5439 in be.74: origin decided from the `<task-notification>` envelope in the hook payload. Vendored by T-3880 (operator run runme-20261128T104257Z-3715540, 11a OK, commit ff9b94e3c).
+- **Evidence:** `termlink sidecar status --json` (claude-termlink) after that run: this session's `last_prompt` origin "automated", basis "harness-mark" — the task-notification that reported the run's end. Counters: origin_inconsistent 0.
+- **Plan impact:** step 5 (the operator's origin-reporting go, runme action 39) can now be brought to the operator.
+- **Triggered:** decision brief for the go.
+
 ### 2026-11-27 21:30Z — AEF T-5379 vendored (be.70), and its first field sample still misses
 - **What changed:** T-3876 vendored AEF v1.8.16-be.70 (operator run runme-20261127T211732Z, 11a OK, commit ac58e4a38). be.70 carries T-5379: the origin check matches the transcript record by prompt_id and re-reads for up to 0.4 s, logging each lookup to `.context/sidecar/receiver/origin-lookup.log`.
 - **First sample (this session's transcript):** a task-notification turn at 2026-11-27T21:21:45.599Z (promptId f9972525…, origin.kind task-notification, turnOrigin task_notification, promptSource system). Its lookup: `mark=none by=none prompt_id=yes reads=9 waited_ms=420`, i.e. the hook had a prompt_id but no record matched it within the window, so `classify_origin` (interactive session) returned human/inferred, the same misclassification as before.
